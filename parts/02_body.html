@@ -115,6 +115,8 @@
     <button class="fft-btn active" id="peakLineBtn" onclick="togglePeakLine()">Peak line: ON</button>
     <span class="fft-info" id="fftInfo"></span>
   </div>
+  <div class="sticky-sentinel" id="analyzerSentinel" aria-hidden="true"></div>
+  <div class="analyzer-sticky" id="analyzerSticky">
   <div class="chart-card" style="padding:0">
     <div class="analyzer-slot" id="analyzerSlot">
       <div class="layer active" id="layerFft">
@@ -127,6 +129,7 @@
         <canvas id="sgCrosshair" height="220"></canvas>
       </div>
     </div>
+  </div>
   </div>
 
   <!-- ── SCOPE (disclosure) ── -->

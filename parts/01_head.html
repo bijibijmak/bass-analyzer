@@ -421,6 +421,13 @@ select#deviceSelect {
 .frame-info.hot em { color: #ff8c42; }
 
 /* Analyzer slot: two canvases swapped into one fixed-height box */
+.sticky-sentinel { height: 0; margin: 0; padding: 0; }
+.analyzer-sticky { position: sticky; top: 0; z-index: 30; }
+.analyzer-sticky.stuck { background: var(--bg); padding-top: 4px; }
+.analyzer-sticky.stuck .chart-card {
+  margin-bottom: 4px;
+  box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.75);
+}
 .analyzer-slot { position: relative; height: 220px; }
 .analyzer-slot canvas { position: absolute; top: 0; left: 0; }
 .analyzer-slot .layer { display: none; }

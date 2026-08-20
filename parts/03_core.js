@@ -140,6 +140,41 @@ function setTab(name) {
   requestAnimationFrame(() => { sizeIsland(); redrawStatic(); });
 }
 
+// ── Sticky analyzer ────────────────────────────────────────
+// Full height in flow, shrunk when pinned: enough to read spectrum shape
+// with a thumb on a knob, without eating a portrait viewport that is
+// already giving space to the island.
+//
+// Height is a function, not a constant, because the canvases are sized in
+// device pixels from JS -- a CSS-only shrink would just crop them.
+const ANALYZER_H_FULL  = 220;
+const ANALYZER_H_STUCK = 120;
+let analyzerStuck = false;
+function analyzerH() { return analyzerStuck ? ANALYZER_H_STUCK : ANALYZER_H_FULL; }
+
+function resizeAnalyzer() {
+  const slot = document.getElementById('analyzerSlot');
+  if (slot) slot.style.height = analyzerH() + 'px';
+  if (analyzerMode === 'sg') sizeSpectrogram();
+  redrawStatic();
+}
+
+// A zero-height sentinel just above the sticky wrapper: when it scrolls out
+// of view the wrapper is pinned. There is no CSS :stuck selector.
+function initStickyAnalyzer() {
+  const sentinel = document.getElementById('analyzerSentinel');
+  const wrap = document.getElementById('analyzerSticky');
+  if (!sentinel || !wrap) return;
+  if (!('IntersectionObserver' in window)) return;   // stays 220 px, still usable
+  new IntersectionObserver(entries => {
+    const stuck = !entries[0].isIntersecting;
+    if (stuck === analyzerStuck) return;
+    analyzerStuck = stuck;
+    wrap.classList.toggle('stuck', stuck);
+    resizeAnalyzer();
+  }, { threshold: 0 }).observe(sentinel);
+}
+
 // Island must never overlap content: measure it and pad the body to match.
 function sizeIsland() {
   const island = document.getElementById('tabIsland');

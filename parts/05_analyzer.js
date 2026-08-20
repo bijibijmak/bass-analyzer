@@ -113,7 +113,7 @@ function renderColumn(img, bytes, map, n, thickness, vertical) {
 // FFT MODE — line renderer. No schematic curve here; that lives on Mix.
 // ═══════════════════════════════════════════════════════════
 function drawFftChart() {
-  const s = setupCanvas('fftCanvas', 220);
+  const s = setupCanvas('fftCanvas', analyzerH());
   if (!s) return;
   const { ctx, W, H } = s;
   const { cw, ch, xp } = drawAxes(ctx, W, H);
@@ -227,7 +227,6 @@ function drawFftOverlay(ctx, cw, ch, xp, withDbScale) {
 // The frequency axis is deliberately identical to FFT mode so the EQ
 // band markers stay meaningful as vertical lines across both.
 // ═══════════════════════════════════════════════════════════
-const SG_H = 220;
 let sgMap = null, sgImg = null, sgW = 0, sgPlotW = 0, sgPlotH = 0;
 
 function sizeSpectrogram() {
@@ -236,15 +235,15 @@ function sizeSpectrogram() {
   if (W < 2) return;
   // Deliberately 1:1 device pixels — this is a blit, not vector art, and
   // dpr-scaling it triples the per-frame cost for no readable detail.
-  cv.width = W; cv.height = SG_H;
-  cv.style.width = W + 'px'; cv.style.height = SG_H + 'px';
+  cv.width = W; cv.height = analyzerH();
+  cv.style.width = W + 'px'; cv.style.height = analyzerH() + 'px';
   sgW = W;
   sgPlotW = Math.max(1, Math.round(W - PAD.l - PAD.r));
-  sgPlotH = Math.max(1, Math.round(SG_H - PAD.t - PAD.b));
+  sgPlotH = Math.max(1, Math.round(analyzerH() - PAD.t - PAD.b));
 
   const ctx = cv.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = TH.chartBg; ctx.fillRect(0, 0, W, SG_H);
+  ctx.fillStyle = TH.chartBg; ctx.fillRect(0, 0, W, analyzerH());
   ctx.fillStyle = '#000';     ctx.fillRect(PAD.l, PAD.t, sgPlotW, sgPlotH);
 
   sgAllocStrip();
@@ -268,13 +267,13 @@ function drawSgOverlay() {
   const dpr = window.devicePixelRatio || 1;
   const W = cv.parentElement.clientWidth;
   if (W < 2) return;
-  cv.width = W * dpr; cv.height = SG_H * dpr;
-  cv.style.width = W + 'px'; cv.style.height = SG_H + 'px';
+  cv.width = W * dpr; cv.height = analyzerH() * dpr;
+  cv.style.width = W + 'px'; cv.style.height = analyzerH() + 'px';
   const ctx = cv.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, W, SG_H);
+  ctx.clearRect(0, 0, W, analyzerH());
 
-  const cw = W - PAD.l - PAD.r, ch = SG_H - PAD.t - PAD.b;
+  const cw = W - PAD.l - PAD.r, ch = analyzerH() - PAD.t - PAD.b;
   const xp = f => PAD.l + Math.log10(f / AX_FMIN) / AX_DECADES * cw;
 
   LABEL_FREQS.forEach(f => {
@@ -290,7 +289,7 @@ function drawSgOverlay() {
   });
 
   ctx.fillStyle = TH.axisTitle; ctx.font = '9px Share Tech Mono,monospace'; ctx.textAlign = 'center';
-  ctx.fillText('FREQUENCY (Hz)', PAD.l + cw / 2, SG_H - 3);
+  ctx.fillText('FREQUENCY (Hz)', PAD.l + cw / 2, analyzerH() - 3);
   ctx.save(); ctx.translate(11, PAD.t + ch / 2); ctx.rotate(-Math.PI / 2);
   ctx.fillText('TIME ↓', 0, 0); ctx.restore();
 
@@ -663,7 +662,7 @@ const PROBE_LAYERS = {
 function drawProbeLine(drawId, rect, clientX) {
   const cc = document.getElementById(drawId);
   const dpr = window.devicePixelRatio || 1;
-  const W = rect.width, H = 220;
+  const W = rect.width, H = analyzerH();
   if (W < 2) return;
   cc.width = W * dpr; cc.height = H * dpr;
   cc.style.width = W + 'px'; cc.style.height = H + 'px';

@@ -309,6 +309,7 @@ render();
 stopScope();
 renderPresetList();
 sizeIsland();
+initStickyAnalyzer();
 bootDone = true;
 
 let resizeTimer = null;
