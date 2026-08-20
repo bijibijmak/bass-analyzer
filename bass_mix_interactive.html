@@ -265,6 +265,7 @@ footer { font-size: 0.59rem; color: var(--dim); letter-spacing: 0.1em; text-tran
 .audio-status { font-size: 0.62rem; letter-spacing: 0.1em; color: var(--dim); flex: 1; }
 .audio-status em { color: var(--darkglass-teal); font-style: normal; }
 .audio-status.err { color: #ff6666; }
+.audio-status .lat-raw { display: block; margin-top: 2px; opacity: 0.6; font-size: 0.92em; letter-spacing: 0.05em; }
 .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .meter-wrap { display: flex; flex-direction: column; gap: 3px; }
 .meter-label { font-size: 0.58rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
@@ -2072,6 +2073,27 @@ function makeClipCurve(n) {
   return c;
 }
 
+// ── Latency readout ────────────────────────────────────────
+// baseLatency and outputLatency are specified in SECONDS. A four-digit
+// millisecond result therefore means a browser is reporting something
+// else -- most likely already-milliseconds. Rather than guess the unit,
+// show the raw values untouched and clamp + flag the derived figure.
+const LAT_MAX_MS = 500;
+function latencyLine() {
+  if (!audioCtx) return '';
+  const bl = audioCtx.baseLatency;
+  const ol = audioCtx.outputLatency;
+  const sr = audioCtx.sampleRate;
+  if (!Number.isFinite(bl) && !Number.isFinite(ol)) return '';
+  const ms = ((Number.isFinite(bl) ? bl : 0) + (Number.isFinite(ol) ? ol : 0)) * 1000;
+  const over = ms > LAT_MAX_MS;
+  const shown = over ? LAT_MAX_MS : Math.round(ms);
+  const fmt = v => Number.isFinite(v) ? String(Number(v.toPrecision(4))) : 'n/a';
+  const diag = `base ${fmt(bl)} · out ${fmt(ol)} · sr ${sr}`;
+  return ` · Latency: ${over ? '&gt;' : '~'}${shown} ms`
+       + `<small class="lat-raw">${diag}</small>`;
+}
+
 // ── Parameter setter. Never touches connections; the graph is wired
 //    once in startAudio() and stays wired. ──────────────────
 function applyAudioParams() {
@@ -2296,9 +2318,7 @@ async function startAudio() {
     document.getElementById('audioToggle').classList.add('active');
     document.getElementById('bypassBtn').style.display = '';
 
-    const lat = audioCtx.baseLatency
-      ? ` · Latency: ~${Math.round((audioCtx.baseLatency + (audioCtx.outputLatency || 0)) * 1000)} ms`
-      : '';
+    const lat = latencyLine();
     const trackLabel = track.label ? ` · ${track.label}` : '';
     const statusEl = document.getElementById('audioStatus');
     statusEl.innerHTML = `<em>Live · ctx:${audioCtx.state}</em>${trackLabel}${lat}`;
@@ -2386,7 +2406,7 @@ async function switchDevice() {
     sourceNode.disconnect();
     sourceNode = audioCtx.createMediaStreamSource(micStream);
     sourceNode.connect(inGainNode);
-    document.getElementById('audioStatus').innerHTML = `<em>Live · ctx:${audioCtx.state}</em> · ${track.label}`;
+    document.getElementById('audioStatus').innerHTML = `<em>Live · ctx:${audioCtx.state}</em> · ${track.label}` + latencyLine();
   } catch (e) {
     document.getElementById('audioStatus').textContent = 'Device switch failed: ' + e.message;
   }
