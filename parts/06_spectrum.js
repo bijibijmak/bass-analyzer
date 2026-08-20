@@ -10,12 +10,20 @@
 //     tab exit, so nothing here can alter your tone on the Preamp tab.
 //     Mute/solo state lives in JS and is restored on re-entry.
 //
-// Node count: 12 notches (one per harmonic) + 2 bandpass for solo = 14
-// BiquadFilterNodes, exactly as in the original NF = NH + 2.
+// Node count: 12 harmonics x SX_NOTCH_PER_H notches + 2 bandpass for solo.
+// Full build is 2 notches each = 26 BiquadFilterNodes, per the handoff;
+// LITE drops to 1 each = 14, because 26 series biquads is exactly the kind
+// of load the Pi Zero cannot spare.
 // ═══════════════════════════════════════════════════════════
 
 const SX_NH = 12;                 // harmonics tracked
-const SX_NF = SX_NH + 2;          // 12 notches + 2 bandpass
+// Two cascaded notches per harmonic is what makes "mute H3" remove the
+// harmonic rather than merely dip it. Behind the LITE gate so the Pi build
+// is a flag flip, not a fork.
+const SX_NOTCH_PER_H = LITE ? 1 : 2;
+const SX_NF = SX_NH * SX_NOTCH_PER_H + 2;
+const SX_BP0 = SX_NH * SX_NOTCH_PER_H;   // index of the first bandpass node
+const sxNotchIdx = (n, j) => (n - 1) * SX_NOTCH_PER_H + j;
 const SX_FMIN = 28, SX_FMAX = 6000;   // 28 Hz: low B (30.9) sits on-axis
 // Pitch-accept window. Matches the tuner's own range rather than the
 // overtone scope's old 55 Hz autocorrelation floor, which sat above low E.
@@ -192,16 +200,18 @@ function sxApplyFilters() {
   const nyqLimit = audioCtx.sampleRate / 2 - 100;
   if (sxSolo) {
     for (let k = 0; k < 2; k++) {
-      const b = sxChain[SX_NH + k];
+      const b = sxChain[SX_BP0 + k];
       b.type = 'bandpass'; b.Q.value = 14;
       b.frequency.setTargetAtTime(Math.min(sxF0 * sxSolo, nyqLimit), t, 0.02);
     }
   } else {
     for (let n = 1; n <= SX_NH; n++) {
       if (!sxMuted[n]) continue;
-      const c = sxChain[n - 1];
-      c.type = 'notch'; c.Q.value = 22;
-      c.frequency.setTargetAtTime(Math.min(sxF0 * n, nyqLimit), t, 0.02);
+      for (let j = 0; j < SX_NOTCH_PER_H; j++) {
+        const c = sxChain[sxNotchIdx(n, j)];
+        c.type = 'notch'; c.Q.value = 22;
+        c.frequency.setTargetAtTime(Math.min(sxF0 * n, nyqLimit), t, 0.02);
+      }
     }
   }
 }
@@ -211,10 +221,13 @@ function sxRetune() {
   const t = audioCtx.currentTime;
   const nyqLimit = audioCtx.sampleRate / 2 - 100;
   if (sxSolo) {
-    for (let k = 0; k < 2; k++) sxChain[SX_NH + k].frequency.setTargetAtTime(Math.min(sxF0 * sxSolo, nyqLimit), t, 0.05);
+    for (let k = 0; k < 2; k++) sxChain[SX_BP0 + k].frequency.setTargetAtTime(Math.min(sxF0 * sxSolo, nyqLimit), t, 0.05);
   } else {
     for (let n = 1; n <= SX_NH; n++) {
-      if (sxMuted[n]) sxChain[n - 1].frequency.setTargetAtTime(Math.min(sxF0 * n, nyqLimit), t, 0.05);
+      if (!sxMuted[n]) continue;
+      for (let j = 0; j < SX_NOTCH_PER_H; j++) {
+        sxChain[sxNotchIdx(n, j)].frequency.setTargetAtTime(Math.min(sxF0 * n, nyqLimit), t, 0.05);
+      }
     }
   }
 }
