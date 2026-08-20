@@ -208,8 +208,20 @@ profs.forEach(([, name, seek, floor]) => {
 });
 if (/BUF = 512/.test(js)) ok('ScriptProcessor buffer is 512 (10.7 ms), not 4096');
 else bad('ScriptProcessor buffer is not 512 — block latency will dominate');
-if (/dtLoadedVia === 'ScriptProcessor'/.test(js) && /drawLastT/.test(js)) ok('analyzer throttled while the ScriptProcessor host is live');
+if (/dtLoadedVia === 'ScriptProcessor'/.test(js) && /Math\.max\(ms, DRAW_MS_SCRIPTPROC\)/.test(js))
+  ok('analyzer throttled while the ScriptProcessor host is live, and it wins over the mobile cap');
 else bad('no analyzer throttle — the small buffer will crackle');
+// The mobile cap is a separate concern with a separate failure mode: without
+// it a phone redraws 8192 bins every frame.
+if (/DRAW_MS_MOBILE = 1000 \/ 30/.test(js) && /pointer: coarse/.test(js))
+  ok('analyzer capped at 30 fps on touch devices');
+else bad('no mobile draw cap — a phone will redraw every frame over 8192 bins');
+// The readout has to measure draws, not rAF callbacks, or it reports 60 fps
+// while drawing at 30 and is useless for sizing the Pi build.
+if (/if \(minMs && frameLastT && t0 - frameLastT < minMs\) return;/.test(js) &&
+    js.indexOf('frameDeltaMs = frameDeltaMs') > js.indexOf('if (minMs && frameLastT'))
+  ok('frame readout measures draw-to-draw, not rAF-to-rAF');
+else bad('frame readout still measures the rAF rate — it will not show the throttle');
 if (/scan\(-SEEK, SEEK, 4\)/.test(wsola)) ok('search range is symmetric');
 else bad('search range is not symmetric — offsets cannot wrap and will lock at a boundary');
 

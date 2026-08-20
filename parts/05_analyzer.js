@@ -567,7 +567,25 @@ function stopScope() {
 // timer exists so the first Pi Zero boot gives real numbers, not guesses.
 // ═══════════════════════════════════════════════════════════
 let uiRaf = null;
-let frameWorkMs = 0, frameDeltaMs = 0, frameLastT = 0, frameReportT = 0, drawLastT = 0;
+// ── Draw budget ────────────────────────────────────────────
+// Mobile caps analyzer redraws at 30 fps: imperceptible for a spectrum
+// display, and roughly halves main-thread work over 8192 bins.
+//
+// "Mobile" uses the same query as the CSS touch breakpoint, so the two
+// definitions cannot drift apart.
+const mqCoarse = window.matchMedia ? window.matchMedia('(hover: none) and (pointer: coarse)') : null;
+const DRAW_MS_MOBILE = 1000 / 30;   // 33.3 ms
+const DRAW_MS_SCRIPTPROC = 50;      // ~20 fps, see below
+function drawIntervalMs() {
+  let ms = (mqCoarse && mqCoarse.matches) ? DRAW_MS_MOBILE : 0;
+  // The ScriptProcessor host shares this thread. A 512-sample buffer is
+  // 10.7 ms of headroom and a full-rate canvas redraw will eat it and
+  // crackle. Stricter than the mobile cap, so it wins where both apply.
+  if (detune.engaged && dtLoadedVia === 'ScriptProcessor') ms = Math.max(ms, DRAW_MS_SCRIPTPROC);
+  return ms;
+}
+
+let frameWorkMs = 0, frameDeltaMs = 0, frameLastT = 0, frameReportT = 0;
 
 function startUiLoop() {
   if (uiRaf) cancelAnimationFrame(uiRaf);
@@ -575,19 +593,18 @@ function startUiLoop() {
   const loop = ts => {
     uiRaf = requestAnimationFrame(loop);
     const t0 = performance.now();
-    if (frameLastT) frameDeltaMs = frameDeltaMs * 0.9 + (t0 - frameLastT) * 0.1;
-    frameLastT = t0;
 
+    // Meters stay at full rate: they are cheap and they should feel live.
     tickMeters();
 
-    // The ScriptProcessor host shares this thread. A 512-sample buffer is
-    // 10.7 ms of headroom, and a full-rate canvas redraw will eat it and
-    // crackle. Throttle drawing to ~20 fps while that host is live — the
-    // analyzer loses smoothness, the audio keeps its buffer.
-    if (detune.engaged && dtLoadedVia === 'ScriptProcessor') {
-      if (t0 - drawLastT < 50) return;
-      drawLastT = t0;
-    }
+    // Drawing is what gets throttled. Returning here leaves the frame-time
+    // readout measuring draw-to-draw, which is the rate we actually care
+    // about, rather than the rAF rate underneath it.
+    const minMs = drawIntervalMs();
+    if (minMs && frameLastT && t0 - frameLastT < minMs) return;
+
+    if (frameLastT) frameDeltaMs = frameDeltaMs * 0.9 + (t0 - frameLastT) * 0.1;
+    frameLastT = t0;
 
     if (activeTab === 'preamp') {
       if (fftEnabled) { if (analyzerMode === 'fft') drawFftChart(); else sgFrame(); }
