@@ -3295,7 +3295,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); 
 
 const SX_NH = 12;                 // harmonics tracked
 const SX_NF = SX_NH + 2;          // 12 notches + 2 bandpass
-const SX_FMIN = 60, SX_FMAX = 6000;
+const SX_FMIN = 28, SX_FMAX = 6000;   // 28 Hz: low B (30.9) sits on-axis
+// Pitch-accept window. Matches the tuner's own range rather than the
+// overtone scope's old 55 Hz autocorrelation floor, which sat above low E.
+const SX_PITCH_MIN = 27.5;        // = TUNER_MIN_FREQ
+const SX_PITCH_MAX = 1600;
 const SX_LOGMIN = Math.log(SX_FMIN);
 const SX_LOGSPAN = Math.log(SX_FMAX) - Math.log(SX_FMIN);
 
@@ -3508,7 +3512,7 @@ function sxFrame() {
   if (!sxLocked && sxFrameCount % 3 === 0 && tunerAnalyser && tunerBuf) {
     tunerAnalyser.getFloatTimeDomainData(tunerBuf);
     const p = detectPitch(tunerBuf, audioCtx.sampleRate);
-    if (p > 0 && p >= 55 && p <= 1600) {
+    if (p > 0 && p >= SX_PITCH_MIN && p <= SX_PITCH_MAX) {
       sxHist.push(p); if (sxHist.length > 7) sxHist.shift();
       const m = sxMedian(sxHist);
       if (!sxF0 || Math.abs(m - sxF0) / sxF0 > 0.004) { sxF0 = m; sxRetune(); }
