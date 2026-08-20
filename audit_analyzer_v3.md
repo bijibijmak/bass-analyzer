@@ -257,3 +257,93 @@ Not done:
 leaves a `.lock` behind that jams the next one. Each git call in this session is preceded by a
 sweep that *renames* stale locks into `.git/_stale/` rather than deleting them. It works, but
 that directory will accumulate junk — worth clearing out by hand at some point.
+
+---
+
+# Implementation record — 2026-08-20
+
+All seven items implemented on branch `analyzer-v3`, eight commits, each one
+built, reproducibility-checked and tested before being committed. Nothing pushed.
+
+```
+f126908  Spectrum chain: 26 nodes full / 14 under LITE      (§6)
+d2e7e11  30 fps analyzer cap on mobile                      (§9)
+cae6e83  Sticky analyzer, 220 px in flow / 120 px pinned     (§2)
+cd9853a  verify.js: static guards for the axis constants
+324611f  Frequency ceiling 20 kHz -> 10 kHz                  (§5)
+b8356d6  Raw latency diagnostic                              (§9)
+36dc571  Spectrum: drop the reimposed 55 Hz pitch floor      (§6)
+79c7c6b  Pedal SVG to the bottom of the Preamp tab           (§2)
+```
+
+`build.sh` reproduces the checked-in HTML byte-for-byte and all three suites
+pass: verify.js static, dsptest.js DSP, smoke.js jsdom.
+
+## Two stale tests the gates caught
+
+Both were tests encoding an assumption that the change invalidated — neither
+was a defect in the new code, and neither would have been obvious by reading.
+
+**`smoke.js` had the old axis baked in.** Its probe test computed the click
+position as `38 + Math.log10(f / 20) / 3 * (542 - 38)`. That literal `3` is
+three decades above 20 Hz — the 20 kHz span again, in a *third* place the
+audit hadn't found because it lives in the test harness, not the app. After
+the ceiling moved it clicked the x that used to mean 110 Hz and correctly
+read 93 Hz. Now derives from the page's own `AX_FMIN` / `AX_DECADES`, so it
+cannot go stale again; what it asserts (110 Hz lands on A2) is unchanged.
+
+**`verify.js` asserted the throttle by variable name.** It required
+`drawLastT` to exist. The throttle still exists but moved into
+`drawIntervalMs()` and reuses `frameLastT`, so the check failed on a rename.
+Rewritten to assert behaviour instead — that the ScriptProcessor interval is
+applied and composes with the mobile cap by `max()` rather than replacing it,
+which is the property that actually protects the audio buffer.
+
+## Correction to the audit above
+
+**§5 was wrong about the hi-hat curve.** The audit warned that a 10 kHz
+ceiling would cut `hhCurve` off mid-climb. It doesn't: `Math.min(..., 1)`
+saturates that curve at full height from ~7 kHz to ~18 kHz, so at the new
+ceiling it rises and then plateaus well inside the visible range. `snareCurve`
+peaks at 7.5 kHz, also inside. Neither curve was reshaped.
+
+## Two decisions taken rather than referred
+
+**Spectrum node count (item 7, listed above as "decision, not code").** The
+handoff wanted 26 nodes, the code had 14, and the stated reason for the
+deviation was Pi CPU — which is what the `LITE` flag already exists for. So
+`SX_NOTCH_PER_H = LITE ? 1 : 2`: 26 nodes on desktop and phone, 14 under
+LITE. Index arithmetic verified for both modes. Reverting to 14 everywhere is
+a one-line change.
+
+**Pitch floor value.** Lifted to 27.5 Hz to match `TUNER_MIN_FREQ` rather
+than to a bass-specific number, since the handoff's instruction was to feed
+from the tuner's detector — so it should accept what that detector delivers.
+`tunerFftSize` is 8192 and never reduced, which resolves the full 27.5 Hz at
+both 44.1 and 48 kHz. `SX_FMIN` moved 60 → 28 in the same commit, without
+which the clamp fix only half works.
+
+## One consequence worth knowing
+
+The high-cut slider still runs to 16 kHz, so its top third now sits off-chart.
+That is a real tension in the handoff's own reasoning — it justified 10 kHz
+partly on keeping hiss visible — so the control range was left alone rather
+than quietly shrunk. Worth a decision at some point: cap the slider at 10 kHz,
+or accept tuning it blind above that.
+
+## What still needs a human
+
+Static verification is complete. Everything below needs ears, eyes or a phone:
+
+| Step | What to check |
+|---|---|
+| 2 | Latency line now shows raw `base · out · sr` — **read the actual numbers**, that is the whole point, then decide the clamp |
+| 5 | Drive section: FFT shows new harmonics as drive engages |
+| 6 | Tuner on open strings |
+| 7 | Spectrum: **play open E1 (41.2 Hz) and low B** — the ladder should now lock and chips appear where it previously did nothing |
+| 7 | Mute H3 — should now *remove* rather than dip it (26-node chain) |
+| 8 | Tab-exit disconnect, no click on switch |
+| 10 | Scroll Preamp: analyzer sticks and shrinks to 120 px, pedal SVG now at the bottom |
+| 10 | **iOS Safari specifically** — sticky vs the fixed island, with the dynamic toolbar shown and hidden |
+| 13 | `#frameInfo` should report ~30 fps on the phone, and compose sanely with Detune engaged |
+| 14 | PWA still installs and loads offline |
