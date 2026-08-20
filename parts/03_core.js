@@ -151,9 +151,26 @@ function sizeIsland() {
 // ═══════════════════════════════════════════════════════════
 // FREQUENCY AXIS + SCHEMATIC CURVES  (Mix tab only)
 // ═══════════════════════════════════════════════════════════
+// ── Axis range ─────────────────────────────────────────────
+// Ceiling is 10 kHz, not 20 kHz. On a log axis 10 kHz buys ~11% more
+// pixels per decade; what it costs is the 10-20 kHz band, which carries
+// nothing a bass player works against. Hiss lives 5-15 kHz and stays
+// visible, and there is a full octave above the 5 kHz treble shelf to
+// see its upper skirt.
+//
+// EVERY frequency display derives from these three. Do not reintroduce a
+// bare 20000 or a bare Math.log10(1000): the span used to be written as
+// "three decades from 20 Hz" with no ceiling literal in the mapping at
+// all, so a literal-only edit passed review while the axis stayed wrong.
+// verify.js now fails the build on both patterns.
+const AX_FMIN = 20;
+const AX_FMAX = 10000;
+const AX_DECADES = Math.log10(AX_FMAX / AX_FMIN);
+
 const STEPS = 500;
-const freqs = Array.from({ length: STEPS + 1 }, (_, i) => 20 * Math.pow(20000 / 20, i / STEPS));
-const LABEL_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+const freqs = Array.from({ length: STEPS + 1 },
+  (_, i) => AX_FMIN * Math.pow(AX_FMAX / AX_FMIN, i / STEPS));
+const LABEL_FREQS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 function fLabel(f) { return f >= 1000 ? f / 1000 + 'k' : '' + f; }
 
 function gauss(f, fc, bw, a) { return a * Math.exp(-Math.pow(Math.log(f / fc) / bw, 2)); }
@@ -252,7 +269,7 @@ const PAD = { t: 14, r: 18, b: 33, l: 38 };
 
 function drawAxes(ctx, W, H) {
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
-  const xp = f => PAD.l + Math.log10(f / 20) / Math.log10(1000) * cw;
+  const xp = f => PAD.l + Math.log10(f / AX_FMIN) / AX_DECADES * cw;
 
   ctx.fillStyle = TH.chartBg; ctx.fillRect(0, 0, W, H);
 

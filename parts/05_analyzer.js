@@ -160,7 +160,7 @@ function drawFftOverlay(ctx, cw, ch, xp, withDbScale) {
   let started = false, lastX = PAD.l + cw;
   for (let i = 1; i < binCount; i++) {
     const freq = (i / binCount) * nyquist;
-    if (freq < 20 || freq > 20000) continue;
+    if (freq < AX_FMIN || freq > AX_FMAX) continue;
     const x = xp(freq);
     if (x < PAD.l || x > PAD.l + cw) continue;
     const norm = Math.max(0, Math.min(1, (fftBuf[i] - minDb) / dbRange));
@@ -181,7 +181,7 @@ function drawFftOverlay(ctx, cw, ch, xp, withDbScale) {
   ctx.beginPath(); started = false;
   for (let i = 1; i < binCount; i++) {
     const freq = (i / binCount) * nyquist;
-    if (freq < 20 || freq > 20000) continue;
+    if (freq < AX_FMIN || freq > AX_FMAX) continue;
     const x = xp(freq);
     if (x < PAD.l || x > PAD.l + cw) continue;
     const norm = Math.max(0, Math.min(1, (fftBuf[i] - minDb) / dbRange));
@@ -197,7 +197,7 @@ function drawFftOverlay(ctx, cw, ch, xp, withDbScale) {
     ctx.beginPath(); started = false;
     for (let i = 1; i < binCount; i++) {
       const freq = (i / binCount) * nyquist;
-      if (freq < 20 || freq > 20000) continue;
+      if (freq < AX_FMIN || freq > AX_FMAX) continue;
       const x = xp(freq);
       if (x < PAD.l || x > PAD.l + cw) continue;
       const pkDb = peakHoldBuf[i];
@@ -249,7 +249,7 @@ function sizeSpectrogram() {
 
   sgAllocStrip();
   sgMap = (fftAnalyser && audioCtx)
-    ? buildLogMap(sgPlotW, fftAnalyser.frequencyBinCount, audioCtx.sampleRate, 20, 20000, false)
+    ? buildLogMap(sgPlotW, fftAnalyser.frequencyBinCount, audioCtx.sampleRate, AX_FMIN, AX_FMAX, false)
     : null;
   updateSpeedInfo();
 }
@@ -275,7 +275,7 @@ function drawSgOverlay() {
   ctx.clearRect(0, 0, W, SG_H);
 
   const cw = W - PAD.l - PAD.r, ch = SG_H - PAD.t - PAD.b;
-  const xp = f => PAD.l + Math.log10(f / 20) / Math.log10(1000) * cw;
+  const xp = f => PAD.l + Math.log10(f / AX_FMIN) / AX_DECADES * cw;
 
   LABEL_FREQS.forEach(f => {
     ctx.fillStyle = TH.axisLabel; ctx.font = '10px Share Tech Mono,monospace'; ctx.textAlign = 'center';
@@ -646,7 +646,7 @@ function chartXtoFreq(canvas, clientX) {
   const cw = rect.width - PAD.l - PAD.r;
   const t = (x - PAD.l) / cw;
   if (t < 0 || t > 1) return null;
-  return 20 * Math.pow(20000 / 20, t);
+  return AX_FMIN * Math.pow(AX_FMAX / AX_FMIN, t);
 }
 function freqDisplay(f) {
   if (f >= 1000) return (f / 1000).toFixed(f >= 10000 ? 1 : 2) + ' kHz';

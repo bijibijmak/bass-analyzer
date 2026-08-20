@@ -311,7 +311,9 @@ setTimeout(() => {
   try {
     const tip = d.getElementById('freqTooltip');
     // Canvas spans x=0..560; PAD.l=38, PAD.r=18 → plot is 38..542.
-    // Midpoint of a 20 Hz–20 kHz log axis is ~632 Hz.
+    // Midpoint of the log axis: ~632 Hz over 20 Hz–20 kHz, ~447 Hz over
+    // 20 Hz–10 kHz. The assertion below only requires that some frequency
+    // is reported, so it holds either way.
     ev('setAnalyzerMode')('fft');
     ev('showProbe')(38 + (542 - 38) / 2, 100);
     if (tip.style.display === 'block' && /Hz|kHz/.test(tip.textContent)) ok('FFT probe shows a frequency: "' + tip.textContent + '"');
@@ -333,9 +335,13 @@ setTimeout(() => {
     if (tip.style.display === 'none') ok('probe ignores x outside the plot area');
     else bad('probe reported "' + tip.textContent + '" outside the plot');
 
-    // Note naming at a known frequency: x for 110 Hz on the log axis
+    // Note naming at a known frequency. The x is derived from the page's own
+    // axis constants rather than a duplicated span, so this cannot go stale
+    // when the range changes -- it asserts that 110 Hz lands on A2, whatever
+    // the ceiling is. (It used to divide by a literal 3: three decades above
+    // 20 Hz, i.e. a hardcoded 20 kHz.)
     ev('hideProbe')();
-    const xFor = f => 38 + Math.log10(f / 20) / 3 * (542 - 38);
+    const xFor = f => 38 + Math.log10(f / ev('AX_FMIN')) / ev('AX_DECADES') * (542 - 38);
     ev('showProbe')(xFor(110), 100);
     if (/A2/.test(tip.textContent)) ok('110 Hz probes as A2: "' + tip.textContent + '"');
     else bad('110 Hz probed as "' + tip.textContent + '"');
