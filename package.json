@@ -1,0 +1,13 @@
+{
+  "name": "bass-analyzer-tests",
+  "private": true,
+  "description": "Verification harness for bass_mix_interactive.html",
+  "scripts": {
+    "test": "node verify.js bass_mix_interactive.html && node dsptest.js bass_mix_interactive.html && node smoke.js bass_mix_interactive.html",
+    "static": "node verify.js bass_mix_interactive.html",
+    "dsp": "node dsptest.js bass_mix_interactive.html",
+    "smoke": "node smoke.js bass_mix_interactive.html",
+    "serve": "python3 -m http.server 8080"
+  },
+  "devDependencies": { "jsdom": "^24.0.0" }
+}

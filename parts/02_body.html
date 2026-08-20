@@ -1,0 +1,583 @@
+<body>
+<div class="app-wrap">
+
+<div class="header-row">
+  <header>
+    <h1>Bass <em>Analyzer</em></h1>
+    <p>Darkglass B7K v2 · preamp · tuner · spectrum</p>
+  </header>
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: Reference chart (opened from the Mix tab)
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="refModal" onclick="closeRefModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Frequency <em>Reference</em></div>
+      <button class="modal-close" onclick="closeRef()">✕ Close</button>
+    </div>
+    <div class="legend" style="margin-bottom:12px">
+      <div class="legend-item"><div class="sw bass"></div>Bass (cut-through)</div>
+      <div class="legend-item"><div class="sw bassflat"></div>Bass (flat)</div>
+      <div class="legend-item"><div class="sw guitar"></div>Dist. Guitar</div>
+      <div class="legend-item"><div class="sw kick"></div>Kick</div>
+      <div class="legend-item"><div class="sw snare"></div>Snare</div>
+      <div class="legend-item"><div class="sw hh"></div>Hi-Hat</div>
+    </div>
+    <div class="chart-card" style="margin-bottom:12px">
+      <canvas id="refChart" height="200"></canvas>
+    </div>
+    <div class="ann-row">
+      <div class="ann kl">
+        <strong>40–80 Hz · Sub clash</strong>
+        Kick and bass fundamental overlap here. <em>One must yield.</em> Sidechain-duck or high-pass the kick body above ~60 Hz.
+      </div>
+      <div class="ann ol">
+        <strong>200–500 Hz · Mud zone</strong>
+        Guitar low-mids, bass upper harmonics, kick batter all pile up. Notching guitar here clears the most space.
+      </div>
+      <div class="ann bl">
+        <strong>700 Hz–1.2 kHz · Click / attack</strong>
+        <em>This is what makes bass audible.</em> Fret/pluck transient. Boosting here = every note change becomes distinct.
+      </div>
+      <div class="ann gl">
+        <strong>2–5 kHz · Guitar dominance</strong>
+        Distorted guitar saturates this band. Bass needs a boost or guitar a notch here.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     AUDIO ENGINE BAR — lives on the Preamp tab
+     ══════════════════════════════════════════════════════════ -->
+<section class="tab-panel active" id="panel-preamp" role="tabpanel" aria-labelledby="tab-preamp">
+
+  <div class="audio-bar" id="audioBar">
+    <div class="audio-top">
+      <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">&#9654; Enable Audio</button>
+      <button class="audio-btn" id="bypassBtn" onclick="toggleBypass()" style="display:none">Bypass: OFF</button>
+      <div class="audio-status" id="audioStatus">Click "Enable Audio" — allow mic access when prompted</div>
+      <span class="audio-status" id="detuneBadge" style="display:none;flex:0 0 auto;color:var(--darkglass-teal)"></span>
+    </div>
+    <div class="meters" id="metersRow" style="display:none">
+      <div class="meter-wrap">
+        <div class="meter-label">Input <span id="inDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+        <div class="meter-track"><div class="meter-fill" id="inMeter"></div></div>
+      </div>
+      <div class="meter-wrap">
+        <div class="meter-label">Output <span id="outDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+        <div class="meter-track"><div class="meter-fill" id="outMeter"></div></div>
+      </div>
+    </div>
+    <div class="device-row" id="deviceRow" style="display:none">
+      <label for="deviceSelect">Input Device</label>
+      <select id="deviceSelect" onchange="switchDevice()"></select>
+    </div>
+    <div class="trim-row" id="trimRow" style="display:none">
+      <div class="trim-item">
+        <div class="trim-label">Input Trim <span id="inTrimVal">0 dB</span></div>
+        <input type="range" id="inTrimKnob" min="-20" max="20" value="0" step="1">
+      </div>
+      <div class="trim-item">
+        <div class="trim-label">Output Trim <span id="outTrimVal">0 dB</span></div>
+        <input type="range" id="outTrimKnob" min="-20" max="20" value="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANALYZER: FFT ⇄ SPECTROGRAM ── -->
+  <div class="section-label">Analyzer — <span>live spectrum</span></div>
+  <div class="fft-toggle-row">
+    <button class="fft-btn active" id="modeFftBtn" onclick="setAnalyzerMode('fft')">FFT</button>
+    <button class="fft-btn"        id="modeSgBtn"  onclick="setAnalyzerMode('sg')">Spectrogram</button>
+    <span class="frame-info" id="frameInfo">frame <em>—</em></span>
+  </div>
+  <div class="fft-toggle-row" id="speedRow" style="display:none">
+    <span class="speed-wrap">
+      <span class="speed-label">Scroll</span>
+      <span class="speed-sel" id="speedSel">
+        <button type="button" data-speed="0" onclick="setSgSpeed(0)">¼×</button>
+        <button type="button" data-speed="1" onclick="setSgSpeed(1)">½×</button>
+        <button type="button" data-speed="2" onclick="setSgSpeed(2)">1×</button>
+        <button type="button" data-speed="3" onclick="setSgSpeed(3)">2×</button>
+        <button type="button" data-speed="4" onclick="setSgSpeed(4)">4×</button>
+      </span>
+    </span>
+    <span class="fft-info" id="speedInfo"></span>
+  </div>
+  <div class="fft-toggle-row">
+    <button class="fft-btn" id="fftBtn"   onclick="toggleFFT()">Run: OFF</button>
+    <button class="fft-btn" id="holdBtn"  onclick="togglePeakHold()" style="display:none">Hold: OFF</button>
+    <button class="fft-btn" id="resetBtn" onclick="resetPeakHold()"  style="display:none">Reset</button>
+    <button class="fft-btn active" id="peakLineBtn" onclick="togglePeakLine()">Peak line: ON</button>
+    <span class="fft-info" id="fftInfo"></span>
+  </div>
+  <div class="chart-card" style="padding:0">
+    <div class="analyzer-slot" id="analyzerSlot">
+      <div class="layer active" id="layerFft">
+        <canvas id="fftCanvas" height="220"></canvas>
+        <canvas id="crosshairCanvas" height="220" style="pointer-events:none"></canvas>
+      </div>
+      <div class="layer" id="layerSg">
+        <canvas id="sgCanvas" height="220"></canvas>
+        <canvas id="sgOverlay" height="220" style="pointer-events:none"></canvas>
+        <canvas id="sgCrosshair" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCOPE (disclosure) ── -->
+  <div class="disclosure">
+    <button class="disclosure-btn" id="scopeDisclosure" onclick="toggleScopePanel()">▸ Oscilloscope</button>
+  </div>
+  <div class="scope-card" id="scopeCard">
+    <div class="scope-toolbar">
+      <span class="scope-label">Scope</span>
+      <button class="scope-btn active" id="scopeBtnIn"   onclick="setScopeMode('in')">Input</button>
+      <button class="scope-btn"        id="scopeBtnOut"  onclick="setScopeMode('out')">Output</button>
+      <button class="scope-btn"        id="scopeBtnBoth" onclick="setScopeMode('both')">Both</button>
+      <span class="scope-info" id="scopeInfo"><em>—</em></span>
+    </div>
+    <canvas id="scopeCanvas" height="140"></canvas>
+  </div>
+
+  <!-- ── PEDAL + FULL CONTROLS ── -->
+  <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
+  <div class="pedal-section">
+    <div class="pedal-wrap">
+      <svg id="pedalSvg" viewBox="0 0 540 300" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="controls-grid">
+
+      <div class="ctrl-card" id="cardBlend">
+        <div class="ctrl-label">Blend
+          <span style="display:flex;align-items:center;gap:6px">
+            <span class="val" data-val="blend">0%</span>
+            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Blend">?<span class="tip-bub">Mixes the clean signal with the distorted one, equal-power. The clean path runs at unity gain and is untouched by Level, Drive, Grunt or Attack.</span></button>
+          </span>
+        </div>
+        <div class="ctrl-sub">Dry ⇄ wet, equal-power</div>
+        <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
+        <div class="range-labels"><span>Clean</span><span>Distorted</span></div>
+      </div>
+
+      <div class="ctrl-card" id="cardLevel">
+        <div class="ctrl-label">Level
+          <span style="display:flex;align-items:center;gap:6px">
+            <span class="val" data-val="level">0.0 dB</span>
+            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Level">?<span class="tip-bub">Volume of the <b>distorted</b> signal only — not a master volume. With Blend fully clean there is no wet path, so Level genuinely does nothing.</span></button>
+          </span>
+        </div>
+        <div class="ctrl-sub">Wet path only</div>
+        <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
+        <div class="range-labels"><span>Silent</span><span>Unity</span></div>
+      </div>
+
+      <div class="ctrl-card" id="cardDrive">
+        <div class="ctrl-label">Drive
+          <span style="display:flex;align-items:center;gap:6px">
+            <span class="val" data-val="drive">0%</span>
+            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Drive">?<span class="tip-bub">Amount of gain hitting the clipping stage, and so how much saturation and harmonic content is generated.</span></button>
+          </span>
+        </div>
+        <div class="ctrl-sub">Pre-clipper gain · 0 → +32 dB</div>
+        <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+        <div class="range-labels"><span>Clean</span><span>Saturated</span></div>
+      </div>
+
+      <div class="ctrl-card" id="cardGrunt">
+        <div class="ctrl-label">Grunt
+          <span style="display:flex;align-items:center;gap:6px">
+            <span class="val" data-val="grunt">Raw</span>
+            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Grunt">?<span class="tip-bub">Three-position switch selecting how much low end feeds the clipping stage. Pre-clipper only — it never touches the clean path.</span></button>
+          </span>
+        </div>
+        <div class="ctrl-sub">Low shelf @ 120 Hz, pre-clipper</div>
+        <div class="sw3" data-sw3="grunt">
+          <button type="button" data-set="grunt" data-v="0" onclick="setSwitch(this)">Thin</button>
+          <button type="button" data-set="grunt" data-v="1" onclick="setSwitch(this)">Raw</button>
+          <button type="button" data-set="grunt" data-v="2" onclick="setSwitch(this)">Fat</button>
+        </div>
+      </div>
+
+      <div class="ctrl-card" id="cardAttack">
+        <div class="ctrl-label">Attack
+          <span style="display:flex;align-items:center;gap:6px">
+            <span class="val" data-val="attack">Flat</span>
+            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Attack">?<span class="tip-bub">Three-position switch shaping the treble entering the clipping stage: Boost, Flat or Cut. Pre-clipper only — the clean path is unaffected.</span></button>
+          </span>
+        </div>
+        <div class="ctrl-sub">High shelf @ 3 kHz, pre-clipper</div>
+        <div class="sw3" data-sw3="attack">
+          <button type="button" data-set="attack" data-v="0" onclick="setSwitch(this)">Cut</button>
+          <button type="button" data-set="attack" data-v="1" onclick="setSwitch(this)">Flat</button>
+          <button type="button" data-set="attack" data-v="2" onclick="setSwitch(this)">Boost</button>
+        </div>
+      </div>
+
+      <div class="ctrl-card" style="display:flex;align-items:center">
+        <div class="ctrl-sub" style="margin:0;line-height:1.6">
+          EQ below is <em style="color:var(--darkglass-teal);font-style:normal">post-blend</em> — it acts on the summed clean + distorted signal, exactly as on the pedal.
+        </div>
+      </div>
+
+      <div class="ctrl-card">
+        <div class="ctrl-label">Low <span class="val" data-val="low">0.0 dB</span></div>
+        <div class="ctrl-sub">±12 dB shelf @ 100 Hz</div>
+        <input type="range" data-bind="low" min="-12" max="12" value="0" step="0.5">
+      </div>
+
+      <div class="ctrl-card">
+        <div class="ctrl-label">Treble <span class="val" data-val="treble">0.0 dB</span></div>
+        <div class="ctrl-sub">±12 dB shelf @ 5 kHz</div>
+        <input type="range" data-bind="treble" min="-12" max="12" value="0" step="0.5">
+      </div>
+
+      <div class="ctrl-card">
+        <div class="ctrl-label">Lo Mids <span class="val" data-val="loMid">0.0 dB</span></div>
+        <div class="ctrl-sub">±12 dB peak · center:</div>
+        <input type="range" data-bind="loMid" min="-12" max="12" value="0" step="0.5">
+        <div class="freq-btns">
+          <button class="freq-btn" type="button" data-set="loMidFreq" data-v="500"  onclick="setSwitch(this)">500 Hz</button>
+          <button class="freq-btn" type="button" data-set="loMidFreq" data-v="1000" onclick="setSwitch(this)">1 kHz</button>
+        </div>
+      </div>
+
+      <div class="ctrl-card">
+        <div class="ctrl-label">Hi Mids <span class="val" data-val="hiMid">0.0 dB</span></div>
+        <div class="ctrl-sub">±12 dB peak · center:</div>
+        <input type="range" data-bind="hiMid" min="-12" max="12" value="0" step="0.5">
+        <div class="freq-btns">
+          <button class="freq-btn" type="button" data-set="hiMidFreq" data-v="1500" onclick="setSwitch(this)">1.5 kHz</button>
+          <button class="freq-btn" type="button" data-set="hiMidFreq" data-v="3000" onclick="setSwitch(this)">3 kHz</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── NOISE / HISS TOOLS ── -->
+  <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>
+  <div class="noise-section">
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="hissBtn" onclick="toggleHiss()">High-cut: OFF</button>
+        <span class="noise-tool-desc">Low-pass to roll off high-frequency hiss. Bass has little real content up here.</span>
+      </div>
+      <div class="noise-param" id="hissParam">
+        <div class="ctrl-label">Cutoff <span class="val" id="hissFreqVal">4.0 kHz</span></div>
+        <input type="range" id="hissFreqKnob" min="1000" max="16000" value="4000" step="250">
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="gateBtn" onclick="toggleGate()">Gate: OFF</button>
+        <span class="noise-tool-desc">Mutes output when you're not playing, so hiss disappears between notes.</span>
+      </div>
+      <div class="noise-param" id="gateParam">
+        <div class="ctrl-label">Threshold <span class="val" id="gateThreshVal">-50 dB</span></div>
+        <input type="range" id="gateThreshKnob" min="-80" max="-20" value="-50" step="1">
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="notchBtn" onclick="toggleNotch()">Notch: OFF</button>
+        <span class="noise-tool-desc">Narrow tunable notch to hunt a pure-tone whine. Sweep it until the tone drops.</span>
+      </div>
+      <div class="noise-param" id="notchParam">
+        <div class="ctrl-label">Notch freq <span class="val" id="notchFreqVal">3.00 kHz</span></div>
+        <input type="range" id="notchFreqKnob" min="500" max="15000" value="3000" step="50">
+        <div class="ctrl-label" style="margin-top:6px">Width (Q) <span class="val" id="notchQVal">8.0</span></div>
+        <input type="range" id="notchQKnob" min="2" max="30" value="8" step="0.5">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRESETS ── -->
+  <div class="section-label">Presets — <span>saved locally</span></div>
+  <div class="preset-section">
+    <div class="preset-header">
+      <span class="preset-title">Presets</span>
+      <input class="preset-name-input" id="presetName" type="text" placeholder="Preset name…" maxlength="24">
+      <button class="preset-save-btn" onclick="savePreset()">+ Save</button>
+    </div>
+    <div class="preset-list" id="presetList">
+      <span class="preset-empty">No presets yet — dial in a sound and save it.</span>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     TUNER TAB
+     ══════════════════════════════════════════════════════════ -->
+<section class="tab-panel" id="panel-tuner" role="tabpanel" aria-labelledby="tab-tuner">
+  <div class="section-label">Tuner — <span>chromatic · MPM/NSDF</span></div>
+  <div class="tuner-section">
+    <div class="tuner-top">
+      <button class="audio-btn" id="tunerToggle" onclick="toggleTuner()">&#127925; Tuner</button>
+      <div class="audio-status" id="tunerStatus">Chromatic tuner — enable audio on the Preamp tab, then activate</div>
+    </div>
+    <div class="tuner-display" id="tunerDisplay">
+      <div class="tuner-readout">
+        <div class="tuner-cents" id="tunerCents">—</div>
+        <div class="tuner-note" id="tunerNote">–<span class="tuner-octave" id="tunerOctave"></span></div>
+        <div class="tuner-cents" style="text-align:right"><span id="tunerArrow"></span></div>
+      </div>
+      <div class="tuner-meter" id="tunerMeter">
+        <div class="tuner-tick" style="left:10%"></div>
+        <div class="tuner-tick" style="left:30%"></div>
+        <div class="tuner-tick" style="left:70%"></div>
+        <div class="tuner-tick" style="left:90%"></div>
+        <div class="tuner-center-line"></div>
+        <div class="tuner-needle" id="tunerNeedle"></div>
+      </div>
+      <div class="tuner-labels"><span>♭ -50¢</span><span>0</span><span>+50¢ ♯</span></div>
+      <div class="tuner-hz" id="tunerHz">—</div>
+      <div class="string-row" id="stringRow">
+        <div class="string-chip" data-string="E1"><b>E</b>41.2 Hz</div>
+        <div class="string-chip" data-string="A1"><b>A</b>55.0 Hz</div>
+        <div class="string-chip" data-string="D2"><b>D</b>73.4 Hz</div>
+        <div class="string-chip" data-string="G2"><b>G</b>98.0 Hz</div>
+      </div>
+    </div>
+  </div>
+  <p class="hint">
+    Pitch is tapped pre-EQ, so nothing you do on the Preamp tab can skew the reading.
+    Play one string at a time and let it ring.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     SPECTRUM TAB — Overtone Scope port
+     ══════════════════════════════════════════════════════════ -->
+<section class="tab-panel" id="panel-spectrum" role="tabpanel" aria-labelledby="tab-spectrum">
+  <div class="section-label">Spectrum — <span>overtone scope</span></div>
+
+  <div class="scope-bar">
+    <button class="sc-btn" id="sxMode"  type="button" aria-pressed="false" onclick="sxToggleMode()">Click = mute</button>
+    <button class="sc-btn" id="sxLock"  type="button" aria-pressed="false" onclick="sxToggleLock()">Lock pitch</button>
+    <button class="sc-btn" id="sxReset" type="button" onclick="sxResetHarmonics()">Reset harmonics</button>
+  </div>
+
+  <div class="scope-frame">
+    <canvas id="sxAxis"></canvas>
+    <div class="sx-plot">
+      <canvas id="sxSpec"></canvas>
+      <canvas id="sxOver"></canvas>
+      <div class="ladder" id="sxLadder"></div>
+    </div>
+  </div>
+
+  <div class="sx-readout">
+    <span>Fundamental <b class="big" id="sxF0">—</b> Hz</span>
+    <span>Note <b id="sxNote">—</b></span>
+    <span class="legend" style="margin:0">quiet <span class="ramp"></span> loud</span>
+  </div>
+  <div class="sx-readout"><span id="sxStatus"></span></div>
+
+  <div class="keys" id="sxKeys"></div>
+
+  <p class="hint">
+    Chips sit on the spectrogram at each harmonic. Click one to mute it (a narrow notch filter),
+    or switch to solo mode to hear that harmonic alone. Pitch tracking runs on the pre-EQ tap using
+    the tuner's MPM detector, so muting never confuses the tracker. Lock pitch freezes the current
+    fundamental when tracking gets jumpy.
+    <br><br>
+    The filter chain is connected when you open this tab and disconnected when you leave, so nothing
+    here can alter your tone on the Preamp tab. Mute and solo choices persist and are restored on return.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DETUNE TAB — WSOLA pitch shifter
+     ══════════════════════════════════════════════════════════ -->
+<section class="tab-panel" id="panel-detune" role="tabpanel" aria-labelledby="tab-detune">
+  <div class="section-label">Detune — <span>polyphonic pitch shift</span></div>
+
+  <div class="dt-card">
+    <div class="dt-top">
+      <button class="audio-btn" id="dtEngage" onclick="toggleDetune()">⏻ Engage</button>
+      <div class="audio-status" id="dtStatus">Enable audio on the Preamp tab, then engage</div>
+    </div>
+
+    <div class="dt-readout">
+      <div class="dt-semis zero" id="dtSemisBig">0</div>
+      <div class="dt-sub" id="dtSemisSub">semitones · unity</div>
+      <div class="dt-ratio" id="dtRatio">ratio <em>1.0000</em> · added latency <em>—</em></div>
+    </div>
+
+    <div class="ctrl-label" style="margin-top:6px">Response <span class="val" id="dtProfileVal">Balanced</span></div>
+    <div class="ctrl-sub" id="dtProfileSub">tracks down to 41 Hz · ~50 ms</div>
+    <div class="sw3" id="dtProfiles">
+      <button type="button" data-prof="tight"    onclick="setDetuneProfile('tight')">Tight</button>
+      <button type="button" data-prof="balanced" onclick="setDetuneProfile('balanced')">Balanced</button>
+      <button type="button" data-prof="deep"     onclick="setDetuneProfile('deep')">Deep</button>
+    </div>
+
+    <div class="ctrl-label" style="margin-top:12px">Semitones <span class="val" id="dtSemisVal">0</span></div>
+    <input type="range" id="dtSemisKnob" min="-12" max="12" value="0" step="1">
+    <div class="range-labels"><span>−12</span><span>0</span><span>+12</span></div>
+
+    <div class="ctrl-label" style="margin-top:10px">Fine <span class="val" id="dtCentsVal">0 ¢</span></div>
+    <input type="range" id="dtCentsKnob" min="-50" max="50" value="0" step="1">
+    <div class="range-labels"><span>−50 ¢</span><span>0</span><span>+50 ¢</span></div>
+
+    <div class="ctrl-label" style="margin-top:10px">Blend <span class="val" id="dtBlendVal">100% shifted</span></div>
+    <input type="range" id="dtBlendKnob" min="0" max="100" value="100" step="1">
+    <div class="range-labels"><span>Dry</span><span>Shifted</span></div>
+
+    <button class="dt-mom" id="dtMom">Hold: octave down</button>
+
+    <div class="dt-preset-row" id="dtPresets">
+      <button type="button" data-dt="0"   onclick="setDetunePreset(0)">E std</button>
+      <button type="button" data-dt="-1"  onclick="setDetunePreset(-1)">E♭</button>
+      <button type="button" data-dt="-2"  onclick="setDetunePreset(-2)">D</button>
+      <button type="button" data-dt="-3"  onclick="setDetunePreset(-3)">C♯</button>
+      <button type="button" data-dt="-5"  onclick="setDetunePreset(-5)">B</button>
+      <button type="button" data-dt="-12" onclick="setDetunePreset(-12)">Oct ↓</button>
+      <button type="button" data-dt="12"  onclick="setDetunePreset(12)">Oct ↑</button>
+    </div>
+
+    <div class="dt-strings" id="dtStrings"></div>
+
+    <div class="dt-engine" id="dtEngine"></div>
+  </div>
+
+  <p class="hint">
+    Time-domain WSOLA: the signal is time-stretched by the pitch ratio with a correlation-matched
+    splice, then resampled back to real time. Clean on single notes, increasingly phasey on chords —
+    a phase vocoder would do better on polyphony but costs far more CPU than a Pi Zero has.
+    <br><br>
+    <em style="color:#ff8c42;font-style:normal">Expect about 49 ms of added latency</em> on the
+    AudioWorklet host, or about 130 ms on the ScriptProcessor fallback. That is noticeable when
+    playing. It is set by the correlation search, which must span a full period of the lowest note
+    you want to track — shortening it does not make the shifter tighter, it makes it stop shifting.
+    <br><br>
+    Two hosts run the same DSP. Served over http/https you get the AudioWorklet, which runs on the
+    audio thread. Opened as a plain file you get a ScriptProcessor on the main thread — deprecated,
+    higher latency, and it can break up while the analyzer is drawing, but it needs no server.
+    <br><br>
+    The shifter sits <em style="color:var(--darkglass-teal);font-style:normal">first in the chain</em>,
+    ahead of the drive section, the way a drop-tune pedal goes in front of a preamp. It stays engaged
+    when you leave this tab, and the Preamp status line says so — nothing here is invisible.
+    The tuner keeps reading the <em style="color:var(--darkglass-teal);font-style:normal">unshifted</em>
+    strings, so you tune the instrument, not the effect. Resulting pitches are shown above.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     MIX TAB
+     ══════════════════════════════════════════════════════════ -->
+<section class="tab-panel" id="panel-mix" role="tabpanel" aria-labelledby="tab-mix">
+  <div class="section-label">Mix — <span>where bass sits</span></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="sw bass"></div>Bass (EQ'd)</div>
+    <div class="legend-item"><div class="sw bassflat"></div>Bass (flat ref)</div>
+    <div class="legend-item"><div class="sw guitar"></div>Dist. Guitar</div>
+    <div class="legend-item"><div class="sw kick"></div>Kick</div>
+    <div class="legend-item"><div class="sw snare"></div>Snare</div>
+    <div class="legend-item"><div class="sw hh"></div>Hi-Hat</div>
+  </div>
+
+  <div class="fft-toggle-row">
+    <button class="ref-btn" style="margin-bottom:0" onclick="openRef()">📊 Frequency Reference</button>
+    <button class="fft-btn active" id="instrBtn" onclick="toggleInstruments()">Mix: ON</button>
+  </div>
+
+  <div class="chart-card">
+    <canvas id="mixChart" height="220"></canvas>
+  </div>
+
+  <div class="ann-row">
+    <div class="ann kl">
+      <strong>40–80 Hz · Sub clash</strong>
+      Kick and bass fundamental overlap here. <em>One must yield.</em> Sidechain-duck or high-pass the kick body above ~60 Hz.
+    </div>
+    <div class="ann ol">
+      <strong>200–500 Hz · Mud zone</strong>
+      Guitar low-mids, bass upper harmonics, kick batter all pile up. Notching guitar here clears the most space.
+    </div>
+    <div class="ann bl">
+      <strong>700 Hz–1.2 kHz · Click / attack</strong>
+      <em>This is what makes bass audible.</em> Fret/pluck transient. Boosting here = every note change becomes distinct.
+    </div>
+    <div class="ann gl">
+      <strong>2–5 kHz · Guitar dominance</strong>
+      Distorted guitar saturates this band. Bass needs a boost or guitar a notch here.
+    </div>
+  </div>
+
+  <!-- Compact EQ strip — same state as the Preamp tab -->
+  <div class="section-label">EQ — <span>compact strip</span></div>
+  <div class="controls-grid">
+    <div class="ctrl-card">
+      <div class="ctrl-label">Low <span class="val" data-val="low">0.0 dB</span></div>
+      <input type="range" data-bind="low" min="-12" max="12" value="0" step="0.5">
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-label">Treble <span class="val" data-val="treble">0.0 dB</span></div>
+      <input type="range" data-bind="treble" min="-12" max="12" value="0" step="0.5">
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-label">Lo Mids <span class="val" data-val="loMid">0.0 dB</span></div>
+      <input type="range" data-bind="loMid" min="-12" max="12" value="0" step="0.5">
+      <div class="freq-btns">
+        <button class="freq-btn" type="button" data-set="loMidFreq" data-v="500"  onclick="setSwitch(this)">500 Hz</button>
+        <button class="freq-btn" type="button" data-set="loMidFreq" data-v="1000" onclick="setSwitch(this)">1 kHz</button>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-label">Hi Mids <span class="val" data-val="hiMid">0.0 dB</span></div>
+      <input type="range" data-bind="hiMid" min="-12" max="12" value="0" step="0.5">
+      <div class="freq-btns">
+        <button class="freq-btn" type="button" data-set="hiMidFreq" data-v="1500" onclick="setSwitch(this)">1.5 kHz</button>
+        <button class="freq-btn" type="button" data-set="hiMidFreq" data-v="3000" onclick="setSwitch(this)">3 kHz</button>
+      </div>
+    </div>
+  </div>
+  <p class="hint">
+    Curves here are schematic, not measured — they show where each source lives, not your actual rig.
+    The drive section has no effect on this chart, which is why it isn't repeated here.
+  </p>
+</section>
+
+<!-- Frequency crosshair tooltip -->
+<div id="freqTooltip"></div>
+
+<footer id="appFooter">
+  B7K v2 EQ: Low ±12dB@100Hz · Lo Mid ±12dB@500Hz/1kHz · Hi Mid ±12dB@1.5kHz/3kHz · Treble ±12dB@5kHz<br>
+  Drive topology from the Darkglass manual (~95% confidence). Clipper curve is a guess (~40%) — nobody publishes the real one.
+  <strong style="color:var(--darkglass-teal);font-weight:normal">This will not sound like the real pedal</strong>; the goal is correct control behaviour, not tone matching.
+  Instrument curves are schematic (~85%).
+</footer>
+
+</div><!-- /app-wrap -->
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB ISLAND
+     ══════════════════════════════════════════════════════════ -->
+<nav class="tab-island" id="tabIsland" role="tablist" aria-label="Sections">
+  <button class="tab-btn" id="tab-preamp"   role="tab" aria-selected="true"  aria-controls="panel-preamp"   onclick="setTab('preamp')"><span class="tab-ico">🎛</span>Preamp</button>
+  <button class="tab-btn" id="tab-tuner"    role="tab" aria-selected="false" aria-controls="panel-tuner"    onclick="setTab('tuner')"><span class="tab-ico">🎵</span>Tuner</button>
+  <button class="tab-btn" id="tab-spectrum" role="tab" aria-selected="false" aria-controls="panel-spectrum" onclick="setTab('spectrum')"><span class="tab-ico">📶</span>Spectrum</button>
+  <button class="tab-btn" id="tab-detune"   role="tab" aria-selected="false" aria-controls="panel-detune"   onclick="setTab('detune')"><span class="tab-ico">⇩</span>Detune</button>
+  <button class="tab-btn" id="tab-mix"      role="tab" aria-selected="false" aria-controls="panel-mix"      onclick="setTab('mix')"><span class="tab-ico">📊</span>Mix</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     WSOLA AudioWorklet source. Held as inert text and loaded via a Blob
+     URL when the sibling wsola-worklet.js isn't reachable.
+     type="text/x-worklet" keeps the HTML parser off it.
+     GENERATED at build time from parts/wsola_core.js + wsola_wrapper.js.
+     ══════════════════════════════════════════════════════════ -->
+<script id="wsolaSrc" type="text/x-worklet">
+@@WSOLA_SRC@@
+</script>

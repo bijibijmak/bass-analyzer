@@ -1,0 +1,2551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Bass in the Mix — B7K Interactive</title>
+
+<!-- PWA / iOS "Add to Home Screen" -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bass B7K">
+<meta name="theme-color" content="#0d0d10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef0f5" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0d10;
+  --panel: #141418;
+  --panel-2: #1a1a26;
+  --border: #252530;
+  --bass: #00e5ff;
+  --guitar: #ff4d4d;
+  --kick: #ffaa00;
+  --snare: #c084fc;
+  --hh: #86efac;
+  --text: #dde0ea;
+  --dim: #555568;
+  --pedal-edge: #2e2e3c;
+  --darkglass-teal: #00c8b4;
+  --glow: rgba(0,200,180,0.35);
+  color-scheme: dark;
+}
+/* ── LIGHT THEME ── */
+:root[data-theme="light"] {
+  --bg: #eef0f5;
+  --panel: #ffffff;
+  --panel-2: #f1f2f7;
+  --border: #d4d7e0;
+  --bass: #0096c8;
+  --guitar: #e02d2d;
+  --kick: #d98200;
+  --snare: #8a3fce;
+  --hh: #2f9e57;
+  --text: #1d2030;
+  --dim: #6c7088;
+  --pedal-edge: #c4c8d6;
+  --darkglass-teal: #009a8a;
+  --glow: rgba(0,154,138,0.30);
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  padding: calc(24px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+           calc(48px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  transition: background-color 0.25s, color 0.25s;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 15% 5%, rgba(0,200,180,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 95%, rgba(0,229,255,0.04) 0%, transparent 60%);
+}
+.app-wrap { max-width: 600px; margin: 0 auto; }
+
+header { margin-bottom: 20px; }
+header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  letter-spacing: 0.08em; line-height: 1;
+}
+header h1 em { color: var(--darkglass-teal); font-style: normal; }
+header p { font-size: 0.67rem; color: var(--dim); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 5px; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px;
+}
+.legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.sw { width: 22px; height: 2.5px; border-radius: 2px; }
+.sw.bass   { background: var(--bass);   box-shadow: 0 0 6px var(--bass); }
+.sw.guitar { background: var(--guitar); box-shadow: 0 0 6px var(--guitar); }
+.sw.kick   { background: var(--kick);   box-shadow: 0 0 6px var(--kick); }
+.sw.snare  { background: var(--snare);  box-shadow: 0 0 6px var(--snare); }
+.sw.hh     { background: var(--hh);     box-shadow: 0 0 6px var(--hh); }
+.sw.bassflat { background: rgba(0,229,255,0.35); }
+
+/* Section labels */
+.section-label {
+  font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 6px; margin-top: 18px;
+  border-left: 2px solid var(--border); padding-left: 8px;
+}
+.section-label span { color: var(--darkglass-teal); }
+
+/* Charts */
+.chart-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 0 0;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+canvas { display: block; width: 100% !important; }
+
+/* Annotation row */
+.ann-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.ann {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  background: var(--panel);
+  font-size: 0.63rem;
+  line-height: 1.6;
+  color: #7878a0;
+}
+.ann strong { display: block; font-size: 0.68rem; color: var(--text); margin-bottom: 2px; letter-spacing: 0.06em; }
+.ann em { color: var(--darkglass-teal); font-style: normal; }
+.ann.bl { border-left: 3px solid var(--bass); }
+.ann.gl { border-left: 3px solid var(--guitar); }
+.ann.kl { border-left: 3px solid var(--kick); }
+.ann.ol { border-left: 3px solid #ff8c42; }
+
+/* Pedal & controls */
+.pedal-section { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.pedal-wrap { width: 100%; max-width: 560px; }
+#pedalSvg { width: 100%; border-radius: 6px; display: block; }
+
+.controls-grid {
+  width: 100%; max-width: 560px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ctrl-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 11px 13px;
+}
+.ctrl-label {
+  font-size: 0.61rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 5px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.ctrl-label span.val { color: var(--darkglass-teal); font-size: 0.7rem; }
+.ctrl-sub { font-size: 0.57rem; color: #333348; letter-spacing: 0.1em; margin-bottom: 4px; }
+
+input[type=range] {
+  width: 100%; accent-color: var(--darkglass-teal);
+  height: 4px; cursor: pointer;
+}
+.freq-btns { display: flex; gap: 5px; margin-top: 5px; }
+.freq-btn {
+  flex: 1; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 3px;
+  color: var(--dim); font-family: 'Share Tech Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.06em;
+  padding: 4px 0; cursor: pointer; transition: all 0.12s;
+}
+.freq-btn.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); }
+.range-labels { display: flex; justify-content: space-between; font-size: 0.58rem; color: #333348; margin-top: 3px; }
+
+footer { font-size: 0.59rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 16px; }
+
+/* ── AUDIO ENGINE BAR ── */
+.audio-bar {
+  width: 100%; max-width: 560px;
+  margin: 0 auto 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.audio-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.audio-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 7px 16px; border-radius: 4px; border: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s;
+  background: var(--panel-2); color: var(--dim); white-space: nowrap;
+}
+.audio-btn.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); box-shadow: 0 0 12px rgba(0,200,180,0.35); }
+.audio-btn.bypass-on { background: #ff4d4d22; color: #ff6666; border-color: #ff4d4d55; }
+.audio-status { font-size: 0.62rem; letter-spacing: 0.1em; color: var(--dim); flex: 1; }
+.audio-status em { color: var(--darkglass-teal); font-style: normal; }
+.audio-status.err { color: #ff6666; }
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.meter-wrap { display: flex; flex-direction: column; gap: 3px; }
+.meter-label { font-size: 0.58rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+.meter-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
+.meter-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 0.05s linear; background: linear-gradient(90deg, #00c8b4 0%, #00e5ff 60%, #ff4d4d 100%); }
+.trim-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.trim-item { display: flex; flex-direction: column; gap: 3px; }
+.trim-label { font-size: 0.58rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; display: flex; justify-content: space-between; }
+.trim-label span { color: var(--darkglass-teal); }
+.device-row { display: flex; flex-direction: column; gap: 3px; }
+.device-row label { font-size: 0.58rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+select#deviceSelect {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text); font-family: 'Share Tech Mono', monospace;
+  font-size: 0.68rem; padding: 5px 8px; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+}
+
+/* ── MODAL (Reference chart overlay) ── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.82); z-index: 100;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-backdrop.open { display: flex; }
+.modal-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 20px 20px 16px;
+  width: min(700px, 96vw); max-height: 92vh;
+  overflow-y: auto; position: relative;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem; letter-spacing: 0.12em; color: var(--text);
+}
+.modal-title em { color: var(--darkglass-teal); font-style: normal; }
+.modal-close {
+  background: none; border: 1px solid var(--border);
+  color: var(--dim); font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem; letter-spacing: 0.1em; padding: 5px 12px;
+  border-radius: 3px; cursor: pointer; transition: all 0.12s;
+}
+.modal-close:hover { color: var(--text); border-color: var(--text); }
+
+/* ── OSCILLOSCOPE ── */
+.scope-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; margin-bottom: 8px;
+  position: relative;
+}
+.scope-card canvas { display: block; width: 100% !important; }
+.scope-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; background: var(--panel-2);
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.scope-label {
+  font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); margin-right: 4px;
+}
+.scope-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.08em;
+  padding: 3px 10px; border-radius: 3px;
+  border: 1px solid var(--border); background: var(--panel-2);
+  color: var(--dim); cursor: pointer; transition: all 0.12s;
+}
+.scope-btn.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); }
+.scope-info {
+  margin-left: auto; font-size: 0.6rem; letter-spacing: 0.1em;
+  color: var(--dim); white-space: nowrap;
+}
+.scope-info em { color: var(--darkglass-teal); font-style: normal; }
+
+/* ── CROSSHAIR TOOLTIP ── */
+#freqTooltip {
+  position: fixed; pointer-events: none;
+  background: rgba(10,10,18,0.92); border: 1px solid var(--darkglass-teal);
+  border-radius: 3px; padding: 4px 9px; font-size: 0.68rem;
+  letter-spacing: 0.08em; color: var(--darkglass-teal);
+  white-space: nowrap; z-index: 200;
+  box-shadow: 0 0 10px rgba(0,200,180,0.25);
+  display: none;
+}
+
+/* ── PRESETS ── */
+.preset-section {
+  width: 100%; max-width: 560px; margin: 0 auto 12px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px;
+}
+.preset-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.preset-title {
+  font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--dim); flex: 1;
+}
+.preset-save-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 5px 14px; border-radius: 3px;
+  border: 1px solid var(--darkglass-teal);
+  background: rgba(0,200,180,0.08); color: var(--darkglass-teal);
+  cursor: pointer; transition: all 0.12s;
+}
+.preset-save-btn:hover { background: rgba(0,200,180,0.18); }
+.preset-name-input {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.68rem; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 3px;
+  color: var(--text); padding: 4px 8px; width: 140px;
+  letter-spacing: 0.06em;
+}
+.preset-name-input:focus { outline: none; border-color: var(--darkglass-teal); }
+.preset-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.preset-chip {
+  display: flex; align-items: center; gap: 0;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 3px; overflow: hidden;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.65rem;
+}
+.preset-load {
+  padding: 5px 10px; cursor: pointer; color: var(--dim);
+  background: none; border: none; font-family: inherit;
+  font-size: inherit; letter-spacing: 0.06em; transition: all 0.12s;
+}
+.preset-load:hover { color: var(--darkglass-teal); background: rgba(0,200,180,0.08); }
+.preset-del {
+  padding: 5px 7px; cursor: pointer; color: #444;
+  background: none; border: none; border-left: 1px solid var(--border);
+  font-size: 0.7rem; transition: all 0.12s; line-height: 1;
+}
+.preset-del:hover { color: #ff4d4d; background: rgba(255,77,77,0.08); }
+.preset-empty { font-size: 0.62rem; color: #333348; letter-spacing: 0.1em; }
+
+/* ── FFT OVERLAY TOGGLE ── */
+.fft-toggle-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.fft-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 3px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--dim); cursor: pointer; transition: all 0.12s;
+}
+.fft-btn.active { background: #00aacc; color: #fff; border-color: #00aacc; }
+.fft-info { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.1em; margin-left: 4px; }
+.fft-info em { color: #00e5ff; font-style: normal; }
+
+/* ── REF button in header area ── */
+.ref-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 5px 12px; border-radius: 3px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--dim); cursor: pointer;
+  transition: all 0.12s; white-space: nowrap; margin-bottom: 8px;
+}
+.ref-btn:hover { color: var(--darkglass-teal); border-color: var(--darkglass-teal); }
+
+/* ── HEADER ROW + THEME TOGGLE ── */
+.header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.header-row header { margin-bottom: 0; }
+.theme-toggle {
+  flex-shrink: 0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem; line-height: 1;
+  width: 40px; height: 40px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel-2);
+  color: var(--text); cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.theme-toggle:hover { border-color: var(--darkglass-teal); color: var(--darkglass-teal); }
+
+/* ── TUNER ── */
+.tuner-section {
+  width: 100%; max-width: 560px; margin: 0 auto 12px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px;
+}
+.tuner-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tuner-display { display: none; margin-top: 12px; }
+.tuner-display.on { display: block; }
+.tuner-readout { display: flex; align-items: baseline; justify-content: center; gap: 12px; margin-bottom: 10px; }
+.tuner-note {
+  font-family: 'Bebas Neue', sans-serif; font-size: 3.6rem; line-height: 0.9;
+  color: var(--text); letter-spacing: 0.04em; min-width: 1.6em; text-align: center;
+}
+.tuner-note.flat-of  { color: var(--bass); }
+.tuner-note.in-tune  { color: var(--darkglass-teal); text-shadow: 0 0 14px var(--glow); }
+.tuner-note.sharp-of { color: var(--guitar); }
+.tuner-octave { font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; color: var(--dim); }
+.tuner-cents  { font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: var(--dim); min-width: 5.5em; text-align: left; }
+.tuner-cents em { font-style: normal; color: var(--darkglass-teal); }
+.tuner-hz { font-size: 0.62rem; letter-spacing: 0.1em; color: var(--dim); text-align: center; margin-top: 8px; }
+.tuner-meter {
+  position: relative; height: 30px; border-radius: 5px;
+  background: var(--panel-2); border: 1px solid var(--border); overflow: hidden;
+}
+.tuner-center-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--darkglass-teal); transform: translateX(-1px); opacity: 0.6; }
+.tuner-tick { position: absolute; top: 6px; bottom: 6px; width: 1px; background: var(--border); }
+.tuner-needle {
+  position: absolute; top: 3px; bottom: 3px; width: 4px; border-radius: 2px;
+  background: var(--text); left: 50%; transform: translateX(-2px);
+  transition: left 0.08s linear, background-color 0.1s;
+}
+.tuner-needle.in-tune { background: var(--darkglass-teal); box-shadow: 0 0 10px var(--glow); }
+.tuner-labels { display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--dim); margin-top: 4px; letter-spacing: 0.08em; }
+
+/* ── NOISE / HISS TOOLS ── */
+.noise-section {
+  width: 100%; max-width: 560px; margin: 0 auto 12px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px;
+}
+.noise-title {
+  font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 10px;
+}
+.noise-title em { color: var(--darkglass-teal); font-style: normal; }
+.noise-tool { padding: 9px 0; border-top: 1px solid var(--border); }
+.noise-tool:first-of-type { border-top: none; padding-top: 2px; }
+.noise-tool-head { display: flex; align-items: center; gap: 10px; }
+.noise-tool-head .noise-btn { flex-shrink: 0; }
+.noise-tool-desc { font-size: 0.57rem; color: var(--dim); letter-spacing: 0.05em; line-height: 1.4; }
+.noise-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.64rem; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--dim); cursor: pointer; transition: all 0.12s;
+  white-space: nowrap; min-width: 92px;
+}
+.noise-btn.active { background: var(--darkglass-teal); color: #fff; border-color: var(--darkglass-teal); box-shadow: 0 0 10px var(--glow); }
+.noise-param { display: none; margin-top: 8px; }
+.noise-param.on { display: block; }
+.noise-param .ctrl-label { margin-bottom: 4px; }
+
+/* ── MOBILE ── */
+@media (max-width: 560px) {
+  body { padding: calc(14px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+                  calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }
+  .controls-grid { grid-template-columns: 1fr; }
+  .meters, .trim-row { grid-template-columns: 1fr; }
+  input[type=range] { height: 22px; }
+  .audio-btn, .noise-btn, .scope-btn, .fft-btn, .freq-btn, .preset-load, .preset-del { min-height: 34px; }
+  .freq-btn { padding: 7px 0; }
+  header p { font-size: 0.6rem; letter-spacing: 0.1em; }
+  .tuner-note { font-size: 3rem; }
+  .legend { gap: 8px 14px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  input[type=range] { height: 26px; }
+}
+</style>
+</head>
+<body>
+<div class="app-wrap">
+
+<div class="header-row">
+  <header>
+    <h1>Bass <em>Cuts Through</em> the Mix</h1>
+    <p>Darkglass Microtubes B7K v2 · Interactive EQ · Ibanez SR305 Tone</p>
+  </header>
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="sw bass"></div>Bass (EQ'd)</div>
+  <div class="legend-item"><div class="sw bassflat"></div>Bass (flat ref)</div>
+  <div class="legend-item"><div class="sw guitar"></div>Dist. Guitar</div>
+  <div class="legend-item"><div class="sw kick"></div>Kick</div>
+  <div class="legend-item"><div class="sw snare"></div>Snare</div>
+  <div class="legend-item"><div class="sw hh"></div>Hi-Hat</div>
+</div>
+
+<!-- MODAL: Reference chart -->
+<div class="modal-backdrop" id="refModal" onclick="closeRefModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Frequency <em>Reference</em></div>
+      <button class="modal-close" onclick="closeRef()">✕ Close</button>
+    </div>
+    <div class="legend" style="margin-bottom:12px">
+      <div class="legend-item"><div class="sw bass"></div>Bass (cut-through)</div>
+      <div class="legend-item"><div class="sw bassflat"></div>Bass (flat)</div>
+      <div class="legend-item"><div class="sw guitar"></div>Dist. Guitar</div>
+      <div class="legend-item"><div class="sw kick"></div>Kick</div>
+      <div class="legend-item"><div class="sw snare"></div>Snare</div>
+      <div class="legend-item"><div class="sw hh"></div>Hi-Hat</div>
+    </div>
+    <div class="chart-card" style="margin-bottom:12px">
+      <canvas id="refChart" height="200"></canvas>
+    </div>
+    <div class="ann-row">
+      <div class="ann kl">
+        <strong>40–80 Hz · Sub clash</strong>
+        Kick and bass fundamental overlap here. <em>One must yield.</em> Sidechain-duck or high-pass the kick body above ~60 Hz.
+      </div>
+      <div class="ann ol">
+        <strong>200–500 Hz · Mud zone</strong>
+        Guitar low-mids, bass upper harmonics, kick batter all pile up. Notching guitar here clears the most space.
+      </div>
+      <div class="ann bl">
+        <strong>700 Hz–1.2 kHz · Click / attack</strong>
+        <em>This is what makes bass audible.</em> Fret/pluck transient. Boosting here = every note change becomes distinct.
+      </div>
+      <div class="ann gl">
+        <strong>2–5 kHz · Guitar dominance</strong>
+        Distorted guitar saturates this band. Bass needs a boost or guitar a notch here.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHART B: Interactive -->
+<button class="ref-btn" onclick="openRef()">📊 Frequency Reference</button>
+<div class="section-label">B — <span>Interactive EQ · B7K v2</span></div>
+
+<!-- AUDIO ENGINE -->
+<div class="audio-bar" id="audioBar">
+  <div class="audio-top">
+    <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">&#9654; Enable Audio</button>
+    <button class="audio-btn" id="bypassBtn" onclick="toggleBypass()" style="display:none">Bypass: OFF</button>
+    <div class="audio-status" id="audioStatus">Click "Enable Audio" — allow mic access when prompted</div>
+  </div>
+  <div class="meters" id="metersRow" style="display:none">
+    <div class="meter-wrap">
+      <div class="meter-label">Input <span id="inDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+      <div class="meter-track"><div class="meter-fill" id="inMeter"></div></div>
+    </div>
+    <div class="meter-wrap">
+      <div class="meter-label">Output <span id="outDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+      <div class="meter-track"><div class="meter-fill" id="outMeter"></div></div>
+    </div>
+  </div>
+  <div class="device-row" id="deviceRow" style="display:none">
+    <label>Input Device</label>
+    <select id="deviceSelect" onchange="switchDevice()"></select>
+  </div>
+  <div class="trim-row" id="trimRow" style="display:none">
+    <div class="trim-item">
+      <div class="trim-label">Input Trim <span id="inTrimVal">0 dB</span></div>
+      <input type="range" id="inTrimKnob" min="-20" max="20" value="0" step="1">
+    </div>
+    <div class="trim-item">
+      <div class="trim-label">Output Trim <span id="outTrimVal">0 dB</span></div>
+      <input type="range" id="outTrimKnob" min="-20" max="20" value="0" step="1">
+    </div>
+  </div>
+</div>
+
+<!-- TUNER -->
+<div class="tuner-section">
+  <div class="tuner-top">
+    <button class="audio-btn" id="tunerToggle" onclick="toggleTuner()">&#127925; Tuner</button>
+    <div class="audio-status" id="tunerStatus">Chromatic tuner — enable audio, then activate</div>
+  </div>
+  <div class="tuner-display" id="tunerDisplay">
+    <div class="tuner-readout">
+      <div class="tuner-cents" id="tunerCents">—</div>
+      <div class="tuner-note" id="tunerNote">–<span class="tuner-octave" id="tunerOctave"></span></div>
+      <div class="tuner-cents" style="text-align:right"><span id="tunerArrow"></span></div>
+    </div>
+    <div class="tuner-meter" id="tunerMeter">
+      <div class="tuner-tick" style="left:10%"></div>
+      <div class="tuner-tick" style="left:30%"></div>
+      <div class="tuner-tick" style="left:70%"></div>
+      <div class="tuner-tick" style="left:90%"></div>
+      <div class="tuner-center-line"></div>
+      <div class="tuner-needle" id="tunerNeedle"></div>
+    </div>
+    <div class="tuner-labels"><span>♭ -50¢</span><span>0</span><span>+50¢ ♯</span></div>
+    <div class="tuner-hz" id="tunerHz">—</div>
+  </div>
+</div>
+
+<!-- NOISE / HISS TOOLS -->
+<div class="noise-section">
+  <div class="noise-title">Noise / <em>Hiss</em> Cleanup</div>
+
+  <div class="noise-tool">
+    <div class="noise-tool-head">
+      <button class="noise-btn" id="hissBtn" onclick="toggleHiss()">High-cut: OFF</button>
+      <span class="noise-tool-desc">Low-pass to roll off high-frequency hiss. Bass has little real content up here.</span>
+    </div>
+    <div class="noise-param" id="hissParam">
+      <div class="ctrl-label">Cutoff <span class="val" id="hissFreqVal">4.0 kHz</span></div>
+      <input type="range" id="hissFreqKnob" min="1000" max="16000" value="4000" step="250">
+    </div>
+  </div>
+
+  <div class="noise-tool">
+    <div class="noise-tool-head">
+      <button class="noise-btn" id="gateBtn" onclick="toggleGate()">Gate: OFF</button>
+      <span class="noise-tool-desc">Mutes output when you're not playing, so hiss disappears between notes.</span>
+    </div>
+    <div class="noise-param" id="gateParam">
+      <div class="ctrl-label">Threshold <span class="val" id="gateThreshVal">-50 dB</span></div>
+      <input type="range" id="gateThreshKnob" min="-80" max="-20" value="-50" step="1">
+    </div>
+  </div>
+
+  <div class="noise-tool">
+    <div class="noise-tool-head">
+      <button class="noise-btn" id="notchBtn" onclick="toggleNotch()">Notch: OFF</button>
+      <span class="noise-tool-desc">Narrow tunable notch to hunt a pure-tone whine. Sweep it until the tone drops.</span>
+    </div>
+    <div class="noise-param" id="notchParam">
+      <div class="ctrl-label">Notch freq <span class="val" id="notchFreqVal">3.00 kHz</span></div>
+      <input type="range" id="notchFreqKnob" min="500" max="15000" value="3000" step="50">
+      <div class="ctrl-label" style="margin-top:6px">Width (Q) <span class="val" id="notchQVal">8.0</span></div>
+      <input type="range" id="notchQKnob" min="2" max="30" value="8" step="0.5">
+    </div>
+  </div>
+</div>
+
+<!-- OSCILLOSCOPE -->
+<div class="scope-card">
+  <div class="scope-toolbar">
+    <span class="scope-label">Scope</span>
+    <button class="scope-btn active" id="scopeBtnIn"  onclick="setScopeMode('in')">Input</button>
+    <button class="scope-btn"        id="scopeBtnOut" onclick="setScopeMode('out')">Output</button>
+    <button class="scope-btn"        id="scopeBtnBoth" onclick="setScopeMode('both')">Both</button>
+    <span class="scope-info" id="scopeInfo"><em>—</em></span>
+  </div>
+  <canvas id="scopeCanvas" height="140"></canvas>
+</div>
+
+<!-- EQ FREQUENCY CHART -->
+<div class="fft-toggle-row">
+  <button class="fft-btn" id="fftBtn"   onclick="toggleFFT()">FFT: OFF</button>
+  <button class="fft-btn" id="holdBtn"  onclick="togglePeakHold()" style="display:none">Hold: OFF</button>
+  <button class="fft-btn" id="resetBtn" onclick="resetPeakHold()"  style="display:none">Reset</button>
+  <button class="fft-btn active" id="instrBtn" onclick="toggleInstruments()">Mix: ON</button>
+  <button class="fft-btn active" id="peakLineBtn" onclick="togglePeakLine()">Peak line: ON</button>
+  <span class="fft-info" id="fftInfo"></span>
+</div>
+<div class="chart-card" style="position:relative">
+  <canvas id="mainChart" height="220"
+    onmousemove="onChartMouseMove(event)"
+    onmouseleave="onChartMouseLeave()"></canvas>
+  <!-- vertical crosshair line drawn on a thin overlay canvas -->
+  <canvas id="crosshairCanvas" height="220"
+    style="position:absolute;top:0;left:0;width:100%;pointer-events:none"></canvas>
+</div>
+
+<div class="pedal-section">
+  <div class="pedal-wrap">
+    <svg id="pedalSvg" viewBox="0 0 540 300" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="controls-grid">
+
+    <div class="ctrl-card">
+      <div class="ctrl-label">Low <span class="val" id="lowVal">0.0 dB</span></div>
+      <div class="ctrl-sub">±12 dB shelf @ 100 Hz</div>
+      <input type="range" id="lowKnob" min="-12" max="12" value="0" step="0.5">
+    </div>
+
+    <div class="ctrl-card">
+      <div class="ctrl-label">Treble <span class="val" id="trebleVal">0.0 dB</span></div>
+      <div class="ctrl-sub">±12 dB shelf @ 5 kHz</div>
+      <input type="range" id="trebleKnob" min="-12" max="12" value="0" step="0.5">
+    </div>
+
+    <div class="ctrl-card">
+      <div class="ctrl-label">Lo Mids <span class="val" id="loMidVal">0.0 dB</span></div>
+      <div class="ctrl-sub">±12 dB peak · center:</div>
+      <input type="range" id="loMidKnob" min="-12" max="12" value="0" step="0.5">
+      <div class="freq-btns">
+        <button class="freq-btn" id="loMid500" onclick="setLoMidFreq(500)">500 Hz</button>
+        <button class="freq-btn active" id="loMid1k" onclick="setLoMidFreq(1000)">1 kHz</button>
+      </div>
+    </div>
+
+    <div class="ctrl-card">
+      <div class="ctrl-label">Hi Mids <span class="val" id="hiMidVal">0.0 dB</span></div>
+      <div class="ctrl-sub">±12 dB peak · center:</div>
+      <input type="range" id="hiMidKnob" min="-12" max="12" value="0" step="0.5">
+      <div class="freq-btns">
+        <button class="freq-btn active" id="hiMid3k" onclick="setHiMidFreq(3000)">3 kHz</button>
+        <button class="freq-btn" id="hiMid1k5" onclick="setHiMidFreq(1500)">1.5 kHz</button>
+      </div>
+    </div>
+
+    <div class="ctrl-card">
+      <div class="ctrl-label">Bass Tone <span class="val" id="toneVal">Open</span></div>
+      <div class="ctrl-sub">Ibanez SR305 passive rolloff</div>
+      <input type="range" id="toneKnob" min="0" max="100" value="100" step="1">
+      <div class="range-labels"><span>Rolled off</span><span>Full open</span></div>
+    </div>
+
+    <div class="ctrl-card">
+      <div class="ctrl-label">Pickup <span class="val" id="pickupVal">Centre</span></div>
+      <div class="ctrl-sub">Neck (warm) → Bridge (bright)</div>
+      <input type="range" id="pickupKnob" min="0" max="100" value="50" step="1">
+      <div class="range-labels"><span>Neck</span><span>Bridge</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Frequency crosshair tooltip -->
+<div id="freqTooltip"></div>
+
+<!-- Presets -->
+<div class="pedal-section">
+  <div class="preset-section">
+    <div class="preset-header">
+      <span class="preset-title">Presets</span>
+      <input class="preset-name-input" id="presetName" type="text" placeholder="Preset name…" maxlength="24">
+      <button class="preset-save-btn" onclick="savePreset()">+ Save</button>
+    </div>
+    <div class="preset-list" id="presetList">
+      <span class="preset-empty">No presets yet — dial in a sound and save it.</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  B7K v2: Low ±12dB@100Hz · Lo Mid ±12dB@500Hz/1kHz · Hi Mid ±12dB@1.5kHz/3kHz · Treble ±12dB@5kHz &nbsp;|&nbsp; Curves are schematic · confidence ~85%
+</footer>
+
+</div><!-- /app-wrap -->
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const state = {
+  low:0, loMid:0, loMidFreq:1000,
+  hiMid:0, hiMidFreq:3000,
+  treble:0, tone:100, pickup:50
+};
+
+// ─────────────────────────────────────────────
+// THEME (canvas colors — CSS handles the DOM)
+// ─────────────────────────────────────────────
+const THEMES = {
+  dark: {
+    chartBg:'#141418', gridLine:'#1c1c26', axisLabel:'#44445a', axisTitle:'#33334a',
+    refLine:'rgba(255,255,255,0.10)', refText:'rgba(255,255,255,0.20)',
+    unityLine:'rgba(255,255,255,0.08)', unityText:'rgba(255,255,255,0.18)',
+    bandMarker:'rgba(0,229,255,0.18)',
+    scopeBg:'#0a0a0e', scopeGrid:'#1a1a26', scopeZero:'#252535', scopeText:'#333348',
+    bass:'#00e5ff', bassGhost:'rgba(0,229,255,0.28)',
+    guitar:'#ff4d4d', kick:'#ffaa00', snare:'#c084fc', hh:'#86efac',
+    fftFill0:'rgba(0,229,255,0.28)', fftFill1:'rgba(0,200,180,0.10)', fftLine:'rgba(0,229,255,0.85)',
+    fftGlow:'#00e5ff', crosshair:'rgba(0,200,180,0.45)'
+  },
+  light: {
+    chartBg:'#f7f8fb', gridLine:'#dde0ea', axisLabel:'#9498ad', axisTitle:'#aab0c2',
+    refLine:'rgba(20,24,40,0.14)', refText:'rgba(20,24,40,0.40)',
+    unityLine:'rgba(20,24,40,0.10)', unityText:'rgba(20,24,40,0.32)',
+    bandMarker:'rgba(0,140,160,0.30)',
+    scopeBg:'#eef0f6', scopeGrid:'#dde0ea', scopeZero:'#c2c6d4', scopeText:'#9498ad',
+    bass:'#0096c8', bassGhost:'rgba(0,120,170,0.35)',
+    guitar:'#d62b2b', kick:'#c97a00', snare:'#8a3fce', hh:'#2f9e57',
+    fftFill0:'rgba(0,150,200,0.26)', fftFill1:'rgba(0,154,138,0.10)', fftLine:'rgba(0,120,170,0.85)',
+    fftGlow:'#0096c8', crosshair:'rgba(0,154,138,0.55)'
+  }
+};
+let TH = THEMES.dark;
+const THEME_KEY = 'b7k_theme';
+
+function applyTheme(mode, persist) {
+  TH = THEMES[mode] || THEMES.dark;
+  document.documentElement.setAttribute('data-theme', mode);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = mode === 'light' ? '☀️' : '🌙';
+  if (persist) localStorage.setItem(THEME_KEY, mode);
+  // Redraw all canvases with new palette
+  if (typeof drawRefChart === 'function') {
+    drawMainChart();
+    if (document.getElementById('refModal').classList.contains('open')) drawRefChart();
+    if (!audioRunning) stopScope();
+  }
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light', true);
+}
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') { applyTheme(saved, false); return; }
+  // No manual override saved → follow system
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(prefersLight ? 'light' : 'dark', false);
+  // React to system changes only while no manual override is set
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+      if (!localStorage.getItem(THEME_KEY)) applyTheme(e.matches ? 'light' : 'dark', false);
+    });
+  }
+}
+
+// ─────────────────────────────────────────────
+// FREQUENCY AXIS
+// ─────────────────────────────────────────────
+const STEPS = 500;
+const freqs = Array.from({length:STEPS+1},(_,i)=> 20 * Math.pow(20000/20, i/STEPS));
+const LABEL_FREQS = [20,50,100,200,500,1000,2000,5000,10000,20000];
+function fLabel(f){ return f>=1000 ? f/1000+'k' : ''+f; }
+
+// ─────────────────────────────────────────────
+// BASE INSTRUMENT CURVES
+// All smooth, no pre-baked EQ cuts
+// ─────────────────────────────────────────────
+function gauss(f,fc,bw,a){ return a*Math.exp(-Math.pow(Math.log(f/fc)/bw,2)); }
+
+// Bass: smoothly rising from sub, continuous body, gradual rolloff above 3k.
+// No notches anywhere — purely the physics of a passive pickup.
+//
+// KEY DESIGN RULE:
+//   The curve is normalised so its peak sits at DISPLAY_FLAT (0.50).
+//   That means "all knobs at zero" draws the curve at exactly half
+//   chart height — visually centred, with equal room to boost (→1.0)
+//   or cut (→0) via EQ. Center knob = flat = natural pickup response.
+const DISPLAY_FLAT = 0.50; // 0 dB reference line = 50% of chart height
+
+function buildBassCurve(pickupNorm) {
+  // Each gaussian: (center Hz, log-bandwidth, amplitude)
+  // Bandwidths are deliberately narrow (0.40-0.55) so adjacent bands
+  // don't pile up — keeps the summed curve smooth without clipping.
+  // Neck (pickupNorm=0): warm, round. Bridge (=1): more click/growl.
+  const raw = freqs.map(f => {
+    const sub  = gauss(f,   70, 0.55, 0.55 - 0.10*pickupNorm); // sub/fundamental
+    const body = gauss(f,  180, 0.55, 0.52 - 0.07*pickupNorm); // body warmth
+    const umid = gauss(f,  450, 0.50, 0.38 - 0.04*pickupNorm); // upper body, continuous
+    const click= gauss(f,  950, 0.42, 0.18 + 0.18*pickupNorm); // fret transient
+    const growl= gauss(f, 2800, 0.48, 0.08 + 0.18*pickupNorm); // string growl
+    const air  = gauss(f, 6000, 0.40, 0.03 + 0.05*pickupNorm); // air/top
+    let v = sub + body + umid + click + growl + air;
+    // Pickup inductance: natural rolloff above ~3 kHz
+    if (f > 3000) v *= Math.pow(3000/f, 0.60);
+    return Math.max(0, v);
+  });
+
+  // Auto-normalise: whatever the peak of the raw sum is,
+  // rescale the whole curve so that peak = DISPLAY_FLAT.
+  // This guarantees the flat-knob curve never touches the top,
+  // regardless of pickup position or future tuning.
+  const peak = Math.max(...raw);
+  return raw.map(v => (v / peak) * DISPLAY_FLAT);
+}
+
+// Guitar: distorted — heavy on low-mids, dominant midrange
+const guitarCurve = freqs.map(f => {
+  let v = gauss(f,100,0.45,0.28)
+        + gauss(f,300,0.70,0.82)   // low-mid mud contributor
+        + gauss(f,750,0.65,0.96)   // crunch core
+        + gauss(f,1900,0.65,0.88)  // presence
+        + gauss(f,4500,0.60,0.68)  // bite
+        + gauss(f,9000,0.65,0.30); // air/fizz
+  return Math.min(v,1);
+});
+
+// Kick: sub thud + attack click
+const kickCurve = freqs.map(f => {
+  let v = gauss(f,60,0.42,0.96)
+        + gauss(f,105,0.38,0.62)
+        + gauss(f,3500,0.65,0.52)
+        + gauss(f,7000,0.55,0.20);
+  return Math.min(v,1);
+});
+
+// Snare: body + snap + wire
+const snareCurve = freqs.map(f => {
+  let v = gauss(f,185,0.48,0.70)
+        + gauss(f,950,0.55,0.52)
+        + gauss(f,6000,0.70,0.80)
+        + gauss(f,11000,0.55,0.42);
+  return Math.min(v,1);
+});
+
+// Hi-hat / cymbals
+const hhCurve = freqs.map(f => {
+  let v = gauss(f,8000,0.55,0.70)
+        + gauss(f,12000,0.52,0.85)
+        + gauss(f,16000,0.55,0.55);
+  return Math.min(v,1);
+});
+
+// Reference "cuts through" bass: what good EQ looks like
+// Sub preserved, mud notched, click boosted
+const refBassCurve = freqs.map(f => {
+  let v = gauss(f,70, 0.80,0.85)   // sub intact
+        + gauss(f,200,0.85,0.88)   // body intact
+        + gauss(f,350,0.55,0.18)   // 200-500 mud NOTCHED
+        + gauss(f,950,0.60,0.65)   // click BOOSTED
+        + gauss(f,2800,0.70,0.42); // growl boosted
+  if(f>3000) v *= Math.pow(3000/f, 0.5);
+  return Math.max(0,Math.min(v,1));
+});
+
+// ─────────────────────────────────────────────
+// EQ FILTERS
+// All operate in dB domain relative to DISPLAY_FLAT.
+// When all gains=0, the curve passes through unchanged.
+// ─────────────────────────────────────────────
+function shelfdB(f, gain, fc, isLow) {
+  // Steeper shelf: tanh slope 3.5 (was 2.5) → tighter transition band
+  // so Low@100Hz doesn't bleed into the 500Hz region and vice-versa.
+  const t = Math.log10(isLow ? fc/f : f/fc);
+  const shape = 0.5 * (1 + Math.tanh(3.5 * t));
+  return gain * shape;
+}
+
+function peakdB(f, gain, fc, Q) {
+  // Q=2.2 (was 1.8) → narrower, more surgical band.
+  // Each band now clearly targets its stated frequency
+  // without bleeding 2 octaves either side.
+  const bw = 1 / Q;
+  return gain * Math.exp(-Math.pow(Math.log(f/fc) / bw, 2));
+}
+
+function toneRolloffdB(f, toneNorm) {
+  if(toneNorm >= 0.99) return 0;
+  const fc = 600 * Math.pow(12000/600, toneNorm);
+  if(f <= fc) return 0;
+  return Math.max(-24 * Math.log10(f/fc), -28);
+}
+
+// EQ display:
+// Base curve peak = DISPLAY_FLAT = 0.50 (half chart height).
+// +12 dB boost → amplitude × 4 → display ~1.0 (top of chart).
+// −12 dB cut  → amplitude × 0.25 → display ~0.12 (near bottom).
+// This gives a fully symmetric visual response around the centre line.
+const EQ_DISPLAY_PEAK = DISPLAY_FLAT; // keep in sync
+
+function applyEQ(baseCurve) {
+  return baseCurve.map((v, i) => {
+    const f = freqs[i];
+    // Express sample as dB relative to the flat reference line
+    let dB = 20 * Math.log10(Math.max(v / EQ_DISPLAY_PEAK, 0.0001));
+    // Apply B7K bands
+    dB += shelfdB(f, state.low,    100,  true);
+    dB += shelfdB(f, state.treble, 5000, false);
+    dB += peakdB(f, state.loMid, state.loMidFreq, 2.2);
+    dB += peakdB(f, state.hiMid, state.hiMidFreq, 2.2);
+    dB += toneRolloffdB(f, state.tone / 100);
+    // Back to display amplitude
+    return Math.max(0, Math.min(EQ_DISPLAY_PEAK * Math.pow(10, dB / 20), 1.0));
+  });
+}
+
+// ─────────────────────────────────────────────
+// DRAWING UTILITY
+// ─────────────────────────────────────────────
+function setupCanvas(id, h) {
+  const canvas = document.getElementById(id);
+  const dpr = window.devicePixelRatio||1;
+  const W = canvas.parentElement.clientWidth;
+  canvas.width  = W*dpr; canvas.height = h*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = h+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  return {ctx, W, H:h};
+}
+
+const PAD = {t:14,r:18,b:33,l:38};
+
+function drawAxes(ctx, W, H) {
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  function xp(f){ return PAD.l + Math.log10(f/20)/Math.log10(1000)*cw; }
+
+  ctx.fillStyle=TH.chartBg; ctx.fillRect(0,0,W,H);
+
+  // vertical grid + labels
+  LABEL_FREQS.forEach(f=>{
+    const x=xp(f);
+    ctx.strokeStyle=TH.gridLine; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
+    ctx.fillStyle=TH.axisLabel; ctx.font='10px Share Tech Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText(fLabel(f), x, PAD.t+ch+18);
+  });
+
+  // horizontal grid
+  [0.25,0.5,0.75,1].forEach(fr=>{
+    const y=PAD.t+ch-fr*ch;
+    ctx.strokeStyle=TH.gridLine; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(PAD.l+cw,y); ctx.stroke();
+  });
+
+  ctx.fillStyle=TH.axisTitle; ctx.font='9px Share Tech Mono,monospace'; ctx.textAlign='center';
+  ctx.fillText('FREQUENCY (Hz)', PAD.l+cw/2, H-3);
+  ctx.save(); ctx.translate(11,PAD.t+ch/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('LEVEL',0,0); ctx.restore();
+
+  return {cw,ch, xp: f=>PAD.l+Math.log10(f/20)/Math.log10(1000)*cw, yp: v=>PAD.t+ch-Math.min(v,1)*ch};
+}
+
+function drawCurve(ctx, data, xp, yp, color, lw, glow, dash) {
+  if(glow){ctx.save();ctx.shadowColor=color;ctx.shadowBlur=10;}
+  ctx.strokeStyle=color; ctx.lineWidth=lw;
+  ctx.setLineDash(dash||[]);
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=xp(freqs[i]), y=yp(v);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke(); ctx.setLineDash([]);
+  if(glow) ctx.restore();
+}
+
+function zoneRect(ctx,x1,x2,yTop,height,color) {
+  const g=ctx.createLinearGradient(x1,0,x2,0);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(0.2,color); g.addColorStop(0.8,color);
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g; ctx.fillRect(x1,yTop,x2-x1,height);
+}
+
+// ─────────────────────────────────────────────
+// DRAW REFERENCE CHART
+// ─────────────────────────────────────────────
+function drawRefChart() {
+  const {ctx,W,H} = setupCanvas('refChart',200);
+  const {cw,ch,xp,yp} = drawAxes(ctx,W,H);
+
+  // Zone overlays
+  zoneRect(ctx,xp(40),xp(80),PAD.t,ch,'rgba(255,170,0,0.10)');
+  zoneRect(ctx,xp(200),xp(500),PAD.t,ch,'rgba(255,120,40,0.11)');
+  zoneRect(ctx,xp(700),xp(1200),PAD.t,ch,'rgba(0,229,255,0.08)');
+
+  // Zone labels
+  ctx.font='8px Share Tech Mono,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,170,0,0.7)';
+  ctx.fillText('SUB CLASH',(xp(40)+xp(80))/2, PAD.t+10);
+  ctx.fillStyle='rgba(255,120,40,0.7)';
+  ctx.fillText('MUD ZONE',(xp(200)+xp(500))/2, PAD.t+10);
+  ctx.fillStyle='rgba(0,229,255,0.6)';
+  ctx.fillText('CLICK',(xp(700)+xp(1200))/2, PAD.t+10);
+
+  // Static flat bass (ghost reference)
+  const flatBass = buildBassCurve(0.5);
+  drawCurve(ctx,flatBass,xp,yp,TH.bassGhost,1.5,false,[4,4]);
+
+  // Instruments
+  drawCurve(ctx,hhCurve,    xp,yp,TH.hh,1.3,false);
+  drawCurve(ctx,snareCurve, xp,yp,TH.snare,1.3,false);
+  drawCurve(ctx,kickCurve,  xp,yp,TH.kick,1.8,false);
+  drawCurve(ctx,guitarCurve,xp,yp,TH.guitar,2.0,true);
+  drawCurve(ctx,refBassCurve,xp,yp,TH.bass,2.8,true);
+}
+
+// ─────────────────────────────────────────────
+// DRAW INTERACTIVE CHART
+// ─────────────────────────────────────────────
+function drawMainChart() {
+  const {ctx,W,H} = setupCanvas('mainChart',220);
+  const {cw,ch,xp,yp} = drawAxes(ctx,W,H);
+
+  // Unity-gain reference line at EQ_DISPLAY_PEAK height
+  const unityY = yp(EQ_DISPLAY_PEAK);
+  ctx.strokeStyle=TH.unityLine; ctx.lineWidth=1; ctx.setLineDash([6,6]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, unityY); ctx.lineTo(PAD.l+cw, unityY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=TH.unityText; ctx.font='8px Share Tech Mono,monospace'; ctx.textAlign='left';
+  ctx.fillText('0 dB', PAD.l+3, unityY-3);
+
+  // 0 dB reference line at DISPLAY_FLAT (50% height) — dashed, labelled
+  const refY = yp(DISPLAY_FLAT);
+  ctx.strokeStyle=TH.refLine; ctx.lineWidth=1; ctx.setLineDash([4,6]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, refY); ctx.lineTo(PAD.l+cw, refY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=TH.refText; ctx.font='8px Share Tech Mono,monospace'; ctx.textAlign='left';
+  ctx.fillText('0 dB', PAD.l+3, refY-3);
+
+  // EQ band markers
+  [100, state.loMidFreq, state.hiMidFreq, 5000].forEach(f=>{
+    ctx.strokeStyle=TH.bandMarker; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+    ctx.beginPath(); ctx.moveTo(xp(f),PAD.t); ctx.lineTo(xp(f),PAD.t+ch); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  const pu = state.pickup/100;
+  const flatBass = buildBassCurve(pu);
+  const eqBass   = applyEQ(flatBass);
+
+  // Instruments
+  if (showInstruments) {
+    drawCurve(ctx,hhCurve,    xp,yp,TH.hh,1.3,false);
+    drawCurve(ctx,snareCurve, xp,yp,TH.snare,1.3,false);
+    drawCurve(ctx,kickCurve,  xp,yp,TH.kick,1.8,false);
+    drawCurve(ctx,guitarCurve,xp,yp,TH.guitar,2.0,true);
+  }
+
+  // Ghost flat bass
+  drawCurve(ctx,flatBass,xp,yp,TH.bassGhost,1.5,false,[4,5]);
+  // EQ'd bass (schematic)
+  drawCurve(ctx,eqBass,xp,yp,TH.bass,2.8,true);
+
+  // ── Live FFT overlay ──────────────────────────────────────
+  if (fftEnabled && fftAnalyser && fftBuf) {
+    fftAnalyser.getFloatFrequencyData(fftBuf);
+
+    const nyquist  = audioCtx.sampleRate / 2;
+    const binCount = fftBuf.length;
+    const minDb    = fftAnalyser.minDecibels;
+    const maxDb    = fftAnalyser.maxDecibels;
+    const dbRange  = maxDb - minDb;
+
+    // ── Update peak hold buffers ──────────────────────────
+    if (peakHoldBuf && peakHoldAge) {
+      for (let i = 0; i < binCount; i++) {
+        const db = fftBuf[i];
+        if (db > peakHoldBuf[i]) {
+          // New peak — grab it and reset age
+          peakHoldBuf[i] = db;
+          peakHoldAge[i] = 0;
+        } else if (!peakHoldFrozen) {
+          peakHoldAge[i]++;
+          if (peakHoldAge[i] > PEAK_HOLD_FRAMES) {
+            // Start gravity decay after hold period
+            peakHoldBuf[i] = Math.max(peakHoldBuf[i] - PEAK_DECAY_RATE, db);
+          }
+        }
+      }
+    }
+
+    // ── Draw filled area under live spectrum ──────────────
+    ctx.save();
+    ctx.beginPath();
+    let started = false, lastX = PAD.l + cw;
+    for (let i = 1; i < binCount; i++) {
+      const freq = (i / binCount) * nyquist;
+      if (freq < 20 || freq > 20000) continue;
+      const x = xp(freq);
+      if (x < PAD.l || x > PAD.l + cw) continue;
+      const norm = Math.max(0, Math.min(1, (fftBuf[i] - minDb) / dbRange));
+      const y = PAD.t + ch - norm * ch;
+      if (!started) { ctx.moveTo(x, PAD.t + ch); ctx.lineTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+      lastX = x;
+    }
+    ctx.lineTo(lastX, PAD.t + ch);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, PAD.t, 0, PAD.t + ch);
+    grad.addColorStop(0,   TH.fftFill0);
+    grad.addColorStop(0.5, TH.fftFill1);
+    grad.addColorStop(1,   'rgba(0,229,255,0.01)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // ── Live spectrum line ────────────────────────────────
+    ctx.beginPath(); started = false;
+    for (let i = 1; i < binCount; i++) {
+      const freq = (i / binCount) * nyquist;
+      if (freq < 20 || freq > 20000) continue;
+      const x = xp(freq);
+      if (x < PAD.l || x > PAD.l + cw) continue;
+      const norm = Math.max(0, Math.min(1, (fftBuf[i] - minDb) / dbRange));
+      const y = PAD.t + ch - norm * ch;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.shadowColor = TH.fftGlow; ctx.shadowBlur = 5;
+    ctx.strokeStyle = TH.fftLine; ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    // ── Peak hold line ────────────────────────────────────
+    if (peakHoldBuf && showPeakHoldLine) {
+      ctx.beginPath(); started = false;
+      for (let i = 1; i < binCount; i++) {
+        const freq = (i / binCount) * nyquist;
+        if (freq < 20 || freq > 20000) continue;
+        const x = xp(freq);
+        if (x < PAD.l || x > PAD.l + cw) continue;
+        const pkDb = peakHoldBuf[i];
+        if (pkDb <= minDb + 1) continue; // don't draw noise floor
+        const norm = Math.max(0, Math.min(1, (pkDb - minDb) / dbRange));
+        const y = PAD.t + ch - norm * ch;
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+      // Frozen = bright white; decaying = warm amber
+      const holdColor = peakHoldFrozen
+        ? 'rgba(255,255,255,0.90)'
+        : 'rgba(255,190,60,0.85)';
+      const holdGlow  = peakHoldFrozen ? '#ffffff' : '#ffbe3c';
+      ctx.shadowColor = holdGlow; ctx.shadowBlur = 4;
+      ctx.strokeStyle = holdColor; ctx.lineWidth = 1.2;
+      ctx.setLineDash(peakHoldFrozen ? [] : []);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.restore();
+
+    // ── dB scale labels ───────────────────────────────────
+    ctx.fillStyle = TH.fftLine; ctx.font = '8px Share Tech Mono,monospace';
+    ctx.textAlign = 'right';
+    [0, 0.25, 0.5, 0.75, 1].forEach(frac => {
+      const db = maxDb - frac * dbRange;
+      const y  = PAD.t + frac * ch;
+      ctx.fillText(db.toFixed(0)+'dB', PAD.l + cw - 2, y + 9);
+    });
+  }
+}
+
+// ─────────────────────────────────────────────
+// PEDAL SVG
+// ─────────────────────────────────────────────
+function drawPedal() {
+  const svg = document.getElementById('pedalSvg');
+  function rad(d){ return d*Math.PI/180; }
+  function knobAngle(v,mn=-12,mx=12){ return -135+((v-mn)/(mx-mn))*270; }
+
+  function knobSVG(cx,cy,r,adeg,label,color='#00c8b4') {
+    const a=rad(adeg-90);
+    const ix=cx+r*0.60*Math.cos(a), iy=cy+r*0.60*Math.sin(a);
+    const ox=cx+r*0.92*Math.cos(a), oy=cy+r*0.92*Math.sin(a);
+    return `
+      <circle cx="${cx}" cy="${cy}" r="${r*1.22}" fill="none" stroke="#1e1e2c" stroke-width="2.5"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#1a1a22" stroke="#3a3a4e" stroke-width="1.5"/>
+      <circle cx="${cx}" cy="${cy}" r="${r*0.58}" fill="#0f0f14"/>
+      <line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>
+      <text x="${cx}" y="${cy+r+16}" text-anchor="middle" fill="#555570" font-family="Share Tech Mono" font-size="8.5" letter-spacing="0.8">${label}</text>`;
+  }
+
+  function toggleBtn(x,y,w,h,label,active) {
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.5" fill="${active?'#00c8b4':'#1e1e2c'}" stroke="${active?'#00c8b4':'#2e2e3e'}" stroke-width="1"/>
+    <text x="${x+w/2}" y="${y+h/2+3.5}" text-anchor="middle" fill="${active?'#000':'#555570'}" font-family="Share Tech Mono" font-size="8" letter-spacing="0.3">${label}</text>`;
+  }
+
+  const W=540,H=300;
+  svg.innerHTML = `
+  <defs>
+    <filter id="glow2"><feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20202e"/><stop offset="100%" stop-color="#13131a"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="${W-16}" height="${H-16}" rx="10" fill="#2a2a3a"/>
+  <rect x="12" y="12" width="${W-24}" height="${H-24}" rx="8" fill="url(#bg2)"/>
+
+  <!-- Header strip -->
+  <rect x="12" y="12" width="${W-24}" height="28" rx="8" fill="#0e0e16"/>
+  <rect x="12" y="32" width="${W-24}" height="8" fill="#0e0e16"/>
+  <text x="${W/2}" y="30" text-anchor="middle" fill="#00c8b4" font-family="Bebas Neue,sans-serif" font-size="15" letter-spacing="6">DARKGLASS ELECTRONICS</text>
+  <text x="${W/2}" y="56" text-anchor="middle" fill="#8888aa" font-family="Share Tech Mono" font-size="9" letter-spacing="2.5">MICROTUBES B7K v2</text>
+
+  <!-- Power LED -->
+  <circle cx="36" cy="56" r="4.5" fill="#00c8b4" filter="url(#glow2)"/>
+  <text x="36" y="69" text-anchor="middle" fill="#333348" font-family="Share Tech Mono" font-size="6.5">ON</text>
+
+  <!-- Top row: Blend, Level, Drive (decorative) -->
+  ${knobSVG(150,110,20,10,'BLEND','#6666aa')}
+  ${knobSVG(270,110,20,30,'LEVEL','#6666aa')}
+  ${knobSVG(390,110,20,-15,'DRIVE','#6666aa')}
+
+  <!-- Grunt switch -->
+  <rect x="70" y="95" width="26" height="9" rx="4" fill="#111118" stroke="#252535" stroke-width="1"/>
+  <circle cx="83" cy="99.5" r="4.5" fill="#333348"/>
+  <text x="83" y="115" text-anchor="middle" fill="#333348" font-family="Share Tech Mono" font-size="6.5" letter-spacing="1">GRUNT</text>
+
+  <!-- Attack switch -->
+  <rect x="444" y="95" width="26" height="9" rx="4" fill="#111118" stroke="#252535" stroke-width="1"/>
+  <circle cx="457" cy="99.5" r="4.5" fill="#333348"/>
+  <text x="457" y="115" text-anchor="middle" fill="#333348" font-family="Share Tech Mono" font-size="6.5" letter-spacing="1">ATTACK</text>
+
+  <!-- 4 EQ knobs -->
+  ${knobSVG(95,  185, 26, knobAngle(state.low),    'LOW',     '#00c8b4')}
+  ${knobSVG(210, 185, 26, knobAngle(state.loMid),  'LO MID',  '#00c8b4')}
+  ${knobSVG(330, 185, 26, knobAngle(state.hiMid),  'HI MID',  '#00c8b4')}
+  ${knobSVG(445, 185, 26, knobAngle(state.treble), 'TREBLE',  '#00c8b4')}
+
+  <!-- Lo Mid freq toggles -->
+  ${toggleBtn(174,207,36,14,'500Hz',state.loMidFreq===500)}
+  ${toggleBtn(212,207,36,14,'1kHz', state.loMidFreq===1000)}
+
+  <!-- Hi Mid freq toggles -->
+  ${toggleBtn(294,207,36,14,'1.5k', state.hiMidFreq===1500)}
+  ${toggleBtn(332,207,36,14,'3kHz', state.hiMidFreq===3000)}
+
+  <!-- Footswitch -->
+  <circle cx="${W/2}" cy="258" r="24" fill="#0e0e16" stroke="#252535" stroke-width="3"/>
+  <circle cx="${W/2}" cy="258" r="16" fill="#0a0a12" stroke="#1c1c2a" stroke-width="1"/>
+  <text x="${W/2}" y="290" text-anchor="middle" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="2">BYPASS</text>
+
+  <text x="28" y="${H-8}" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="1.5">IN</text>
+  <text x="${W-44}" y="${H-8}" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="1.5">OUT</text>
+  <text x="${W-60}" y="${H-8}" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="1">XLR</text>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render() { drawMainChart(); drawPedal(); if (audioRunning && audioCtx) buildAudioGraph(); }
+
+// ─────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────
+function fmt(v){ return (v>=0?'+':'')+parseFloat(v).toFixed(1)+' dB'; }
+
+function wireSlider(id, key, labelId, fmtFn) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', e=>{
+    state[key]=parseFloat(e.target.value);
+    document.getElementById(labelId).textContent=fmtFn(state[key]);
+    render();
+  });
+  // Mouse wheel support
+  el.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const step=parseFloat(el.step)||0.5;
+    const dir = e.deltaY<0?1:-1;
+    const next=Math.min(parseFloat(el.max),Math.max(parseFloat(el.min),parseFloat(el.value)+dir*step));
+    el.value=next;
+    state[key]=next;
+    document.getElementById(labelId).textContent=fmtFn(next);
+    render();
+  }, {passive:false});
+}
+
+wireSlider('lowKnob',    'low',    'lowVal',    fmt);
+wireSlider('trebleKnob', 'treble', 'trebleVal', fmt);
+wireSlider('loMidKnob',  'loMid',  'loMidVal',  fmt);
+wireSlider('hiMidKnob',  'hiMid',  'hiMidVal',  fmt);
+
+// Tone knob
+const toneEl = document.getElementById('toneKnob');
+function updateTone(v){
+  state.tone=v;
+  const p=parseFloat(v);
+  document.getElementById('toneVal').textContent = p>=99?'Open':p<=1?'Full cut':`${Math.round(p)}%`;
+  render();
+}
+toneEl.addEventListener('input', e=>updateTone(parseFloat(e.target.value)));
+toneEl.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const next=Math.min(100,Math.max(0,parseFloat(toneEl.value)+(e.deltaY<0?2:-2)));
+  toneEl.value=next; updateTone(next);
+},{passive:false});
+
+// Pickup knob
+const puEl = document.getElementById('pickupKnob');
+function updatePickup(v){
+  state.pickup=v;
+  const p=parseFloat(v);
+  document.getElementById('pickupVal').textContent=p<=3?'Neck':p>=97?'Bridge':`${Math.round(p)}%`;
+  render();
+}
+puEl.addEventListener('input', e=>updatePickup(parseFloat(e.target.value)));
+puEl.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const next=Math.min(100,Math.max(0,parseFloat(puEl.value)+(e.deltaY<0?2:-2)));
+  puEl.value=next; updatePickup(next);
+},{passive:false});
+
+// Freq toggles
+function setLoMidFreq(f){
+  state.loMidFreq=f;
+  document.getElementById('loMid500').classList.toggle('active',f===500);
+  document.getElementById('loMid1k').classList.toggle('active',f===1000);
+  render();
+}
+function setHiMidFreq(f){
+  state.hiMidFreq=f;
+  document.getElementById('hiMid3k').classList.toggle('active',f===3000);
+  document.getElementById('hiMid1k5').classList.toggle('active',f===1500);
+  render();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// WEB AUDIO ENGINE
+// Signal chain:
+//   MediaStream → inGain → [lowShelf, loMidPeak, hiMidPeak,
+//   trebleShelf, toneLowpass] → outGain → destination
+//   + two AnalyserNodes for metering (pre/post EQ)
+// ═══════════════════════════════════════════════════════════
+
+let audioCtx = null;
+let micStream = null;
+let sourceNode = null;
+let inGainNode = null;
+let outGainNode = null;
+let filterLow = null;
+let filterLoMid = null;
+let filterHiMid = null;
+let filterTreble = null;
+let filterTone = null;
+let inAnalyser = null;
+let outAnalyser = null;
+let inBuf = null;
+let outBuf = null;
+let meterRaf = null;
+let audioRunning = false;
+let bypassed = false;
+let fftEnabled = false;
+let fftAnalyser = null;
+let fftBuf = null;
+let fftRaf = null;
+// Peak hold state
+let peakHoldBuf = null;   // highest dB seen per bin
+let peakHoldAge = null;   // frames since peak was set per bin
+let peakHoldFrozen = false; // true = hold forever until reset
+let showInstruments = true; // show guitar/kick/snare/hh curves
+let showPeakHoldLine = true; // show the amber/white FFT peak line
+const PEAK_HOLD_FRAMES = 90;  // ~3s at 30fps before decay starts
+const PEAK_DECAY_RATE  = 0.4; // dB per frame during decay
+
+// ── Noise / hiss cleanup nodes ──────────────────────────────
+let filterHiss  = null;   // lowpass high-cut
+let filterNotch = null;   // notch for tonal whine
+let gateGainNode= null;   // noise gate gain stage
+let hissOn  = false;
+let notchOn = false;
+let gateOn  = false;
+let gateOpen = true;      // current gate state (smoothed)
+const noiseState = { hissFreq:4000, notchFreq:3000, notchQ:8, gateThresh:-50 };
+
+// ── Tuner ───────────────────────────────────────────────────
+let tunerOn = false;
+let tunerAnalyser = null;
+let tunerBuf = null;
+let tunerRaf = null;
+
+// ── Update filter parameters ───────────────────────────────
+// Pure parameter setter — never touches connections.
+// The graph is wired once in startAudio() and stays wired.
+function buildAudioGraph() {
+  if (!audioCtx || !sourceNode) return;
+
+  // Input gain (trim)
+  const inTrim = parseFloat(document.getElementById('inTrimKnob').value);
+  inGainNode.gain.setTargetAtTime(Math.pow(10, inTrim/20), audioCtx.currentTime, 0.01);
+
+  // EQ filters — map our state directly to BiquadFilterNode params
+  // Low shelf
+  filterLow.type = 'lowshelf';
+  filterLow.frequency.value = 100;
+  filterLow.gain.setTargetAtTime(bypassed ? 0 : state.low, audioCtx.currentTime, 0.02);
+
+  // Lo Mid peaking
+  filterLoMid.type = 'peaking';
+  filterLoMid.frequency.value = state.loMidFreq;
+  filterLoMid.Q.value = 2.2;
+  filterLoMid.gain.setTargetAtTime(bypassed ? 0 : state.loMid, audioCtx.currentTime, 0.02);
+
+  // Hi Mid peaking
+  filterHiMid.type = 'peaking';
+  filterHiMid.frequency.value = state.hiMidFreq;
+  filterHiMid.Q.value = 2.2;
+  filterHiMid.gain.setTargetAtTime(bypassed ? 0 : state.hiMid, audioCtx.currentTime, 0.02);
+
+  // Treble shelf
+  filterTreble.type = 'highshelf';
+  filterTreble.frequency.value = 5000;
+  filterTreble.gain.setTargetAtTime(bypassed ? 0 : state.treble, audioCtx.currentTime, 0.02);
+
+  // Tone lowpass (Ibanez SR305 passive cap model)
+  // tone=100 → fc 12kHz (open), tone=0 → fc 600Hz (fully rolled)
+  const toneNorm = state.tone / 100;
+  const toneFc = bypassed ? 20000 : 600 * Math.pow(12000/600, toneNorm);
+  filterTone.type = 'lowpass';
+  filterTone.frequency.setTargetAtTime(toneFc, audioCtx.currentTime, 0.02);
+  filterTone.Q.value = 0.707; // maximally flat, no resonance peak
+
+  // High-cut (hiss) lowpass — when off, park cutoff at 20 kHz (transparent)
+  if (filterHiss) {
+    filterHiss.type = 'lowpass';
+    filterHiss.frequency.setTargetAtTime((hissOn && !bypassed) ? noiseState.hissFreq : 20000, audioCtx.currentTime, 0.02);
+    filterHiss.Q.value = 0.707;
+  }
+
+  // Notch (tonal whine) — peaking filter with deep negative gain.
+  // gain = 0 is a perfect bypass; gain = -30 dB at high Q is a surgical notch.
+  if (filterNotch) {
+    filterNotch.type = 'peaking';
+    filterNotch.frequency.setTargetAtTime(noiseState.notchFreq, audioCtx.currentTime, 0.02);
+    filterNotch.Q.value = noiseState.notchQ;
+    filterNotch.gain.setTargetAtTime((notchOn && !bypassed) ? -30 : 0, audioCtx.currentTime, 0.02);
+  }
+
+  // Output gain (trim)
+  const outTrim = parseFloat(document.getElementById('outTrimKnob').value);
+  outGainNode.gain.setTargetAtTime(Math.pow(10, outTrim/20), audioCtx.currentTime, 0.01);
+}
+
+// ── Remembered input device ────────────────────────────────
+// iOS treats "default input" as a moving target and often falls back to the
+// built-in mic between sessions. So we remember the device the user picked
+// (by id AND label, since iOS can rotate deviceIds) and re-select it.
+const INPUT_KEY = 'b7k_input_device';
+function saveInputChoice(deviceId, label) {
+  try { localStorage.setItem(INPUT_KEY, JSON.stringify({ deviceId, label })); } catch(e) {}
+}
+function loadInputChoice() {
+  try { return JSON.parse(localStorage.getItem(INPUT_KEY) || 'null'); } catch(e) { return null; }
+}
+// Pick the saved device in the dropdown if it's currently available.
+function preferSavedDevice(inputs, sel) {
+  const saved = loadInputChoice();
+  if (!saved) return;
+  let match = inputs.find(d => d.deviceId === saved.deviceId);
+  if (!match && saved.label) match = inputs.find(d => d.label && d.label === saved.label);
+  if (match) sel.value = match.deviceId;
+}
+// Build the dropdown options from a device list.
+function fillDeviceOptions(inputs, sel) {
+  sel.innerHTML = '<option value="">Default input</option>';
+  inputs.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = d.label || 'Microphone ' + (i + 1);
+    sel.appendChild(opt);
+  });
+}
+
+// ── Device enumeration ─────────────────────────────────────
+async function populateDevices() {
+  try {
+    const tmp = await navigator.mediaDevices.getUserMedia({audio:true});
+    tmp.getTracks().forEach(t=>t.stop());
+  } catch(e) {}
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const inputs = devices.filter(d=>d.kind==='audioinput');
+  const sel = document.getElementById('deviceSelect');
+  fillDeviceOptions(inputs, sel);
+  preferSavedDevice(inputs, sel);   // re-select the remembered input (e.g. iRig)
+  document.getElementById('deviceRow').style.display = '';
+}
+
+// ── Start audio ────────────────────────────────────────────
+async function startAudio() {
+  try {
+    document.getElementById('audioStatus').textContent = 'Requesting mic access...';
+
+    // First enumerate devices so user can pick the right input
+    await populateDevices();
+
+    const deviceId = document.getElementById('deviceSelect').value;
+
+    // Valid getUserMedia audio constraints only — no latencyHint here
+    const audioConstraints = {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl:  false,
+      channelCount:     1
+    };
+    if (deviceId) audioConstraints.deviceId = { exact: deviceId };
+
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    } catch (e) {
+      // Saved deviceId may be stale (iOS rotates them) — retry without the
+      // exact constraint so we still get *an* input rather than failing.
+      if ((e.name === 'OverconstrainedError' || e.name === 'NotFoundError') && audioConstraints.deviceId) {
+        delete audioConstraints.deviceId;
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      } else { throw e; }
+    }
+
+    const track = micStream.getAudioTracks()[0];
+    console.log('[Audio] Track:', track.label, track.getSettings());
+    // Remember whatever input actually got used, so next launch reuses it
+    saveInputChoice(track.getSettings().deviceId || deviceId, track.label);
+
+    // Do NOT force sampleRate — let it match the input device natively.
+    // Forcing 48000 when the mic stream is 44100 silently breaks
+    // MediaStreamSource on Chrome/Mac (stream connects but passes no audio).
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+      latencyHint: 'interactive'
+    });
+
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    sourceNode  = audioCtx.createMediaStreamSource(micStream);
+    inGainNode  = audioCtx.createGain();
+    outGainNode = audioCtx.createGain();
+    filterLow   = audioCtx.createBiquadFilter();
+    filterLoMid = audioCtx.createBiquadFilter();
+    filterHiMid = audioCtx.createBiquadFilter();
+    filterTreble= audioCtx.createBiquadFilter();
+    filterTone  = audioCtx.createBiquadFilter();
+    filterHiss  = audioCtx.createBiquadFilter();
+    filterNotch = audioCtx.createBiquadFilter();
+    gateGainNode= audioCtx.createGain();
+    gateGainNode.gain.value = 1;
+
+    // Tuner analyser — tapped PRE-EQ so EQ/tone never skews pitch detection.
+    // 8192 samples (~170 ms @48k) gives ~5 periods of low B (31 Hz), which
+    // keeps autocorrelation accurate down low (4096 read ~18 cents flat there).
+    tunerAnalyser = audioCtx.createAnalyser();
+    tunerAnalyser.fftSize = 8192;
+    tunerAnalyser.smoothingTimeConstant = 0;
+    tunerBuf = new Float32Array(tunerAnalyser.fftSize);
+
+    // FFT analyser (post-EQ, high resolution for spectrum display)
+    fftAnalyser = audioCtx.createAnalyser();
+    fftAnalyser.fftSize = 16384;          // 8192 bins → ~2.9 Hz/bin @ 48kHz
+                                          // (finer low-end so 20–60 Hz is resolved)
+    fftAnalyser.smoothingTimeConstant = 0.80; // smooth ballistic decay
+    fftAnalyser.minDecibels = -90;
+    fftAnalyser.maxDecibels = -10;
+    fftBuf      = new Float32Array(fftAnalyser.frequencyBinCount);
+    peakHoldBuf = new Float32Array(fftAnalyser.frequencyBinCount).fill(-Infinity);
+    peakHoldAge = new Uint16Array(fftAnalyser.frequencyBinCount);
+
+    // Analysers for metering
+    inAnalyser  = audioCtx.createAnalyser();
+    outAnalyser = audioCtx.createAnalyser();
+    inAnalyser.fftSize = 256; outAnalyser.fftSize = 256;
+    inAnalyser.smoothingTimeConstant  = 0.7;
+    outAnalyser.smoothingTimeConstant = 0.7;
+    inBuf  = new Float32Array(inAnalyser.fftSize);
+    outBuf = new Float32Array(outAnalyser.fftSize);
+
+    // Wire: source → inGain → [inAnalyser, tunerAnalyser] → EQ filters →
+    //       hiss → notch → gate → [outAnalyser] → outGain → speakers + FFT
+    sourceNode.connect(inGainNode);
+    inGainNode.connect(inAnalyser);
+    inGainNode.connect(tunerAnalyser);   // pre-EQ tap for tuner
+    inGainNode.connect(filterLow);
+    filterLow.connect(filterLoMid);
+    filterLoMid.connect(filterHiMid);
+    filterHiMid.connect(filterTreble);
+    filterTreble.connect(filterTone);
+    filterTone.connect(filterHiss);
+    filterHiss.connect(filterNotch);
+    filterNotch.connect(gateGainNode);
+    gateGainNode.connect(outAnalyser);
+    gateGainNode.connect(outGainNode);
+    outGainNode.connect(audioCtx.destination);
+    outGainNode.connect(fftAnalyser);  // FFT tapped post-EQ, post-output-gain
+
+    buildAudioGraph();
+
+    console.log('[Audio] Graph wired. SR:', audioCtx.sampleRate,
+      '| inGain:', inGainNode.gain.value,
+      '| outGain:', outGainNode.gain.value);
+
+    startMeters();
+    startScope();
+
+    audioRunning = true;
+    document.getElementById('audioToggle').textContent = '⏹ Disable Audio';
+    document.getElementById('audioToggle').classList.add('active');
+    document.getElementById('bypassBtn').style.display = '';
+
+    const lat = audioCtx.baseLatency
+      ? ` · Latency: ~${Math.round((audioCtx.baseLatency + (audioCtx.outputLatency||0))*1000)} ms`
+      : '';
+    const trackLabel = track.label ? ` · ${track.label}` : '';
+    document.getElementById('audioStatus').innerHTML =
+      `<em>Live · ctx:${audioCtx.state}</em>${trackLabel}${lat}`;
+    document.getElementById('audioStatus').classList.remove('err');
+    document.getElementById('metersRow').style.display = '';
+    document.getElementById('trimRow').style.display = '';
+
+  } catch(err) {
+    let msg = 'Mic access denied or unavailable.';
+    if (err.name === 'NotAllowedError') msg = 'Permission denied — click the lock icon in Chrome address bar → reset mic → refresh page.';
+    if (err.name === 'NotFoundError')   msg = 'No audio input found — check iRig connection.';
+    if (err.name === 'OverconstrainedError') msg = 'Selected device unavailable — try "Default input".';
+    console.error('[Audio] Error:', err.name, err.message);
+    document.getElementById('audioStatus').textContent = msg;
+    document.getElementById('audioStatus').classList.add('err');
+  }
+}
+
+// ── Stop audio ─────────────────────────────────────────────
+function stopAudio() {
+  stopScope();
+  stopTuner();
+  if (meterRaf) cancelAnimationFrame(meterRaf);
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
+  if (audioCtx)  audioCtx.close();
+  audioCtx = micStream = sourceNode = null;
+  inGainNode = outGainNode = filterLow = filterLoMid = null;
+  filterHiMid = filterTreble = filterTone = null;
+  filterHiss = filterNotch = gateGainNode = null;
+  tunerAnalyser = null; tunerBuf = null;
+  inAnalyser = outAnalyser = inBuf = outBuf = null;
+  fftAnalyser = null; fftBuf = null;
+  peakHoldBuf = null; peakHoldAge = null; peakHoldFrozen = false;
+  if (fftRaf) { cancelAnimationFrame(fftRaf); fftRaf = null; }
+  fftEnabled = false;
+  const fftBtn = document.getElementById('fftBtn');
+  if (fftBtn) { fftBtn.textContent = 'FFT: OFF'; fftBtn.classList.remove('active'); }
+  document.getElementById('fftInfo').textContent = '';
+  audioRunning = false; bypassed = false;
+
+  document.getElementById('audioToggle').textContent = '⏵ Enable Audio';
+  document.getElementById('audioToggle').classList.remove('active');
+  document.getElementById('bypassBtn').style.display = 'none';
+  document.getElementById('bypassBtn').classList.remove('bypass-on');
+  document.getElementById('bypassBtn').textContent = 'Bypass: OFF';
+  document.getElementById('metersRow').style.display = 'none';
+  document.getElementById('trimRow').style.display = 'none';
+  document.getElementById('inMeter').style.width = '0%';
+  document.getElementById('outMeter').style.width = '0%';
+  document.getElementById('audioStatus').textContent = 'Click "Enable Audio" — allow mic access when prompted';
+  document.getElementById('audioStatus').classList.remove('err');
+}
+
+function toggleAudio() {
+  audioRunning ? stopAudio() : startAudio();
+}
+
+// Switch input device without full restart
+async function switchDevice() {
+  if (!audioRunning) return;
+  if (micStream) micStream.getTracks().forEach(t=>t.stop());
+  const deviceId = document.getElementById('deviceSelect').value;
+  const audioConstraints = {
+    echoCancellation: false, noiseSuppression: false,
+    autoGainControl: false, channelCount: 1
+  };
+  if (deviceId) audioConstraints.deviceId = { exact: deviceId };
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    const track = micStream.getAudioTracks()[0];
+    saveInputChoice(track.getSettings().deviceId || deviceId, track.label);
+    sourceNode.disconnect();
+    sourceNode = audioCtx.createMediaStreamSource(micStream);
+    sourceNode.connect(inGainNode);
+    document.getElementById('audioStatus').innerHTML = `<em>Live</em> · ${track.label}`;
+  } catch(e) {
+    document.getElementById('audioStatus').textContent = 'Device switch failed: ' + e.message;
+  }
+}
+
+function toggleBypass() {
+  bypassed = !bypassed;
+  const btn = document.getElementById('bypassBtn');
+  btn.textContent = bypassed ? 'Bypass: ON' : 'Bypass: OFF';
+  btn.classList.toggle('bypass-on', bypassed);
+  if (audioCtx) buildAudioGraph();
+}
+
+// ── Level meters ───────────────────────────────────────────
+function getRMS(buf) {
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) sum += buf[i]*buf[i];
+  return Math.sqrt(sum / buf.length);
+}
+function rmsToPercent(rms) {
+  if (rms < 0.0001) return 0;
+  // Map -60dB..0dB → 0..100%
+  const dB = 20 * Math.log10(rms);
+  return Math.max(0, Math.min(100, (dB + 60) / 60 * 100));
+}
+function rmsToDbStr(rms) {
+  if (rms < 0.0001) return '-inf';
+  return (20*Math.log10(rms)).toFixed(1) + ' dB';
+}
+
+function startMeters() {
+  function tick() {
+    if (!inAnalyser) return;
+    inAnalyser.getFloatTimeDomainData(inBuf);
+    outAnalyser.getFloatTimeDomainData(outBuf);
+    const inRms  = getRMS(inBuf);
+    const outRms = getRMS(outBuf);
+
+    // ── Noise gate ──────────────────────────────────────────
+    // Drive gateGainNode from input level with hysteresis so hiss
+    // between notes is silenced. Fast attack, slower release.
+    if (gateGainNode && audioCtx) {
+      if (gateOn && !bypassed) {
+        const inDbVal     = inRms > 0.00001 ? 20*Math.log10(inRms) : -120;
+        const openThresh  = noiseState.gateThresh;
+        const closeThresh = noiseState.gateThresh - 4; // hysteresis
+        if (gateOpen) { if (inDbVal < closeThresh) gateOpen = false; }
+        else          { if (inDbVal > openThresh)  gateOpen = true;  }
+        gateGainNode.gain.setTargetAtTime(gateOpen ? 1 : 0, audioCtx.currentTime, gateOpen ? 0.005 : 0.06);
+      } else {
+        gateGainNode.gain.setTargetAtTime(1, audioCtx.currentTime, 0.01);
+      }
+    }
+
+    document.getElementById('inMeter').style.width  = rmsToPercent(inRms)+'%';
+    document.getElementById('outMeter').style.width = rmsToPercent(outRms)+'%';
+    document.getElementById('inDb').textContent  = rmsToDbStr(inRms);
+    document.getElementById('outDb').textContent = rmsToDbStr(outRms);
+    meterRaf = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// Audio syncs via render() — buildAudioGraph() is called there directly.
+
+// Watch AudioContext state and show it in the status bar
+setInterval(() => {
+  if (!audioRunning || !audioCtx) return;
+  const statusEl = document.getElementById('audioStatus');
+  // Re-resume if suspended (can happen on tab switch)
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().then(() => {
+      console.log('[Audio] Re-resumed context');
+    });
+  }
+  // Update state badge
+  const current = statusEl.innerHTML;
+  statusEl.innerHTML = current.replace(/ctx:[a-z]+/, 'ctx:' + audioCtx.state);
+}, 1000);
+
+// ── Trim sliders ───────────────────────────────────────────
+function wireTrim(id, labelId) {
+  const el = document.getElementById(id);
+  function update() {
+    const v = parseFloat(el.value);
+    document.getElementById(labelId).textContent = (v>=0?'+':'')+v+' dB';
+    if (audioRunning && audioCtx) buildAudioGraph();
+  }
+  el.addEventListener('input', update);
+  el.addEventListener('wheel', e => {
+    e.preventDefault();
+    const next = Math.min(20, Math.max(-20, parseFloat(el.value) + (e.deltaY<0?1:-1)));
+    el.value = next; update();
+  }, {passive:false});
+}
+wireTrim('inTrimKnob',  'inTrimVal');
+wireTrim('outTrimKnob', 'outTrimVal');
+
+
+// ═══════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════
+function openRef() {
+  document.getElementById('refModal').classList.add('open');
+  // Redraw ref chart now it's visible (canvas needs visible parent)
+  requestAnimationFrame(drawRefChart);
+}
+function closeRef() {
+  document.getElementById('refModal').classList.remove('open');
+}
+function closeRefModal(e) {
+  // Close if clicking the backdrop itself, not the box
+  if (e.target === document.getElementById('refModal')) closeRef();
+}
+// Keyboard close
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRef(); });
+
+// ═══════════════════════════════════════════════════════════
+// OSCILLOSCOPE
+// ═══════════════════════════════════════════════════════════
+let scopeMode = 'in'; // 'in' | 'out' | 'both'
+let scopeRaf = null;
+
+function setScopeMode(mode) {
+  scopeMode = mode;
+  ['In','Out','Both'].forEach(m => {
+    document.getElementById('scopeBtn'+m).classList.toggle('active', mode === m.toLowerCase());
+  });
+}
+
+function startScope() {
+  if (scopeRaf) cancelAnimationFrame(scopeRaf);
+
+  const canvas = document.getElementById('scopeCanvas');
+  const dpr = window.devicePixelRatio || 1;
+
+  function resizeScope() {
+    const W = canvas.parentElement.clientWidth;
+    const H = 140;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+  }
+  resizeScope();
+  window.addEventListener('resize', resizeScope);
+
+  // Separate time-domain analysers with larger FFT for better waveform resolution
+  const scopeInAna  = audioCtx.createAnalyser();
+  const scopeOutAna = audioCtx.createAnalyser();
+  scopeInAna.fftSize  = 2048;
+  scopeOutAna.fftSize = 2048;
+  scopeInAna.smoothingTimeConstant  = 0;
+  scopeOutAna.smoothingTimeConstant = 0;
+
+  // Tap in pre-EQ and post-EQ
+  inGainNode.connect(scopeInAna);
+  outGainNode.connect(scopeOutAna);
+
+  const inWave  = new Float32Array(scopeInAna.fftSize);
+  const outWave = new Float32Array(scopeOutAna.fftSize);
+
+  // Peak hold for clip indicator
+  let peakIn = 0, peakOut = 0;
+  let peakDecay = 0;
+
+  function drawScope() {
+    scopeRaf = requestAnimationFrame(drawScope);
+    if (!audioCtx) return;
+
+    scopeInAna.getFloatTimeDomainData(inWave);
+    scopeOutAna.getFloatTimeDomainData(outWave);
+
+    const W = canvas.width / dpr;
+    const H = canvas.height / dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Background
+    ctx.fillStyle = TH.scopeBg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid — horizontal centre + ±0.5 lines + vertical dividers
+    ctx.strokeStyle = TH.scopeGrid; ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(fr => {
+      const y = fr * H;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    });
+    [0.25, 0.5, 0.75].forEach(fr => {
+      const x = fr * W;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    });
+
+    // Zero line slightly brighter
+    ctx.strokeStyle = TH.scopeZero; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+    // ±1.0 clip lines
+    const clipY0 = H * 0.04;
+    const clipY1 = H * 0.96;
+    ctx.strokeStyle = 'rgba(255,77,77,0.30)'; ctx.lineWidth = 1; ctx.setLineDash([4,6]);
+    ctx.beginPath(); ctx.moveTo(0, clipY0); ctx.lineTo(W, clipY0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, clipY1); ctx.lineTo(W, clipY1); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Helper: draw one waveform
+    function drawWave(data, color, glowColor, yOffset) {
+      // Trigger: find a rising zero crossing to stabilise the waveform
+      let triggerIdx = 0;
+      for (let i = 1; i < data.length - W; i++) {
+        if (data[i-1] < 0 && data[i] >= 0) { triggerIdx = i; break; }
+      }
+
+      ctx.save();
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      const drawLen = Math.min(data.length - triggerIdx, W * 2);
+      for (let i = 0; i < drawLen; i++) {
+        const x = (i / drawLen) * W;
+        const y = (H / 2) - (data[triggerIdx + i] * (H * 0.45)) + yOffset;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // Peak detection for clip indicator
+      return Math.max(...Array.from(data).map(Math.abs));
+    }
+
+    let peakValIn = 0, peakValOut = 0;
+
+    if (scopeMode === 'in' || scopeMode === 'both') {
+      peakValIn = drawWave(inWave, TH.bass, TH.fftGlow, scopeMode === 'both' ? -6 : 0);
+    }
+    if (scopeMode === 'out' || scopeMode === 'both') {
+      peakValOut = drawWave(outWave, TH.snare, TH.snare, scopeMode === 'both' ? 6 : 0);
+    }
+
+    // Clip indicator dot top-right
+    const clipping = peakValIn > 0.95 || peakValOut > 0.95;
+    if (clipping) { peakIn = 1; peakDecay = 60; }
+    if (peakDecay > 0) peakDecay--;
+    else peakIn = 0;
+
+    ctx.beginPath();
+    ctx.arc(W - 12, 12, 5, 0, Math.PI*2);
+    ctx.fillStyle = peakDecay > 0 ? '#ff4d4d' : '#1e2e2e';
+    ctx.fill();
+    if (peakDecay > 0) {
+      ctx.shadowColor = '#ff4d4d'; ctx.shadowBlur = 10;
+      ctx.fill(); ctx.shadowBlur = 0;
+    }
+
+    // Scope info: peak amplitude
+    const peak = Math.max(peakValIn, peakValOut);
+    const peakDb = peak > 0.0001 ? (20*Math.log10(peak)).toFixed(1)+' dBFS' : '-inf';
+    document.getElementById('scopeInfo').innerHTML =
+      `<em>Peak: ${peakDb}</em>${clipping || peakDecay>0 ? ' &nbsp;<span style="color:#ff4d4d">CLIP</span>' : ''}`;
+
+    // Labels
+    ctx.fillStyle = TH.scopeText; ctx.font = '8px Share Tech Mono,monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('+1.0', 4, clipY0 + 9);
+    ctx.fillText('-1.0', 4, clipY1 - 3);
+    ctx.fillText('0', 4, H/2 - 3);
+  }
+
+  drawScope();
+}
+
+function stopScope() {
+  if (scopeRaf) { cancelAnimationFrame(scopeRaf); scopeRaf = null; }
+  // Clear canvas
+  const canvas = document.getElementById('scopeCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = TH.scopeBg; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = TH.scopeZero; ctx.font = '11px Share Tech Mono,monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Enable audio to activate oscilloscope', W/2, H/2);
+  document.getElementById('scopeInfo').innerHTML = '<em>—</em>';
+}
+
+// Scope is started directly in startAudio() below startMeters().
+
+
+// ═══════════════════════════════════════════════════════════
+// FFT LIVE LOOP
+// ═══════════════════════════════════════════════════════════
+function toggleFFT() {
+  if (!audioRunning || !fftAnalyser) {
+    document.getElementById('fftInfo').textContent = 'Enable audio first';
+    return;
+  }
+  fftEnabled = !fftEnabled;
+  const btn     = document.getElementById('fftBtn');
+  const holdBtn = document.getElementById('holdBtn');
+  const resetBtn= document.getElementById('resetBtn');
+  btn.textContent = fftEnabled ? 'FFT: ON' : 'FFT: OFF';
+  btn.classList.toggle('active', fftEnabled);
+  holdBtn.style.display  = fftEnabled ? '' : 'none';
+  resetBtn.style.display = fftEnabled ? '' : 'none';
+  if (fftEnabled) {
+    document.getElementById('fftInfo').innerHTML =
+      `<em>${(audioCtx.sampleRate/2/1000).toFixed(0)} kHz · ${fftAnalyser.frequencyBinCount} bins · ${(audioCtx.sampleRate/fftAnalyser.fftSize).toFixed(1)} Hz/bin</em>`;
+    resetPeakHold();
+    startFFTLoop();
+  } else {
+    stopFFTLoop();
+    peakHoldFrozen = false;
+    document.getElementById('fftInfo').textContent = '';
+    drawMainChart();
+  }
+}
+
+function togglePeakHold() {
+  if (!fftEnabled) return;
+  peakHoldFrozen = !peakHoldFrozen;
+  const btn = document.getElementById('holdBtn');
+  btn.textContent = peakHoldFrozen ? 'Hold: ON' : 'Hold: OFF';
+  btn.classList.toggle('active', peakHoldFrozen);
+}
+
+function resetPeakHold() {
+  if (peakHoldBuf) peakHoldBuf.fill(-Infinity);
+  if (peakHoldAge) peakHoldAge.fill(0);
+  peakHoldFrozen = false;
+  const btn = document.getElementById('holdBtn');
+  if (btn) { btn.textContent = 'Hold: OFF'; btn.classList.remove('active'); }
+}
+
+function startFFTLoop() {
+  if (fftRaf) cancelAnimationFrame(fftRaf);
+  function loop() {
+    if (!fftEnabled || !fftAnalyser) return;
+    drawMainChart();   // redraws chart + FFT overlay each frame
+    fftRaf = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function stopFFTLoop() {
+  if (fftRaf) { cancelAnimationFrame(fftRaf); fftRaf = null; }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// NOISE / HISS TOOLS
+// ═══════════════════════════════════════════════════════════
+function refreshNoise() { if (audioRunning && audioCtx) buildAudioGraph(); }
+
+function toggleHiss() {
+  hissOn = !hissOn;
+  const btn = document.getElementById('hissBtn');
+  btn.textContent = 'High-cut: ' + (hissOn ? 'ON' : 'OFF');
+  btn.classList.toggle('active', hissOn);
+  document.getElementById('hissParam').classList.toggle('on', hissOn);
+  refreshNoise();
+}
+
+function toggleNotch() {
+  notchOn = !notchOn;
+  const btn = document.getElementById('notchBtn');
+  btn.textContent = 'Notch: ' + (notchOn ? 'ON' : 'OFF');
+  btn.classList.toggle('active', notchOn);
+  document.getElementById('notchParam').classList.toggle('on', notchOn);
+  refreshNoise();
+}
+
+function toggleGate() {
+  gateOn = !gateOn;
+  gateOpen = true; // start open so we don't clamp the first note
+  const btn = document.getElementById('gateBtn');
+  btn.textContent = 'Gate: ' + (gateOn ? 'ON' : 'OFF');
+  btn.classList.toggle('active', gateOn);
+  document.getElementById('gateParam').classList.toggle('on', gateOn);
+  refreshNoise();
+}
+
+function wireNoiseParam(id, key, labelId, fmtFn) {
+  const el = document.getElementById(id);
+  function update() {
+    noiseState[key] = parseFloat(el.value);
+    document.getElementById(labelId).textContent = fmtFn(noiseState[key]);
+    refreshNoise();
+  }
+  el.addEventListener('input', update);
+  el.addEventListener('wheel', e => {
+    e.preventDefault();
+    const step = parseFloat(el.step) || 1;
+    const next = Math.min(parseFloat(el.max), Math.max(parseFloat(el.min),
+      parseFloat(el.value) + (e.deltaY < 0 ? step : -step)));
+    el.value = next; update();
+  }, {passive:false});
+}
+const kHz = v => v >= 1000 ? (v/1000).toFixed(v >= 10000 ? 1 : 2) + ' kHz' : v.toFixed(0) + ' Hz';
+wireNoiseParam('hissFreqKnob',   'hissFreq',   'hissFreqVal',   v => (v/1000).toFixed(1) + ' kHz');
+wireNoiseParam('gateThreshKnob', 'gateThresh', 'gateThreshVal', v => v + ' dB');
+wireNoiseParam('notchFreqKnob',  'notchFreq',  'notchFreqVal',  kHz);
+wireNoiseParam('notchQKnob',     'notchQ',     'notchQVal',     v => v.toFixed(1));
+
+
+// ═══════════════════════════════════════════════════════════
+// CHROMATIC TUNER  (autocorrelation pitch detection)
+// ═══════════════════════════════════════════════════════════
+const TUNER_MIN_FREQ = 27.5;    // A0
+const TUNER_MAX_FREQ = 2000;    // well above bass range, safe for chromatic
+const MPM_K = 0.9;              // peak-pick threshold (fraction of strongest peak)
+const MPM_CLARITY = 0.5;        // reject noisy frames below this NSDF peak
+let tunerLast = 0, tunerSmoothHz = 0, tunerMissCount = 0;
+
+// McLeod Pitch Method (normalised square difference). Robust against the
+// octave / harmonic-locking errors that plain autocorrelation suffers when a
+// string's fundamental is weak and overtones dominate (the A/D-string problem):
+// it picks the FIRST strong NSDF peak (the true period), not the tallest one.
+function detectPitch(buf, sampleRate) {
+  const SIZE = buf.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.005) return -1; // too quiet to detect
+
+  const maxTau = Math.min(Math.floor(sampleRate / TUNER_MIN_FREQ), Math.floor(SIZE / 2));
+  const minTau = Math.floor(sampleRate / TUNER_MAX_FREQ);
+
+  // NSDF(tau) = 2·Σ x[i]·x[i+tau] / Σ (x[i]² + x[i+tau]²)
+  const nsdf = new Float32Array(maxTau + 1);
+  for (let tau = 0; tau <= maxTau; tau++) {
+    let r = 0, m = 0;
+    for (let i = 0; i < SIZE - tau; i++) {
+      r += buf[i] * buf[i + tau];
+      m += buf[i] * buf[i] + buf[i + tau] * buf[i + tau];
+    }
+    nsdf[tau] = m > 0 ? 2 * r / m : 0;
+  }
+
+  // Collect key maxima (one per positive lobe between negative zero-crossings)
+  const peaks = [];
+  let pos = 1;
+  while (pos < maxTau && nsdf[pos] > 0)  pos++; // skip the lobe around tau=0
+  while (pos < maxTau && nsdf[pos] <= 0) pos++; // advance to first positive zero-cross
+  let curMax = 0;
+  while (pos < maxTau) {
+    if (nsdf[pos] > nsdf[pos - 1] && nsdf[pos] >= nsdf[pos + 1]) {
+      if (curMax === 0 || nsdf[pos] > nsdf[curMax]) curMax = pos;
+    }
+    pos++;
+    if (pos < maxTau && nsdf[pos] < 0) {
+      if (curMax > 0) { peaks.push(curMax); curMax = 0; }
+      while (pos < maxTau && nsdf[pos] <= 0) pos++;
+    }
+  }
+  if (curMax > 0) peaks.push(curMax);
+  if (!peaks.length) return -1;
+
+  let highest = 0;
+  for (const p of peaks) if (nsdf[p] > highest) highest = nsdf[p];
+  if (highest < MPM_CLARITY) return -1; // too noisy / no clear pitch
+
+  const thr = MPM_K * highest;
+  let chosen = -1;
+  for (const p of peaks) { if (nsdf[p] >= thr && p >= minTau) { chosen = p; break; } }
+  if (chosen < 0) for (const p of peaks) { if (nsdf[p] >= thr) { chosen = p; break; } }
+  if (chosen <= 0) return -1;
+
+  // Parabolic interpolation around the chosen lag for sub-sample accuracy
+  const x1 = nsdf[chosen - 1], x2 = nsdf[chosen], x3 = nsdf[chosen + 1];
+  const a = (x1 + x3 - 2 * x2) / 2;
+  const b = (x3 - x1) / 2;
+  let tau = chosen;
+  if (a) tau = chosen - b / (2 * a);
+  return sampleRate / tau;
+}
+
+const NOTE_NAMES = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+function freqToNote(freq) {
+  const midi = 12 * Math.log2(freq / 440) + 69;
+  const rounded = Math.round(midi);
+  const cents = Math.round((midi - rounded) * 100);
+  return {
+    name:   NOTE_NAMES[((rounded % 12) + 12) % 12],
+    octave: Math.floor(rounded / 12) - 1,
+    cents
+  };
+}
+
+function toggleTuner() {
+  if (!audioRunning || !tunerAnalyser) {
+    document.getElementById('tunerStatus').textContent = 'Enable audio first';
+    return;
+  }
+  tunerOn = !tunerOn;
+  const btn = document.getElementById('tunerToggle');
+  btn.classList.toggle('active', tunerOn);
+  document.getElementById('tunerDisplay').classList.toggle('on', tunerOn);
+  if (tunerOn) {
+    document.getElementById('tunerStatus').innerHTML = '<em>Listening…</em> play one note at a time';
+    tunerSmoothHz = 0; tunerMissCount = 0;
+    startTunerLoop();
+  } else {
+    stopTuner();
+    document.getElementById('tunerStatus').textContent = 'Chromatic tuner — enable audio, then activate';
+  }
+}
+
+function stopTuner() {
+  tunerOn = false;
+  if (tunerRaf) { cancelAnimationFrame(tunerRaf); tunerRaf = null; }
+  const btn = document.getElementById('tunerToggle');
+  if (btn) btn.classList.remove('active');
+  const disp = document.getElementById('tunerDisplay');
+  if (disp) disp.classList.remove('on');
+}
+
+function startTunerLoop() {
+  if (tunerRaf) cancelAnimationFrame(tunerRaf);
+  function loop(ts) {
+    if (!tunerOn || !tunerAnalyser) return;
+    tunerRaf = requestAnimationFrame(loop);
+    if (ts - tunerLast < 60) return; // throttle to ~16 fps
+    tunerLast = ts;
+    tunerAnalyser.getFloatTimeDomainData(tunerBuf);
+    const hz = detectPitch(tunerBuf, audioCtx.sampleRate);
+    updateTunerDisplay(hz);
+  }
+  tunerRaf = requestAnimationFrame(loop);
+}
+
+function updateTunerDisplay(hz) {
+  const noteEl  = document.getElementById('tunerNote');
+  const centsEl = document.getElementById('tunerCents');
+  const arrowEl = document.getElementById('tunerArrow');
+  const needle  = document.getElementById('tunerNeedle');
+  const hzEl    = document.getElementById('tunerHz');
+
+  if (hz < 0 || !isFinite(hz) || hz < TUNER_MIN_FREQ || hz > TUNER_MAX_FREQ) {
+    // Hold last reading briefly to avoid flicker, then blank out
+    if (++tunerMissCount > 8) {
+      noteEl.innerHTML = '–'; noteEl.className = 'tuner-note';
+      centsEl.textContent = '—'; arrowEl.textContent = '';
+      hzEl.textContent = '—';
+      needle.style.left = '50%'; needle.classList.remove('in-tune');
+    }
+    return;
+  }
+  tunerMissCount = 0;
+  tunerSmoothHz = tunerSmoothHz ? tunerSmoothHz * 0.6 + hz * 0.4 : hz;
+
+  const { name, octave, cents } = freqToNote(tunerSmoothHz);
+  const absC = Math.abs(cents);
+  noteEl.innerHTML = name + '<span class="tuner-octave">' + octave + '</span>';
+  noteEl.className = 'tuner-note ' + (absC <= 5 ? 'in-tune' : (cents < 0 ? 'flat-of' : 'sharp-of'));
+  centsEl.textContent = (cents > 0 ? '+' : '') + cents + '¢';
+  arrowEl.textContent = absC <= 5 ? '✓ in tune' : (cents < 0 ? '♭ flat' : '♯ sharp');
+
+  const pos = Math.max(0, Math.min(100, 50 + cents));
+  needle.style.left = pos + '%';
+  needle.classList.toggle('in-tune', absC <= 5);
+  hzEl.textContent = tunerSmoothHz.toFixed(1) + ' Hz';
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// FREQUENCY CROSSHAIR
+// ═══════════════════════════════════════════════════════════
+const NOTE_MAP = [
+  [41.2,'E1'],[43.7,'F1'],[46.2,'F#1'],[49.0,'G1'],[51.9,'G#1'],
+  [55.0,'A1'],[58.3,'A#1'],[61.7,'B1'],[65.4,'C2'],[69.3,'C#2'],
+  [73.4,'D2'],[77.8,'D#2'],[82.4,'E2'],[87.3,'F2'],[92.5,'F#2'],
+  [98.0,'G2'],[103.8,'G#2'],[110,'A2'],[116.5,'A#2'],[123.5,'B2'],
+  [130.8,'C3'],[138.6,'C#3'],[146.8,'D3'],[155.6,'D#3'],[164.8,'E3'],
+  [174.6,'F3'],[185,'F#3'],[196,'G3'],[207.7,'G#3'],[220,'A3'],
+  [233.1,'A#3'],[246.9,'B3'],[261.6,'C4'],[277.2,'C#4'],[293.7,'D4'],
+  [311.1,'D#4'],[329.6,'E4'],[349.2,'F4'],[370,'F#4'],[392,'G4'],
+  [415.3,'G#4'],[440,'A4']
+];
+
+function nearestNote(freq) {
+  let best = NOTE_MAP[0], bestDist = Infinity;
+  for (const [f, n] of NOTE_MAP) {
+    const cents = Math.abs(1200 * Math.log2(freq / f));
+    if (cents < bestDist) { bestDist = cents; best = [f, n]; }
+  }
+  // Only show note name if within 50 cents
+  return bestDist < 50 ? best[1] : null;
+}
+
+function chartXtoFreq(canvas, clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / (window.devicePixelRatio || 1) / rect.width;
+  const x = (clientX - rect.left) * scaleX;
+  const cw = canvas.width / (window.devicePixelRatio || 1) - PAD.l - PAD.r;
+  const t = (x - PAD.l) / cw;
+  if (t < 0 || t > 1) return null;
+  return 20 * Math.pow(20000 / 20, t);
+}
+
+function freqDisplay(f) {
+  if (f >= 1000) return (f / 1000).toFixed(f >= 10000 ? 1 : 2) + ' kHz';
+  return f.toFixed(0) + ' Hz';
+}
+
+function drawCrosshair(canvas, clientX) {
+  const cc = document.getElementById('crosshairCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.getBoundingClientRect().width;
+  const H = 220;
+  cc.width  = W * dpr; cc.height = H * dpr;
+  cc.style.width = W + 'px'; cc.style.height = H + 'px';
+  const ctx = cc.getContext('2d');
+  ctx.clearRect(0, 0, cc.width, cc.height);
+  ctx.scale(dpr, dpr);
+
+  const rect = canvas.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const ch = H - PAD.t - PAD.b;
+
+  // Vertical line
+  ctx.strokeStyle = TH.crosshair;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function onChartMouseMove(e) {
+  const canvas = document.getElementById('mainChart');
+  const freq = chartXtoFreq(canvas, e.clientX);
+  if (!freq) { onChartMouseLeave(); return; }
+
+  // Draw crosshair
+  drawCrosshair(canvas, e.clientX);
+
+  // Build tooltip text
+  const note = nearestNote(freq);
+  let label = freqDisplay(freq);
+  if (note) label += '  ·  ' + note;
+
+  // FFT dB readout if active
+  if (fftEnabled && fftAnalyser && fftBuf) {
+    const nyquist = audioCtx.sampleRate / 2;
+    const bin = Math.round((freq / nyquist) * fftBuf.length);
+    if (bin > 0 && bin < fftBuf.length) {
+      const db = fftBuf[bin];
+      if (db > fftAnalyser.minDecibels + 1) label += '  ·  ' + db.toFixed(1) + ' dB';
+    }
+  }
+
+  const tip = document.getElementById('freqTooltip');
+  tip.textContent = label;
+  tip.style.display = 'block';
+  // Position tooltip: follow cursor, avoid right-edge overflow
+  const tx = e.clientX + 14;
+  const ty = e.clientY - 28;
+  tip.style.left = Math.min(tx, window.innerWidth - tip.offsetWidth - 16) + 'px';
+  tip.style.top  = ty + 'px';
+}
+
+function onChartMouseLeave() {
+  document.getElementById('freqTooltip').style.display = 'none';
+  const cc = document.getElementById('crosshairCanvas');
+  const ctx = cc.getContext('2d');
+  ctx.clearRect(0, 0, cc.width, cc.height);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRESETS
+// Stored in localStorage — survives page refresh.
+// Schema: { name, low, loMid, loMidFreq, hiMid, hiMidFreq,
+//           treble, tone, pickup }
+// ═══════════════════════════════════════════════════════════
+const PRESET_KEY = 'b7k_presets_v1';
+
+function loadPresetsFromStorage() {
+  try {
+    return JSON.parse(localStorage.getItem(PRESET_KEY) || '[]');
+  } catch(e) { return []; }
+}
+
+function savePresetsToStorage(presets) {
+  localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+}
+
+function savePreset() {
+  const nameEl = document.getElementById('presetName');
+  const name = nameEl.value.trim() || 'Preset ' + (loadPresetsFromStorage().length + 1);
+  const preset = {
+    name,
+    low:       state.low,
+    loMid:     state.loMid,
+    loMidFreq: state.loMidFreq,
+    hiMid:     state.hiMid,
+    hiMidFreq: state.hiMidFreq,
+    treble:    state.treble,
+    tone:      state.tone,
+    pickup:    state.pickup
+  };
+  const presets = loadPresetsFromStorage();
+  presets.push(preset);
+  savePresetsToStorage(presets);
+  nameEl.value = '';
+  renderPresetList();
+}
+
+function applyPreset(idx) {
+  const presets = loadPresetsFromStorage();
+  const p = presets[idx];
+  if (!p) return;
+
+  // Apply to state
+  state.low       = p.low;
+  state.loMid     = p.loMid;
+  state.loMidFreq = p.loMidFreq;
+  state.hiMid     = p.hiMid;
+  state.hiMidFreq = p.hiMidFreq;
+  state.treble    = p.treble;
+  state.tone      = p.tone;
+  state.pickup    = p.pickup;
+
+  // Sync all slider DOM values
+  document.getElementById('lowKnob').value    = p.low;
+  document.getElementById('loMidKnob').value  = p.loMid;
+  document.getElementById('hiMidKnob').value  = p.hiMid;
+  document.getElementById('trebleKnob').value = p.treble;
+  document.getElementById('toneKnob').value   = p.tone;
+  document.getElementById('pickupKnob').value = p.pickup;
+
+  // Sync value labels
+  document.getElementById('lowVal').textContent    = fmt(p.low);
+  document.getElementById('loMidVal').textContent  = fmt(p.loMid);
+  document.getElementById('hiMidVal').textContent  = fmt(p.hiMid);
+  document.getElementById('trebleVal').textContent = fmt(p.treble);
+  const tp = p.tone;
+  document.getElementById('toneVal').textContent =
+    tp >= 99 ? 'Open' : tp <= 1 ? 'Full cut' : tp + '%';
+  const pp = p.pickup;
+  document.getElementById('pickupVal').textContent =
+    pp <= 3 ? 'Neck' : pp >= 97 ? 'Bridge' : pp + '%';
+
+  // Sync freq buttons
+  setLoMidFreq(p.loMidFreq);
+  setHiMidFreq(p.hiMidFreq);
+
+  render();
+}
+
+function deletePreset(idx) {
+  const presets = loadPresetsFromStorage();
+  presets.splice(idx, 1);
+  savePresetsToStorage(presets);
+  renderPresetList();
+}
+
+function renderPresetList() {
+  const list = document.getElementById('presetList');
+  const presets = loadPresetsFromStorage();
+  if (!presets.length) {
+    list.innerHTML = '<span class="preset-empty">No presets yet — dial in a sound and save it.</span>';
+    return;
+  }
+  list.innerHTML = presets.map((p, i) => `
+    <div class="preset-chip">
+      <button class="preset-load" onclick="applyPreset(${i})">${p.name}</button>
+      <button class="preset-del"  onclick="deletePreset(${i})" title="Delete">✕</button>
+    </div>`).join('');
+}
+
+// Allow saving with Enter key
+document.getElementById('presetName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') savePreset();
+});
+
+// ── Mix instruments toggle ─────────────────────────────────
+function toggleInstruments() {
+  showInstruments = !showInstruments;
+  const btn = document.getElementById('instrBtn');
+  btn.textContent = showInstruments ? 'Mix: ON' : 'Mix: OFF';
+  btn.classList.toggle('active', showInstruments);
+  render();
+  if (document.getElementById('refModal').classList.contains('open')) drawRefChart();
+}
+
+// ── Peak hold line toggle ───────────────────────────────────
+function togglePeakLine() {
+  showPeakHoldLine = !showPeakHoldLine;
+  const btn = document.getElementById('peakLineBtn');
+  btn.textContent = showPeakHoldLine ? 'Peak line: ON' : 'Peak line: OFF';
+  btn.classList.toggle('active', showPeakHoldLine);
+  // No need to call render — FFT loop redraws every frame; if FFT off, redraw once
+  if (!fftEnabled) drawMainChart();
+}
+
+window.addEventListener('resize',()=>{ drawRefChart(); drawMainChart(); });
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+// Register service worker (network-first: auto-updates when online, offline-capable)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+initTheme();      // sets TH + data-theme before first paint
+drawRefChart();
+render();
+stopScope();
+renderPresetList();
+// Pre-populate device list without blocking mic (labels may be hidden until first grant)
+navigator.mediaDevices.enumerateDevices().then(devices => {
+  const inputs = devices.filter(d => d.kind === 'audioinput');
+  const sel = document.getElementById('deviceSelect');
+  fillDeviceOptions(inputs, sel);
+  preferSavedDevice(inputs, sel);
+  if (inputs.length) document.getElementById('deviceRow').style.display = '';
+}).catch(() => {});
+</script>
+</body>
+</html>
