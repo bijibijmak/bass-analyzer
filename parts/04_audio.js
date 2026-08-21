@@ -416,7 +416,6 @@ function toggleBypass() {
   btn.textContent = bypassed ? 'Bypass: ON' : 'Bypass: OFF';
   btn.classList.toggle('bypass-on', bypassed);
   if (audioCtx) applyAudioParams();
-  drawPedal();
 }
 
 // ── Level meters + noise gate (driven from the shared UI loop) ──

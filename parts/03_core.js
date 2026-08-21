@@ -386,87 +386,6 @@ function drawRefChart() {
 // ═══════════════════════════════════════════════════════════
 // PEDAL SVG
 // ═══════════════════════════════════════════════════════════
-function drawPedal() {
-  const svg = document.getElementById('pedalSvg');
-  if (!svg) return;
-  const rad = d => d * Math.PI / 180;
-  const knobAngle = (v, mn, mx) => -135 + ((v - mn) / (mx - mn)) * 270;
-
-  function knobSVG(cx, cy, r, adeg, label, color) {
-    const a = rad(adeg - 90);
-    const ix = cx + r * 0.60 * Math.cos(a), iy = cy + r * 0.60 * Math.sin(a);
-    const ox = cx + r * 0.92 * Math.cos(a), oy = cy + r * 0.92 * Math.sin(a);
-    return `
-      <circle cx="${cx}" cy="${cy}" r="${r * 1.22}" fill="none" stroke="#1e1e2c" stroke-width="2.5"/>
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#1a1a22" stroke="#3a3a4e" stroke-width="1.5"/>
-      <circle cx="${cx}" cy="${cy}" r="${r * 0.58}" fill="#0f0f14"/>
-      <line x1="${ix}" y1="${iy}" x2="${ox}" y2="${oy}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>
-      <text x="${cx}" y="${cy + r + 16}" text-anchor="middle" fill="#555570" font-family="Share Tech Mono" font-size="8.5" letter-spacing="0.8">${label}</text>`;
-  }
-
-  function toggleBtn(x, y, w, h, label, active) {
-    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.5" fill="${active ? '#00c8b4' : '#1e1e2c'}" stroke="${active ? '#00c8b4' : '#2e2e3e'}" stroke-width="1"/>
-    <text x="${x + w / 2}" y="${y + h / 2 + 3.5}" text-anchor="middle" fill="${active ? '#000' : '#555570'}" font-family="Share Tech Mono" font-size="8" letter-spacing="0.3">${label}</text>`;
-  }
-
-  // 3-position slide switch: pos 0 left, 1 centre, 2 right
-  function slideSwitch(x, y, label, pos) {
-    const cx = x + 4.5 + pos * 8.5;
-    return `<rect x="${x}" y="${y}" width="26" height="9" rx="4" fill="#111118" stroke="#252535" stroke-width="1"/>
-    <circle cx="${cx + 4}" cy="${y + 4.5}" r="4.5" fill="#00c8b4"/>
-    <text x="${x + 13}" y="${y + 20}" text-anchor="middle" fill="#555570" font-family="Share Tech Mono" font-size="6.5" letter-spacing="1">${label}</text>`;
-  }
-
-  const W = 540, H = 300;
-  const levelDim = state.blend <= 0;   // Level does nothing with no wet path
-
-  svg.innerHTML = `
-  <defs>
-    <filter id="glow2"><feGaussianBlur stdDeviation="2.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#20202e"/><stop offset="100%" stop-color="#13131a"/>
-    </linearGradient>
-  </defs>
-
-  <rect x="8" y="8" width="${W - 16}" height="${H - 16}" rx="10" fill="#2a2a3a"/>
-  <rect x="12" y="12" width="${W - 24}" height="${H - 24}" rx="8" fill="url(#bg2)"/>
-
-  <rect x="12" y="12" width="${W - 24}" height="28" rx="8" fill="#0e0e16"/>
-  <rect x="12" y="32" width="${W - 24}" height="8" fill="#0e0e16"/>
-  <text x="${W / 2}" y="30" text-anchor="middle" fill="#00c8b4" font-family="Bebas Neue,sans-serif" font-size="15" letter-spacing="6">DARKGAS ELECTRONICS</text>
-  <text x="${W / 2}" y="56" text-anchor="middle" fill="#8888aa" font-family="Share Tech Mono" font-size="9" letter-spacing="2.5">MICROTUBES B7K v2</text>
-
-  <circle cx="36" cy="56" r="4.5" fill="#00c8b4" filter="url(#glow2)"/>
-  <text x="36" y="69" text-anchor="middle" fill="#333348" font-family="Share Tech Mono" font-size="6.5">ON</text>
-
-  <!-- Drive section: live -->
-  <g opacity="1">${knobSVG(150, 110, 20, knobAngle(state.blend, 0, 100), 'BLEND', '#00c8b4')}</g>
-  <g opacity="${levelDim ? 0.32 : 1}">${knobSVG(270, 110, 20, knobAngle(state.level, 0, 100), 'LEVEL', '#00c8b4')}</g>
-  <g opacity="1">${knobSVG(390, 110, 20, knobAngle(state.drive, 0, 100), 'DRIVE', '#00c8b4')}</g>
-  ${slideSwitch(70, 95, 'GRUNT', state.grunt)}
-  ${slideSwitch(444, 95, 'ATTACK', state.attack)}
-
-  <!-- 4 EQ knobs -->
-  ${knobSVG(95,  185, 26, knobAngle(state.low,    -12, 12), 'LOW',    '#00c8b4')}
-  ${knobSVG(210, 185, 26, knobAngle(state.loMid,  -12, 12), 'LO MID', '#00c8b4')}
-  ${knobSVG(330, 185, 26, knobAngle(state.hiMid,  -12, 12), 'HI MID', '#00c8b4')}
-  ${knobSVG(445, 185, 26, knobAngle(state.treble, -12, 12), 'TREBLE', '#00c8b4')}
-
-  ${toggleBtn(174, 207, 36, 14, '500Hz', state.loMidFreq === 500)}
-  ${toggleBtn(212, 207, 36, 14, '1kHz',  state.loMidFreq === 1000)}
-  ${toggleBtn(294, 207, 36, 14, '1.5k',  state.hiMidFreq === 1500)}
-  ${toggleBtn(332, 207, 36, 14, '3kHz',  state.hiMidFreq === 3000)}
-
-  <circle cx="${W / 2}" cy="258" r="24" fill="#0e0e16" stroke="${bypassed ? '#ff4d4d' : '#252535'}" stroke-width="3"/>
-  <circle cx="${W / 2}" cy="258" r="16" fill="#0a0a12" stroke="#1c1c2a" stroke-width="1"/>
-  <text x="${W / 2}" y="290" text-anchor="middle" fill="${bypassed ? '#ff4d4d' : '#2a2a38'}" font-family="Share Tech Mono" font-size="7" letter-spacing="2">BYPASS</text>
-
-  <text x="28" y="${H - 8}" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="1.5">IN</text>
-  <text x="${W - 44}" y="${H - 8}" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="1.5">OUT</text>
-  <text x="${W - 60}" y="${H - 8}" fill="#2a2a38" font-family="Share Tech Mono" font-size="7" letter-spacing="1">XLR</text>
-  `;
-}
 
 // ═══════════════════════════════════════════════════════════
 // CONTROL BINDING — generic, so twins on other tabs stay in sync
@@ -481,6 +400,134 @@ const VAL_FMT = {
   grunt:  v => GRUNT_NAME[v] || 'Raw',
   attack: v => ATTACK_NAME[v] || 'Flat'
 };
+
+// ═══════════════════════════════════════════════════════════
+// PEDAL PANEL — knobs and switches
+//
+// 21 detents from 7 to 5 o'clock, the positions printed on the real pedal,
+// so a setting here can be copied straight onto it. The detent is a UI
+// affordance ONLY: state stays in real units (dB and %), which is why the
+// Mix tab twins, the preset schema and the DSP all needed no changes.
+// ═══════════════════════════════════════════════════════════
+const KNOB_STEPS = 20;    // 21 positions, 0..20
+const KNOB_SWEEP = 300;   // degrees swept, 7 o'clock → 5 o'clock
+const KNOB_RANGE = {
+  blend: [0, 100], level: [0, 100], drive: [0, 100],
+  low: [-12, 12], loMid: [-12, 12], hiMid: [-12, 12], treble: [-12, 12]
+};
+
+function knobToValue(key, step) {
+  const r = KNOB_RANGE[key]; if (!r) return 0;
+  return r[0] + (step / KNOB_STEPS) * (r[1] - r[0]);
+}
+function knobToStep(key, v) {
+  const r = KNOB_RANGE[key]; if (!r) return 0;
+  const val = Number.isFinite(v) ? v : r[0];
+  const t = (val - r[0]) / (r[1] - r[0]);
+  return Math.max(0, Math.min(KNOB_STEPS, Math.round(t * KNOB_STEPS)));
+}
+function knobDeg(step) { return -KNOB_SWEEP / 2 + (step / KNOB_STEPS) * KNOB_SWEEP; }
+function knobClock(step) {
+  const total = 420 + step * 30;              // minutes from midnight, 7:00 base
+  const h = Math.floor(total / 60) % 12 || 12;
+  return h + ':' + (total % 60 ? '30' : '00');
+}
+
+// Switch positions live in the markup, listed top to bottom, so the physical
+// order on screen and the state value can never drift apart in code.
+function swSpec(id) {
+  const wrap = document.querySelector('[data-swlabels="' + id + '"]');
+  if (!wrap) return null;
+  const spans = Array.from(wrap.querySelectorAll('span'));
+  return { spans, values: spans.map(sp => parseFloat(sp.dataset.v)) };
+}
+function syncSwitch(id) {
+  const sp = swSpec(id); if (!sp) return;
+  const n = sp.values.length;
+  let i = sp.values.indexOf(state[id]);
+  if (i < 0) i = n >> 1;
+  const dot = document.querySelector('[data-sw="' + id + '"] .sw-dot');
+  if (dot) dot.style.top = (n === 3 ? [15, 50, 85][i] : [25, 75][i]) + '%';
+  sp.spans.forEach((el, k) => el.classList.toggle('on', k === i));
+}
+function advanceSwitch(id) {
+  const sp = swSpec(id); if (!sp) return;
+  const i = sp.values.indexOf(state[id]);
+  setParam(id, sp.values[i < 0 ? 0 : (i + 1) % sp.values.length]);
+}
+
+function syncPedalPanel() {
+  document.querySelectorAll('[data-knob]').forEach(k => {
+    const key = k.dataset.knob;
+    const step = knobToStep(key, state[key]);
+    k.style.setProperty('--deg', knobDeg(step) + 'deg');
+    k.setAttribute('aria-valuenow', String(step));
+    const f = VAL_FMT[key];
+    k.setAttribute('aria-valuetext', (f ? f(state[key]) : String(state[key])) +
+                   ', ' + knobClock(step) + " o'clock");
+    const c = document.querySelector('[data-clock="' + key + '"]');
+    if (c) c.textContent = knobClock(step);
+  });
+  ['grunt', 'attack', 'loMidFreq', 'hiMidFreq'].forEach(syncSwitch);
+}
+
+function wirePedalPanel() {
+  document.querySelectorAll('[data-knob]').forEach(k => {
+    const key = k.dataset.knob;
+    const off = () => k.getAttribute('aria-disabled') === 'true';
+    const setStep = st => setParam(key, knobToValue(key, Math.max(0, Math.min(KNOB_STEPS, st))));
+    let dragging = false;
+
+    // Angle from the knob centre; straight up is 0, clockwise positive.
+    const fromPointer = e => {
+      const r = k.getBoundingClientRect();
+      const deg = Math.atan2(e.clientX - (r.left + r.width / 2),
+                             -(e.clientY - (r.top + r.height / 2))) * 180 / Math.PI;
+      const cl = Math.max(-KNOB_SWEEP / 2, Math.min(KNOB_SWEEP / 2, deg));
+      setStep(Math.round(((cl + KNOB_SWEEP / 2) / KNOB_SWEEP) * KNOB_STEPS));
+    };
+
+    k.addEventListener('pointerdown', e => {
+      if (off()) return;
+      dragging = true;
+      try { k.setPointerCapture(e.pointerId); } catch (err) {}
+      fromPointer(e); e.preventDefault();
+    });
+    k.addEventListener('pointermove', e => { if (dragging) fromPointer(e); });
+    k.addEventListener('pointerup', e => {
+      dragging = false; try { k.releasePointerCapture(e.pointerId); } catch (err) {}
+    });
+    k.addEventListener('pointercancel', () => { dragging = false; });
+    k.addEventListener('wheel', e => {
+      if (off()) return;
+      e.preventDefault();
+      setStep(knobToStep(key, state[key]) + (e.deltaY < 0 ? 1 : -1));
+    }, { passive: false });
+    k.addEventListener('keydown', e => {
+      if (off()) return;
+      const cur = knobToStep(key, state[key]);
+      let d = 0;
+      switch (e.key) {
+        case 'ArrowUp': case 'ArrowRight': d = 1; break;
+        case 'ArrowDown': case 'ArrowLeft': d = -1; break;
+        case 'PageUp': d = 2; break;
+        case 'PageDown': d = -2; break;
+        case 'Home': setStep(0); e.preventDefault(); return;
+        case 'End': setStep(KNOB_STEPS); e.preventDefault(); return;
+        default: return;
+      }
+      setStep(cur + d); e.preventDefault();
+    });
+  });
+
+  document.querySelectorAll('[data-sw]').forEach(p => {
+    const id = p.dataset.sw;
+    p.addEventListener('click', () => advanceSwitch(id));
+    p.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { advanceSwitch(id); e.preventDefault(); }
+    });
+  });
+}
 
 // Writes state → every bound input, every value label, every switch button.
 function syncUI() {
@@ -499,10 +546,16 @@ function syncUI() {
     btn.classList.toggle('active', on);
   });
   // Level does nothing when Blend is fully clean — say so in the UI.
+  syncPedalPanel();
   const dim = state.blend <= 0;
   const card = document.getElementById('cardLevel');
   if (card) card.classList.toggle('dimmed', dim);
   document.querySelectorAll('input[data-bind="level"]').forEach(el => { el.disabled = dim; });
+  const lvlKnob = document.querySelector('[data-knob="level"]');
+  if (lvlKnob) {
+    lvlKnob.setAttribute('aria-disabled', String(dim));
+    lvlKnob.tabIndex = dim ? -1 : 0;
+  }
 }
 
 function setParam(key, value) {
@@ -546,7 +599,6 @@ document.addEventListener('click', () => {
 // RENDER — push state to the pedal graphic, the charts and the audio graph
 // ═══════════════════════════════════════════════════════════
 function render() {
-  drawPedal();
   redrawStatic();
   if (audioRunning && audioCtx) applyAudioParams();
 }

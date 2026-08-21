@@ -199,121 +199,122 @@
     </div>
   </div>
 
-  <!-- ── PEDAL + FULL CONTROLS ── -->
+  <!-- ── PEDAL PANEL — knobs and switches ── -->
   <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
-  <div class="pedal-section">
-    <div class="pedal-wrap">
-      <svg id="pedalSvg" viewBox="0 0 540 300" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="pedal-panel">
+    <div class="pedal-row top">
+      <div class="knobcell">
+        <div class="knob-label">Blend <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Blend">?<span class="tip-bub">Mixes the clean signal with the distorted one, equal-power. The clean path runs at unity gain and is untouched by Level, Drive, Grunt or Attack.</span></button></div>
+        <div class="knob" data-knob="blend" tabindex="0" role="slider"
+             aria-label="Blend" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
+        </div>
+        <div class="knob-read"><span class="val" data-val="blend">0</span></div>
+        <div class="knob-clock" data-clock="blend">7:00</div>
+      </div>
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n3" data-sw="grunt" tabindex="0" role="button"
+               aria-label="Grunt switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="grunt"><span data-v="2">Fat</span><span data-v="1">Raw</span><span data-v="0">Thin</span></div>
+        </div>
+        <div class="sw-cap">Grunt <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Grunt">?<span class="tip-bub">Three-position switch selecting how much low end feeds the clipping stage. Pre-clipper only — it never touches the clean path.</span></button></div>
+        <div class="sw-read"><span class="val" data-val="grunt"></span></div>
+      </div>
+      <div class="knobcell" id="cardLevel">
+        <div class="knob-label">Level <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Level">?<span class="tip-bub">Volume of the <b>distorted</b> signal only — not a master volume. With Blend fully clean there is no wet path, so Level genuinely does nothing.</span></button></div>
+        <div class="knob" data-knob="level" tabindex="0" role="slider"
+             aria-label="Level" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
+        </div>
+        <div class="knob-read"><span class="val" data-val="level">0</span></div>
+        <div class="knob-clock" data-clock="level">7:00</div>
+      </div>
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n3" data-sw="attack" tabindex="0" role="button"
+               aria-label="Attack switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="attack"><span data-v="2">Boost</span><span data-v="1">Flat</span><span data-v="0">Cut</span></div>
+        </div>
+        <div class="sw-cap">Attack <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Attack">?<span class="tip-bub">Three-position switch shaping the treble entering the clipping stage: Boost, Flat or Cut. Pre-clipper only — the clean path is unaffected.</span></button></div>
+        <div class="sw-read"><span class="val" data-val="attack"></span></div>
+      </div>
+      <div class="knobcell">
+        <div class="knob-label">Drive <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Drive">?<span class="tip-bub">Amount of gain hitting the clipping stage, and so how much saturation and harmonic content is generated.</span></button></div>
+        <div class="knob" data-knob="drive" tabindex="0" role="slider"
+             aria-label="Drive" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
+        </div>
+        <div class="knob-read"><span class="val" data-val="drive">0</span></div>
+        <div class="knob-clock" data-clock="drive">7:00</div>
+      </div>
     </div>
-
-    <div class="controls-grid">
-
-      <div class="ctrl-card" id="cardBlend">
-        <div class="ctrl-label">Blend
-          <span style="display:flex;align-items:center;gap:6px">
-            <span class="val" data-val="blend">0%</span>
-            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Blend">?<span class="tip-bub">Mixes the clean signal with the distorted one, equal-power. The clean path runs at unity gain and is untouched by Level, Drive, Grunt or Attack.</span></button>
-          </span>
+    <div class="pedal-row grid4">
+      <div class="knobcell">
+        <div class="knob-label">Low</div>
+        <div class="knob" data-knob="low" tabindex="0" role="slider"
+             aria-label="Low" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
         </div>
-        <div class="ctrl-sub">Dry ⇄ wet, equal-power</div>
-        <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
-        <div class="range-labels"><span>Clean</span><span>Distorted</span></div>
+        <div class="knob-read"><span class="val" data-val="low">0</span></div>
+        <div class="knob-clock" data-clock="low">7:00</div>
       </div>
-
-      <div class="ctrl-card" id="cardLevel">
-        <div class="ctrl-label">Level
-          <span style="display:flex;align-items:center;gap:6px">
-            <span class="val" data-val="level">0.0 dB</span>
-            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Level">?<span class="tip-bub">Volume of the <b>distorted</b> signal only — not a master volume. With Blend fully clean there is no wet path, so Level genuinely does nothing.</span></button>
-          </span>
+      <div class="knobcell">
+        <div class="knob-label">Lo Mids</div>
+        <div class="knob" data-knob="loMid" tabindex="0" role="slider"
+             aria-label="Lo Mids" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
         </div>
-        <div class="ctrl-sub">Wet path only</div>
-        <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
-        <div class="range-labels"><span>Silent</span><span>Unity</span></div>
+        <div class="knob-read"><span class="val" data-val="loMid">0</span></div>
+        <div class="knob-clock" data-clock="loMid">7:00</div>
       </div>
-
-      <div class="ctrl-card" id="cardDrive">
-        <div class="ctrl-label">Drive
-          <span style="display:flex;align-items:center;gap:6px">
-            <span class="val" data-val="drive">0%</span>
-            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Drive">?<span class="tip-bub">Amount of gain hitting the clipping stage, and so how much saturation and harmonic content is generated.</span></button>
-          </span>
+      <div class="knobcell">
+        <div class="knob-label">Hi Mids</div>
+        <div class="knob" data-knob="hiMid" tabindex="0" role="slider"
+             aria-label="Hi Mids" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
         </div>
-        <div class="ctrl-sub">Pre-clipper gain · 0 → +32 dB</div>
-        <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
-        <div class="range-labels"><span>Clean</span><span>Saturated</span></div>
+        <div class="knob-read"><span class="val" data-val="hiMid">0</span></div>
+        <div class="knob-clock" data-clock="hiMid">7:00</div>
       </div>
-
-      <div class="ctrl-card" id="cardGrunt">
-        <div class="ctrl-label">Grunt
-          <span style="display:flex;align-items:center;gap:6px">
-            <span class="val" data-val="grunt">Raw</span>
-            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Grunt">?<span class="tip-bub">Three-position switch selecting how much low end feeds the clipping stage. Pre-clipper only — it never touches the clean path.</span></button>
-          </span>
+      <div class="knobcell">
+        <div class="knob-label">Treble</div>
+        <div class="knob" data-knob="treble" tabindex="0" role="slider"
+             aria-label="Treble" aria-valuemin="0" aria-valuemax="20">
+          <div class="knob-ptr"></div><div class="knob-hub"></div>
         </div>
-        <div class="ctrl-sub">Low shelf @ 120 Hz, pre-clipper</div>
-        <div class="sw3" data-sw3="grunt">
-          <button type="button" data-set="grunt" data-v="0" onclick="setSwitch(this)">Thin</button>
-          <button type="button" data-set="grunt" data-v="1" onclick="setSwitch(this)">Raw</button>
-          <button type="button" data-set="grunt" data-v="2" onclick="setSwitch(this)">Fat</button>
-        </div>
+        <div class="knob-read"><span class="val" data-val="treble">0</span></div>
+        <div class="knob-clock" data-clock="treble">7:00</div>
       </div>
-
-      <div class="ctrl-card" id="cardAttack">
-        <div class="ctrl-label">Attack
-          <span style="display:flex;align-items:center;gap:6px">
-            <span class="val" data-val="attack">Flat</span>
-            <button class="tip-btn" type="button" onclick="toggleTip(event,this)" aria-label="About Attack">?<span class="tip-bub">Three-position switch shaping the treble entering the clipping stage: Boost, Flat or Cut. Pre-clipper only — the clean path is unaffected.</span></button>
-          </span>
-        </div>
-        <div class="ctrl-sub">High shelf @ 3 kHz, pre-clipper</div>
-        <div class="sw3" data-sw3="attack">
-          <button type="button" data-set="attack" data-v="0" onclick="setSwitch(this)">Cut</button>
-          <button type="button" data-set="attack" data-v="1" onclick="setSwitch(this)">Flat</button>
-          <button type="button" data-set="attack" data-v="2" onclick="setSwitch(this)">Boost</button>
-        </div>
-      </div>
-
-      <div class="ctrl-card" style="display:flex;align-items:center">
-        <div class="ctrl-sub" style="margin:0;line-height:1.6">
-          EQ below is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> — it acts on the summed clean + distorted signal, exactly as on the pedal.
-        </div>
-      </div>
-
-      <div class="ctrl-card">
-        <div class="ctrl-label">Low <span class="val" data-val="low">0.0 dB</span></div>
-        <div class="ctrl-sub">±12 dB shelf @ 100 Hz</div>
-        <input type="range" data-bind="low" min="-12" max="12" value="0" step="0.5">
-      </div>
-
-      <div class="ctrl-card">
-        <div class="ctrl-label">Treble <span class="val" data-val="treble">0.0 dB</span></div>
-        <div class="ctrl-sub">±12 dB shelf @ 5 kHz</div>
-        <input type="range" data-bind="treble" min="-12" max="12" value="0" step="0.5">
-      </div>
-
-      <div class="ctrl-card">
-        <div class="ctrl-label">Lo Mids <span class="val" data-val="loMid">0.0 dB</span></div>
-        <div class="ctrl-sub">±12 dB peak · center:</div>
-        <input type="range" data-bind="loMid" min="-12" max="12" value="0" step="0.5">
-        <div class="freq-btns">
-          <button class="freq-btn" type="button" data-set="loMidFreq" data-v="500"  onclick="setSwitch(this)">500 Hz</button>
-          <button class="freq-btn" type="button" data-set="loMidFreq" data-v="1000" onclick="setSwitch(this)">1 kHz</button>
-        </div>
-      </div>
-
-      <div class="ctrl-card">
-        <div class="ctrl-label">Hi Mids <span class="val" data-val="hiMid">0.0 dB</span></div>
-        <div class="ctrl-sub">±12 dB peak · center:</div>
-        <input type="range" data-bind="hiMid" min="-12" max="12" value="0" step="0.5">
-        <div class="freq-btns">
-          <button class="freq-btn" type="button" data-set="hiMidFreq" data-v="1500" onclick="setSwitch(this)">1.5 kHz</button>
-          <button class="freq-btn" type="button" data-set="hiMidFreq" data-v="3000" onclick="setSwitch(this)">3 kHz</button>
-        </div>
-      </div>
-
     </div>
+    <div class="pedal-row grid4">
+      <div></div>
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n2" data-sw="loMidFreq" tabindex="0" role="button"
+               aria-label="Lo-Mid switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="loMidFreq"><span data-v="1000">1 kHz</span><span data-v="500">500 Hz</span></div>
+        </div>
+        <div class="sw-cap">Lo-Mid</div>
+      </div>
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n2" data-sw="hiMidFreq" tabindex="0" role="button"
+               aria-label="Hi-Mid switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="hiMidFreq"><span data-v="3000">3 kHz</span><span data-v="1500">1.5 kHz</span></div>
+        </div>
+        <div class="sw-cap">Hi-Mid</div>
+      </div>
+      <div></div>
+    </div>
+    <div class="pedal-caption">Microtubes B7K &middot; Analog Bass Preamp</div>
   </div>
+  <p class="hint">
+    Drag a knob, or use the scroll wheel and arrow keys. Detents are the 21
+    positions of the real pedal, so a setting here transfers straight onto it.
+    EQ is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> —
+    it acts on the summed clean + distorted signal, not on the clean path alone.
+  </p>
 
 </section>
 
