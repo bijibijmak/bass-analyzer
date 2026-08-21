@@ -30,7 +30,7 @@
   --text: #dde0ea;
   --dim: #555568;
   --pedal-edge: #2e2e3c;
-  --darkglass-teal: #00c8b4;
+  --darkgas-teal: #00c8b4;
   --glow: rgba(0,200,180,0.35);
   --island: rgba(14,14,20,0.94);
   color-scheme: dark;
@@ -49,7 +49,7 @@
   --text: #1d2030;
   --dim: #6c7088;
   --pedal-edge: #c4c8d6;
-  --darkglass-teal: #009a8a;
+  --darkgas-teal: #009a8a;
   --glow: rgba(0,154,138,0.30);
   --island: rgba(255,255,255,0.94);
   color-scheme: light;
@@ -77,7 +77,7 @@ header h1 {
   font-size: clamp(2rem, 5vw, 3.4rem);
   letter-spacing: 0.08em; line-height: 1;
 }
-header h1 em { color: var(--darkglass-teal); font-style: normal; }
+header h1 em { color: var(--darkgas-teal); font-style: normal; }
 header p { font-size: 0.67rem; color: var(--dim); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 5px; }
 
 /* ── TAB ISLAND ── */
@@ -105,8 +105,8 @@ header p { font-size: 0.67rem; color: var(--dim); letter-spacing: 0.14em; text-t
 }
 .tab-btn .tab-ico { font-size: 0.95rem; line-height: 1; }
 .tab-btn[aria-selected="true"] {
-  background: var(--darkglass-teal); color: #04120f;
-  border-color: var(--darkglass-teal);
+  background: var(--darkgas-teal); color: #04120f;
+  border-color: var(--darkgas-teal);
   box-shadow: 0 0 14px var(--glow);
 }
 .tab-panel { display: none; }
@@ -127,7 +127,7 @@ header p { font-size: 0.67rem; color: var(--dim); letter-spacing: 0.14em; text-t
   color: var(--dim); margin-bottom: 6px; margin-top: 18px;
   border-left: 2px solid var(--border); padding-left: 8px;
 }
-.section-label span { color: var(--darkglass-teal); }
+.section-label span { color: var(--darkgas-teal); }
 
 .chart-card {
   background: var(--panel);
@@ -155,7 +155,7 @@ canvas { display: block; width: 100% !important; }
   color: #7878a0;
 }
 .ann strong { display: block; font-size: 0.68rem; color: var(--text); margin-bottom: 2px; letter-spacing: 0.06em; }
-.ann em { color: var(--darkglass-teal); font-style: normal; }
+.ann em { color: var(--darkgas-teal); font-style: normal; }
 .ann.bl { border-left: 3px solid var(--bass); }
 .ann.gl { border-left: 3px solid var(--guitar); }
 .ann.kl { border-left: 3px solid var(--kick); }
@@ -185,11 +185,11 @@ canvas { display: block; width: 100% !important; }
   color: var(--dim); margin-bottom: 5px;
   display: flex; justify-content: space-between; align-items: center; gap: 6px;
 }
-.ctrl-label span.val { color: var(--darkglass-teal); font-size: 0.7rem; }
+.ctrl-label span.val { color: var(--darkgas-teal); font-size: 0.7rem; }
 .ctrl-sub { font-size: 0.57rem; color: #4a4a63; letter-spacing: 0.1em; margin-bottom: 4px; }
 
 input[type=range] {
-  width: 100%; accent-color: var(--darkglass-teal);
+  width: 100%; accent-color: var(--darkgas-teal);
   height: 4px; cursor: pointer;
 }
 .freq-btns { display: flex; gap: 5px; margin-top: 5px; }
@@ -200,7 +200,7 @@ input[type=range] {
   font-size: 0.66rem; letter-spacing: 0.06em;
   padding: 4px 0; cursor: pointer; transition: all 0.12s;
 }
-.freq-btn.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); }
+.freq-btn.active { background: var(--darkgas-teal); color: #000; border-color: var(--darkgas-teal); }
 .range-labels { display: flex; justify-content: space-between; font-size: 0.58rem; color: #4a4a63; margin-top: 3px; }
 
 /* 3-position switches (Grunt / Attack) */
@@ -212,7 +212,7 @@ input[type=range] {
   font-size: 0.64rem; letter-spacing: 0.06em;
   padding: 5px 0; cursor: pointer; transition: all 0.12s;
 }
-.sw3 button.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); }
+.sw3 button.active { background: var(--darkgas-teal); color: #000; border-color: var(--darkgas-teal); }
 
 footer { font-size: 0.59rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 16px; line-height: 1.7; }
 
@@ -230,7 +230,7 @@ footer { font-size: 0.59rem; color: var(--dim); letter-spacing: 0.1em; text-tran
   position: absolute; bottom: calc(100% + 7px); right: -4px;
   width: 216px; padding: 8px 10px;
   background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--darkglass-teal); border-radius: 5px;
+  border: 1px solid var(--darkgas-teal); border-radius: 5px;
   font-size: 0.6rem; line-height: 1.55; letter-spacing: 0.02em;
   text-transform: none; text-align: left;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
@@ -260,10 +260,10 @@ footer { font-size: 0.59rem; color: var(--dim); letter-spacing: 0.1em; text-tran
   cursor: pointer; transition: all 0.15s;
   background: var(--panel-2); color: var(--dim); white-space: nowrap;
 }
-.audio-btn.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); box-shadow: 0 0 12px rgba(0,200,180,0.35); }
+.audio-btn.active { background: var(--darkgas-teal); color: #000; border-color: var(--darkgas-teal); box-shadow: 0 0 12px rgba(0,200,180,0.35); }
 .audio-btn.bypass-on { background: #ff4d4d22; color: #ff6666; border-color: #ff4d4d55; }
 .audio-status { font-size: 0.62rem; letter-spacing: 0.1em; color: var(--dim); flex: 1; }
-.audio-status em { color: var(--darkglass-teal); font-style: normal; }
+.audio-status em { color: var(--darkgas-teal); font-style: normal; }
 .audio-status.err { color: #ff6666; }
 .audio-status .lat-raw { display: block; margin-top: 2px; opacity: 0.6; font-size: 0.92em; letter-spacing: 0.05em; }
 .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -274,7 +274,7 @@ footer { font-size: 0.59rem; color: var(--dim); letter-spacing: 0.1em; text-tran
 .trim-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .trim-item { display: flex; flex-direction: column; gap: 3px; }
 .trim-label { font-size: 0.58rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; display: flex; justify-content: space-between; }
-.trim-label span { color: var(--darkglass-teal); }
+.trim-label span { color: var(--darkgas-teal); }
 .device-row { display: flex; flex-direction: column; gap: 3px; }
 .device-row label { font-size: 0.58rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
 select#deviceSelect {
@@ -300,7 +300,7 @@ select#deviceSelect {
 }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.12em; color: var(--text); }
-.modal-title em { color: var(--darkglass-teal); font-style: normal; }
+.modal-title em { color: var(--darkgas-teal); font-style: normal; }
 .modal-close {
   background: none; border: 1px solid var(--border);
   color: var(--dim); font-family: 'Share Tech Mono', monospace;
@@ -320,7 +320,7 @@ select#deviceSelect {
   padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
   background: var(--panel-2); color: var(--dim); cursor: pointer; transition: all 0.12s;
 }
-.disclosure-btn.open { color: var(--darkglass-teal); border-color: var(--darkglass-teal); }
+.disclosure-btn.open { color: var(--darkgas-teal); border-color: var(--darkgas-teal); }
 .scope-card {
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 6px; overflow: hidden; margin-bottom: 8px;
@@ -341,16 +341,16 @@ select#deviceSelect {
   border: 1px solid var(--border); background: var(--panel-2);
   color: var(--dim); cursor: pointer; transition: all 0.12s;
 }
-.scope-btn.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); }
+.scope-btn.active { background: var(--darkgas-teal); color: #000; border-color: var(--darkgas-teal); }
 .scope-info { margin-left: auto; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; }
-.scope-info em { color: var(--darkglass-teal); font-style: normal; }
+.scope-info em { color: var(--darkgas-teal); font-style: normal; }
 
 /* ── CROSSHAIR TOOLTIP ── */
 #freqTooltip {
   position: fixed; pointer-events: none;
-  background: rgba(10,10,18,0.92); border: 1px solid var(--darkglass-teal);
+  background: rgba(10,10,18,0.92); border: 1px solid var(--darkgas-teal);
   border-radius: 3px; padding: 4px 9px; font-size: 0.68rem;
-  letter-spacing: 0.08em; color: var(--darkglass-teal);
+  letter-spacing: 0.08em; color: var(--darkgas-teal);
   white-space: nowrap; z-index: 200;
   box-shadow: 0 0 10px rgba(0,200,180,0.25);
   display: none;
@@ -368,8 +368,8 @@ select#deviceSelect {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
   padding: 5px 14px; border-radius: 3px;
-  border: 1px solid var(--darkglass-teal);
-  background: rgba(0,200,180,0.08); color: var(--darkglass-teal);
+  border: 1px solid var(--darkgas-teal);
+  background: rgba(0,200,180,0.08); color: var(--darkgas-teal);
   cursor: pointer; transition: all 0.12s;
 }
 .preset-save-btn:hover { background: rgba(0,200,180,0.18); }
@@ -380,7 +380,7 @@ select#deviceSelect {
   color: var(--text); padding: 4px 8px; width: 140px;
   letter-spacing: 0.06em;
 }
-.preset-name-input:focus { outline: none; border-color: var(--darkglass-teal); }
+.preset-name-input:focus { outline: none; border-color: var(--darkgas-teal); }
 .preset-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .preset-chip {
   display: flex; align-items: center; gap: 0;
@@ -393,7 +393,7 @@ select#deviceSelect {
   background: none; border: none; font-family: inherit;
   font-size: inherit; letter-spacing: 0.06em; transition: all 0.12s;
 }
-.preset-load:hover { color: var(--darkglass-teal); background: rgba(0,200,180,0.08); }
+.preset-load:hover { color: var(--darkgas-teal); background: rgba(0,200,180,0.08); }
 .preset-del {
   padding: 5px 7px; cursor: pointer; color: #666;
   background: none; border: none; border-left: 1px solid var(--border);
@@ -417,7 +417,7 @@ select#deviceSelect {
   margin-left: auto; font-size: 0.58rem; letter-spacing: 0.08em;
   color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.frame-info em { color: var(--darkglass-teal); font-style: normal; }
+.frame-info em { color: var(--darkgas-teal); font-style: normal; }
 .frame-info.hot em { color: #ff8c42; }
 
 /* Analyzer slot: two canvases swapped into one fixed-height box */
@@ -447,7 +447,7 @@ select#deviceSelect {
   font-size: 0.58rem; letter-spacing: 0.02em; padding: 3px 7px;
   cursor: pointer; transition: all 0.12s; min-width: 34px;
 }
-.speed-sel button.active { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); }
+.speed-sel button.active { background: var(--darkgas-teal); color: #000; border-color: var(--darkgas-teal); }
 
 /* ── DETUNE TAB ── */
 .dt-card {
@@ -459,12 +459,12 @@ select#deviceSelect {
 .dt-readout { text-align: center; padding: 10px 0 6px; }
 .dt-semis {
   font-family: 'Bebas Neue', sans-serif; font-size: 3.2rem; line-height: 0.95;
-  color: var(--darkglass-teal); letter-spacing: 0.03em;
+  color: var(--darkgas-teal); letter-spacing: 0.03em;
 }
 .dt-semis.zero { color: var(--dim); }
 .dt-sub { font-size: 0.62rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
 .dt-ratio { font-size: 0.6rem; letter-spacing: 0.08em; color: var(--dim); margin-top: 5px; }
-.dt-ratio em { color: var(--darkglass-teal); font-style: normal; }
+.dt-ratio em { color: var(--darkgas-teal); font-style: normal; }
 .dt-strings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
 .dt-string {
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
@@ -473,7 +473,7 @@ select#deviceSelect {
 .dt-string .from { font-size: 0.56rem; color: var(--dim); letter-spacing: 0.06em; }
 .dt-string .to   { font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; color: var(--text); line-height: 1.1; }
 .dt-string .hz   { font-size: 0.55rem; color: var(--dim); }
-.dt-string.shifted .to { color: var(--darkglass-teal); }
+.dt-string.shifted .to { color: var(--darkgas-teal); }
 .dt-mom {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
@@ -482,9 +482,9 @@ select#deviceSelect {
   color: var(--dim); cursor: pointer; transition: all 0.08s;
   width: 100%; margin-top: 10px; touch-action: none; user-select: none;
 }
-.dt-mom.held { background: var(--darkglass-teal); color: #000; border-color: var(--darkglass-teal); box-shadow: 0 0 16px var(--glow); }
+.dt-mom.held { background: var(--darkgas-teal); color: #000; border-color: var(--darkgas-teal); box-shadow: 0 0 16px var(--glow); }
 .dt-engine { font-size: 0.57rem; color: var(--dim); letter-spacing: 0.06em; line-height: 1.6; margin-top: 10px; }
-.dt-engine em { color: var(--darkglass-teal); font-style: normal; }
+.dt-engine em { color: var(--darkgas-teal); font-style: normal; }
 .dt-engine.err { color: #ff8c42; }
 .dt-preset-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
 .dt-preset-row button {
@@ -492,7 +492,7 @@ select#deviceSelect {
   border-radius: 3px; color: var(--dim); font-family: 'Share Tech Mono', monospace;
   font-size: 0.6rem; padding: 5px 8px; cursor: pointer; transition: all 0.12s;
 }
-.dt-preset-row button.active { border-color: var(--darkglass-teal); color: var(--darkglass-teal); }
+.dt-preset-row button.active { border-color: var(--darkgas-teal); color: var(--darkgas-teal); }
 
 .ref-btn {
   font-family: 'Share Tech Mono', monospace;
@@ -501,7 +501,7 @@ select#deviceSelect {
   background: var(--panel-2); color: var(--dim); cursor: pointer;
   transition: all 0.12s; white-space: nowrap; margin-bottom: 8px;
 }
-.ref-btn:hover { color: var(--darkglass-teal); border-color: var(--darkglass-teal); }
+.ref-btn:hover { color: var(--darkgas-teal); border-color: var(--darkgas-teal); }
 
 .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .theme-toggle {
@@ -513,7 +513,7 @@ select#deviceSelect {
   color: var(--text); cursor: pointer; transition: all 0.15s;
   display: flex; align-items: center; justify-content: center;
 }
-.theme-toggle:hover { border-color: var(--darkglass-teal); color: var(--darkglass-teal); }
+.theme-toggle:hover { border-color: var(--darkgas-teal); color: var(--darkgas-teal); }
 
 /* ── TUNER ── */
 .tuner-section {
@@ -530,24 +530,24 @@ select#deviceSelect {
   color: var(--text); letter-spacing: 0.04em; min-width: 1.6em; text-align: center;
 }
 .tuner-note.flat-of  { color: var(--bass); }
-.tuner-note.in-tune  { color: var(--darkglass-teal); text-shadow: 0 0 14px var(--glow); }
+.tuner-note.in-tune  { color: var(--darkgas-teal); text-shadow: 0 0 14px var(--glow); }
 .tuner-note.sharp-of { color: var(--guitar); }
 .tuner-octave { font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; color: var(--dim); }
 .tuner-cents  { font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: var(--dim); min-width: 5.5em; text-align: left; }
-.tuner-cents em { font-style: normal; color: var(--darkglass-teal); }
+.tuner-cents em { font-style: normal; color: var(--darkgas-teal); }
 .tuner-hz { font-size: 0.62rem; letter-spacing: 0.1em; color: var(--dim); text-align: center; margin-top: 8px; }
 .tuner-meter {
   position: relative; height: 30px; border-radius: 5px;
   background: var(--panel-2); border: 1px solid var(--border); overflow: hidden;
 }
-.tuner-center-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--darkglass-teal); transform: translateX(-1px); opacity: 0.6; }
+.tuner-center-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--darkgas-teal); transform: translateX(-1px); opacity: 0.6; }
 .tuner-tick { position: absolute; top: 6px; bottom: 6px; width: 1px; background: var(--border); }
 .tuner-needle {
   position: absolute; top: 3px; bottom: 3px; width: 4px; border-radius: 2px;
   background: var(--text); left: 50%; transform: translateX(-2px);
   transition: left 0.08s linear, background-color 0.1s;
 }
-.tuner-needle.in-tune { background: var(--darkglass-teal); box-shadow: 0 0 10px var(--glow); }
+.tuner-needle.in-tune { background: var(--darkgas-teal); box-shadow: 0 0 10px var(--glow); }
 .tuner-labels { display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--dim); margin-top: 4px; letter-spacing: 0.08em; }
 .string-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .string-chip {
@@ -557,8 +557,8 @@ select#deviceSelect {
   font-size: 0.62rem; letter-spacing: 0.08em; color: var(--dim);
 }
 .string-chip b { display: block; color: var(--text); font-size: 0.8rem; font-weight: normal; }
-.string-chip.hit { border-color: var(--darkglass-teal); color: var(--darkglass-teal); }
-.string-chip.hit b { color: var(--darkglass-teal); }
+.string-chip.hit { border-color: var(--darkgas-teal); color: var(--darkgas-teal); }
+.string-chip.hit b { color: var(--darkgas-teal); }
 
 /* ── NOISE / HISS TOOLS ── */
 .noise-section {
@@ -567,7 +567,7 @@ select#deviceSelect {
   border-radius: 6px; padding: 12px 14px;
 }
 .noise-title { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
-.noise-title em { color: var(--darkglass-teal); font-style: normal; }
+.noise-title em { color: var(--darkgas-teal); font-style: normal; }
 .noise-tool { padding: 9px 0; border-top: 1px solid var(--border); }
 .noise-tool:first-of-type { border-top: none; padding-top: 2px; }
 .noise-tool-head { display: flex; align-items: center; gap: 10px; }
@@ -580,7 +580,7 @@ select#deviceSelect {
   background: var(--panel-2); color: var(--dim); cursor: pointer; transition: all 0.12s;
   white-space: nowrap; min-width: 92px;
 }
-.noise-btn.active { background: var(--darkglass-teal); color: #fff; border-color: var(--darkglass-teal); box-shadow: 0 0 10px var(--glow); }
+.noise-btn.active { background: var(--darkgas-teal); color: #fff; border-color: var(--darkgas-teal); box-shadow: 0 0 10px var(--glow); }
 .noise-param { display: none; margin-top: 8px; }
 .noise-param.on { display: block; }
 .noise-param .ctrl-label { margin-bottom: 4px; }
@@ -593,8 +593,8 @@ select#deviceSelect {
   font-family: 'Share Tech Mono', monospace; font-size: 0.63rem;
   letter-spacing: 0.08em; cursor: pointer; transition: all 0.12s;
 }
-.sc-btn[aria-pressed="true"] { background: #16323a; border-color: var(--darkglass-teal); color: var(--darkglass-teal); }
-.sc-btn:hover { border-color: var(--darkglass-teal); }
+.sc-btn[aria-pressed="true"] { background: #16323a; border-color: var(--darkgas-teal); color: var(--darkgas-teal); }
+.sc-btn:hover { border-color: var(--darkgas-teal); }
 .scope-frame {
   position: relative; display: flex; background: #000;
   border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
@@ -612,13 +612,13 @@ select#deviceSelect {
   white-space: nowrap; transition: opacity 0.12s;
 }
 .chip[data-state="muted"] { border-color: #ff5a5a; color: #ff8b8b; text-decoration: line-through; }
-.chip[data-state="solo"]  { border-color: var(--darkglass-teal); color: var(--darkglass-teal); }
+.chip[data-state="solo"]  { border-color: var(--darkgas-teal); color: var(--darkgas-teal); }
 .sx-readout {
   display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
   margin-top: 10px; font-size: 0.63rem; color: var(--dim); letter-spacing: 0.06em;
 }
 .sx-readout b { color: var(--text); font-weight: normal; }
-.sx-readout .big { font-size: 1.15rem; letter-spacing: 0.04em; color: var(--darkglass-teal); }
+.sx-readout .big { font-size: 1.15rem; letter-spacing: 0.04em; color: var(--darkgas-teal); }
 .ramp { width: 110px; height: 9px; border: 1px solid var(--border);
   background: linear-gradient(90deg,#000512,#0b1e6b,#0b7fd4,#22c1a8,#c8e34a,#f5a623,#ff2d2d); }
 .keys { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
@@ -656,7 +656,7 @@ select#deviceSelect {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Darkglass B7K v2 · preamp · tuner · spectrum</p>
+    <p>Darkgas B7K v2 · preamp · tuner · spectrum</p>
   </header>
   <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
 </div>
@@ -712,15 +712,15 @@ select#deviceSelect {
       <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">&#9654; Enable Audio</button>
       <button class="audio-btn" id="bypassBtn" onclick="toggleBypass()" style="display:none">Bypass: OFF</button>
       <div class="audio-status" id="audioStatus">Click "Enable Audio" — allow mic access when prompted</div>
-      <span class="audio-status" id="detuneBadge" style="display:none;flex:0 0 auto;color:var(--darkglass-teal)"></span>
+      <span class="audio-status" id="detuneBadge" style="display:none;flex:0 0 auto;color:var(--darkgas-teal)"></span>
     </div>
     <div class="meters" id="metersRow" style="display:none">
       <div class="meter-wrap">
-        <div class="meter-label">Input <span id="inDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+        <div class="meter-label">Input <span id="inDb" style="color:var(--darkgas-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
         <div class="meter-track"><div class="meter-fill" id="inMeter"></div></div>
       </div>
       <div class="meter-wrap">
-        <div class="meter-label">Output <span id="outDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+        <div class="meter-label">Output <span id="outDb" style="color:var(--darkgas-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
         <div class="meter-track"><div class="meter-fill" id="outMeter"></div></div>
       </div>
     </div>
@@ -928,7 +928,7 @@ select#deviceSelect {
 
       <div class="ctrl-card" style="display:flex;align-items:center">
         <div class="ctrl-sub" style="margin:0;line-height:1.6">
-          EQ below is <em style="color:var(--darkglass-teal);font-style:normal">post-blend</em> — it acts on the summed clean + distorted signal, exactly as on the pedal.
+          EQ below is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> — it acts on the summed clean + distorted signal, exactly as on the pedal.
         </div>
       </div>
 
@@ -1119,10 +1119,10 @@ select#deviceSelect {
     audio thread. Opened as a plain file you get a ScriptProcessor on the main thread — deprecated,
     higher latency, and it can break up while the analyzer is drawing, but it needs no server.
     <br><br>
-    The shifter sits <em style="color:var(--darkglass-teal);font-style:normal">first in the chain</em>,
+    The shifter sits <em style="color:var(--darkgas-teal);font-style:normal">first in the chain</em>,
     ahead of the drive section, the way a drop-tune pedal goes in front of a preamp. It stays engaged
     when you leave this tab, and the Preamp status line says so — nothing here is invisible.
-    The tuner keeps reading the <em style="color:var(--darkglass-teal);font-style:normal">unshifted</em>
+    The tuner keeps reading the <em style="color:var(--darkgas-teal);font-style:normal">unshifted</em>
     strings, so you tune the instrument, not the effect. Resulting pitches are shown above.
   </p>
 </section>
@@ -1209,8 +1209,8 @@ select#deviceSelect {
 
 <footer id="appFooter">
   B7K v2 EQ: Low ±12dB@100Hz · Lo Mid ±12dB@500Hz/1kHz · Hi Mid ±12dB@1.5kHz/3kHz · Treble ±12dB@5kHz<br>
-  Drive topology from the Darkglass manual (~95% confidence). Clipper curve is a guess (~40%) — nobody publishes the real one.
-  <strong style="color:var(--darkglass-teal);font-weight:normal">This will not sound like the real pedal</strong>; the goal is correct control behaviour, not tone matching.
+  Drive topology from the Darkgas manual (~95% confidence). Clipper curve is a guess (~40%) — nobody publishes the real one.
+  <strong style="color:var(--darkgas-teal);font-weight:normal">This will not sound like the real pedal</strong>; the goal is correct control behaviour, not tone matching.
   Instrument curves are schematic (~85%).
 </footer>
 
@@ -1933,7 +1933,7 @@ function drawPedal() {
 
   <rect x="12" y="12" width="${W - 24}" height="28" rx="8" fill="#0e0e16"/>
   <rect x="12" y="32" width="${W - 24}" height="8" fill="#0e0e16"/>
-  <text x="${W / 2}" y="30" text-anchor="middle" fill="#00c8b4" font-family="Bebas Neue,sans-serif" font-size="15" letter-spacing="6">DARKGLASS ELECTRONICS</text>
+  <text x="${W / 2}" y="30" text-anchor="middle" fill="#00c8b4" font-family="Bebas Neue,sans-serif" font-size="15" letter-spacing="6">DARKGAS ELECTRONICS</text>
   <text x="${W / 2}" y="56" text-anchor="middle" fill="#8888aa" font-family="Share Tech Mono" font-size="9" letter-spacing="2.5">MICROTUBES B7K v2</text>
 
   <circle cx="36" cy="56" r="4.5" fill="#00c8b4" filter="url(#glow2)"/>
@@ -2067,7 +2067,7 @@ function redrawStatic() {
 // ═══════════════════════════════════════════════════════════
 // WEB AUDIO ENGINE
 //
-// Signal chain (B7K v2 topology, from the Darkglass manual):
+// Signal chain (B7K v2 topology, from the Darkgas manual):
 //
 //   in ─┬───────────────── dry, unity gain ─────────────────┐
 //       └─ Grunt(LF) → Attack(HF) → Drive → clipper → Level ┤

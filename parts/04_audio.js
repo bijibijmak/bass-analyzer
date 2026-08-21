@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // WEB AUDIO ENGINE
 //
-// Signal chain (B7K v2 topology, from the Darkglass manual):
+// Signal chain (B7K v2 topology, from the Darkgas manual):
 //
 //   in ─┬───────────────── dry, unity gain ─────────────────┐
 //       └─ Grunt(LF) → Attack(HF) → Drive → clipper → Level ┤

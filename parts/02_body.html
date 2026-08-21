@@ -4,7 +4,7 @@
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Darkglass B7K v2 · preamp · tuner · spectrum</p>
+    <p>Darkgas B7K v2 · preamp · tuner · spectrum</p>
   </header>
   <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
 </div>
@@ -60,15 +60,15 @@
       <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">&#9654; Enable Audio</button>
       <button class="audio-btn" id="bypassBtn" onclick="toggleBypass()" style="display:none">Bypass: OFF</button>
       <div class="audio-status" id="audioStatus">Click "Enable Audio" — allow mic access when prompted</div>
-      <span class="audio-status" id="detuneBadge" style="display:none;flex:0 0 auto;color:var(--darkglass-teal)"></span>
+      <span class="audio-status" id="detuneBadge" style="display:none;flex:0 0 auto;color:var(--darkgas-teal)"></span>
     </div>
     <div class="meters" id="metersRow" style="display:none">
       <div class="meter-wrap">
-        <div class="meter-label">Input <span id="inDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+        <div class="meter-label">Input <span id="inDb" style="color:var(--darkgas-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
         <div class="meter-track"><div class="meter-fill" id="inMeter"></div></div>
       </div>
       <div class="meter-wrap">
-        <div class="meter-label">Output <span id="outDb" style="color:var(--darkglass-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
+        <div class="meter-label">Output <span id="outDb" style="color:var(--darkgas-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
         <div class="meter-track"><div class="meter-fill" id="outMeter"></div></div>
       </div>
     </div>
@@ -276,7 +276,7 @@
 
       <div class="ctrl-card" style="display:flex;align-items:center">
         <div class="ctrl-sub" style="margin:0;line-height:1.6">
-          EQ below is <em style="color:var(--darkglass-teal);font-style:normal">post-blend</em> — it acts on the summed clean + distorted signal, exactly as on the pedal.
+          EQ below is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> — it acts on the summed clean + distorted signal, exactly as on the pedal.
         </div>
       </div>
 
@@ -467,10 +467,10 @@
     audio thread. Opened as a plain file you get a ScriptProcessor on the main thread — deprecated,
     higher latency, and it can break up while the analyzer is drawing, but it needs no server.
     <br><br>
-    The shifter sits <em style="color:var(--darkglass-teal);font-style:normal">first in the chain</em>,
+    The shifter sits <em style="color:var(--darkgas-teal);font-style:normal">first in the chain</em>,
     ahead of the drive section, the way a drop-tune pedal goes in front of a preamp. It stays engaged
     when you leave this tab, and the Preamp status line says so — nothing here is invisible.
-    The tuner keeps reading the <em style="color:var(--darkglass-teal);font-style:normal">unshifted</em>
+    The tuner keeps reading the <em style="color:var(--darkgas-teal);font-style:normal">unshifted</em>
     strings, so you tune the instrument, not the effect. Resulting pitches are shown above.
   </p>
 </section>
@@ -557,8 +557,8 @@
 
 <footer id="appFooter">
   B7K v2 EQ: Low ±12dB@100Hz · Lo Mid ±12dB@500Hz/1kHz · Hi Mid ±12dB@1.5kHz/3kHz · Treble ±12dB@5kHz<br>
-  Drive topology from the Darkglass manual (~95% confidence). Clipper curve is a guess (~40%) — nobody publishes the real one.
-  <strong style="color:var(--darkglass-teal);font-weight:normal">This will not sound like the real pedal</strong>; the goal is correct control behaviour, not tone matching.
+  Drive topology from the Darkgas manual (~95% confidence). Clipper curve is a guess (~40%) — nobody publishes the real one.
+  <strong style="color:var(--darkgas-teal);font-weight:normal">This will not sound like the real pedal</strong>; the goal is correct control behaviour, not tone matching.
   Instrument curves are schematic (~85%).
 </footer>
 

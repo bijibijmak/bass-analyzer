@@ -434,7 +434,7 @@ function drawPedal() {
 
   <rect x="12" y="12" width="${W - 24}" height="28" rx="8" fill="#0e0e16"/>
   <rect x="12" y="32" width="${W - 24}" height="8" fill="#0e0e16"/>
-  <text x="${W / 2}" y="30" text-anchor="middle" fill="#00c8b4" font-family="Bebas Neue,sans-serif" font-size="15" letter-spacing="6">DARKGLASS ELECTRONICS</text>
+  <text x="${W / 2}" y="30" text-anchor="middle" fill="#00c8b4" font-family="Bebas Neue,sans-serif" font-size="15" letter-spacing="6">DARKGAS ELECTRONICS</text>
   <text x="${W / 2}" y="56" text-anchor="middle" fill="#8888aa" font-family="Share Tech Mono" font-size="9" letter-spacing="2.5">MICROTUBES B7K v2</text>
 
   <circle cx="36" cy="56" r="4.5" fill="#00c8b4" filter="url(#glow2)"/>
