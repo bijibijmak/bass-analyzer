@@ -145,12 +145,16 @@ setTimeout(() => {
   // Listed top to bottom on screen. Reading the values out of the markup is
   // the point: the physical order and the state value cannot drift in code.
   const order = gruntSpans.map(sp => sp.textContent);
-  if (order.join('/') === 'Fat/Raw/Thin') ok('grunt switch reads Fat/Raw/Thin top to bottom');
+  // Order comes from the real pedal's labelling, via Bijan's printed sheet.
+  // It is deliberately not sorted by dB, so it has to be pinned here.
+  if (order.join('/') === 'Fat/Thin/Raw') ok('grunt switch reads Fat/Thin/Raw top to bottom');
   else bad('grunt switch order is ' + order.join('/'));
+  const aOrder = [...d.querySelectorAll('[data-swlabels="attack"] span')].map(sp => sp.textContent);
+  if (aOrder.join('/') === 'Flat/Boost/Cut') ok('attack switch reads Flat/Boost/Cut top to bottom');
+  else bad('attack switch order is ' + aOrder.join('/'));
 
   ev('setParam')('grunt', 1);
-  gruntPill.dispatchEvent(new w.Event('click', { bubbles: true }));   // Raw → Thin
-  gruntPill.dispatchEvent(new w.Event('click', { bubbles: true }));   // Thin → Fat
+  gruntPill.dispatchEvent(new w.Event('click', { bubbles: true }));   // Raw (bottom) → Fat (top)
   const onSpan = gruntSpans.find(sp => sp.classList.contains('on'));
   if (ev('state.grunt') === 2 && onSpan && onSpan.textContent === 'Fat' &&
       d.querySelector('[data-val="grunt"]').textContent === 'Fat')
