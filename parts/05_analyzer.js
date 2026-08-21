@@ -750,22 +750,56 @@ function hideProbe() {
 // Pointer events cover mouse, pen and touch in one path. On touch the probe
 // follows the finger while held and clears on release; on a mouse it tracks
 // hover, as before.
+// A touch drag that starts on the analyzer must still scroll the page. The
+// analyzer is sticky, so it is under the thumb for most of a portrait screen;
+// claiming every pointerdown here (which this used to do) meant a swipe that
+// began on the chart scrolled nothing.
+//
+// Two halves: touch-action: pan-y in the CSS lets the browser take vertical
+// pans natively and hand us a pointercancel, and the handler below refuses to
+// claim a touch gesture until it is clearly horizontal — the only direction a
+// frequency probe travels in. A tap still reads a frequency.
+const PROBE_SLOP = 8;   // px of travel before deciding scroll vs probe
+
 function wireProbe() {
   ['fftCanvas', 'sgCrosshair'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    let held = false;
-    el.addEventListener('pointerdown', e => {
-      held = true;
+    let held = false, pid = null, x0 = 0, y0 = 0, decided = false;
+
+    const capture = e => {
       if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (err) {} }
+    };
+    const release = () => { held = false; pid = null; decided = false; hideProbe(); };
+
+    el.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') {
+        held = true; decided = true; pid = e.pointerId;
+        capture(e); showProbe(e.clientX, e.clientY); e.preventDefault();
+        return;
+      }
+      // Touch: read the frequency immediately so a tap still works, but do not
+      // capture and do not preventDefault — the page has to stay scrollable.
+      pid = e.pointerId; x0 = e.clientX; y0 = e.clientY;
+      held = false; decided = false;
       showProbe(e.clientX, e.clientY);
-      e.preventDefault();
     });
+
     el.addEventListener('pointermove', e => {
-      if (e.pointerType === 'mouse' || held) showProbe(e.clientX, e.clientY);
+      if (e.pointerType === 'mouse') { showProbe(e.clientX, e.clientY); return; }
+      if (e.pointerId !== pid) return;
+      if (!decided) {
+        const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+        if (dx < PROBE_SLOP && dy < PROBE_SLOP) return;   // too small to call
+        decided = true;
+        if (dy >= dx) { release(); return; }              // vertical: let it scroll
+        held = true; capture(e);
+      }
+      if (held) { showProbe(e.clientX, e.clientY); e.preventDefault(); }
     });
-    el.addEventListener('pointerup',     () => { held = false; hideProbe(); });
-    el.addEventListener('pointercancel', () => { held = false; hideProbe(); });
+
+    el.addEventListener('pointerup',     release);
+    el.addEventListener('pointercancel', release);
     el.addEventListener('pointerleave',  e => { if (e.pointerType === 'mouse') hideProbe(); });
   });
 }

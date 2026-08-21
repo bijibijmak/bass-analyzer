@@ -359,5 +359,23 @@ console.log('\n[15] frequency axis');
   } else bad('LABEL_FREQS not found');
 })();
 
+// ── 16. the sticky analyzer must not eat vertical scroll ──
+// The probe canvases were touch-action: none, which is fine while the chart
+// scrolls away and fatal once it is pinned under the thumb: Chromium delivers
+// touchmove with cancelable=false and the page simply will not scroll.
+console.log('\n[16] probe does not block scrolling');
+(() => {
+  const css = markupRaw.match(/<style>([\s\S]*?)<\/style>/g) || [];
+  const all = css.join('\n');
+  const bad = /#(fftCanvas|sgCrosshair)[^}]*touch-action:\s*none/.test(all);
+  if (bad) bad('probe canvas is touch-action: none — a swipe starting on the analyzer will not scroll');
+  else ok('probe canvases allow vertical panning');
+  if (/#fftCanvas[^}]*touch-action:\s*pan-y/.test(all)) ok('fftCanvas is pan-y');
+  else bad('fftCanvas has no pan-y rule');
+  if (/PROBE_SLOP/.test(js) && /if \(dy >= dx\) \{ release\(\); return; \}/.test(js))
+    ok('touch probe yields to a vertical gesture');
+  else bad('probe claims every touch gesture — vertical drags will be swallowed');
+})();
+
 console.log('\n' + (fails ? `${fails} FAILURE(S)` : 'ALL STATIC CHECKS PASSED'));
 process.exit(fails ? 1 : 0);

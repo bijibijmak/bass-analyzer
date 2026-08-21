@@ -432,8 +432,10 @@ select#deviceSelect {
 .analyzer-slot canvas { position: absolute; top: 0; left: 0; }
 .analyzer-slot .layer { display: none; }
 .analyzer-slot .layer.active { display: block; }
-#sgCrosshair { pointer-events: auto; cursor: crosshair; touch-action: none; }
-#fftCanvas { cursor: crosshair; touch-action: none; }
+/* pan-y, not none: the browser keeps vertical scrolling (the analyzer is
+   sticky and sits under the thumb), the probe only claims horizontal drags. */
+#sgCrosshair { pointer-events: auto; cursor: crosshair; touch-action: pan-y; }
+#fftCanvas { cursor: crosshair; touch-action: pan-y; }
 
 /* Spectrogram scroll-speed selector */
 .speed-wrap { display: flex; align-items: center; gap: 5px; }
