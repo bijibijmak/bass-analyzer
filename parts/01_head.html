@@ -474,8 +474,14 @@ select#deviceSelect {
    notably on iOS Safari where the toolbar resizes the scrollport. */
 .sticky-sentinel { height: 1px; margin: 0; padding: 0; }
 .analyzer-sticky { position: sticky; top: 0; z-index: 30; }
-.analyzer-sticky.stuck { background: var(--bg); padding-top: 4px; }
-.analyzer-sticky.stuck .chart-card {
+/* The wrapper keeps its full height in flow at all times (set from JS) so
+   that sticking never changes the document height -- see
+   reserveAnalyzerHeight(). Only the card inside shrinks, and the reserved
+   space below it is pointer-transparent so content scrolling underneath
+   stays clickable. */
+.analyzer-sticky.stuck { pointer-events: none; }
+.analyzer-sticky.stuck > .chart-card {
+  pointer-events: auto;
   margin-bottom: 4px;
   box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.75);
 }

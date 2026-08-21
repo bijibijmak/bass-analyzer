@@ -316,6 +316,7 @@ bootDone = true;
 let resizeTimer = null;
 window.addEventListener('resize', () => {
   sizeIsland();
+  reserveAnalyzerHeight();
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     redrawStatic();

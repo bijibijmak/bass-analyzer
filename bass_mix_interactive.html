@@ -474,8 +474,14 @@ select#deviceSelect {
    notably on iOS Safari where the toolbar resizes the scrollport. */
 .sticky-sentinel { height: 1px; margin: 0; padding: 0; }
 .analyzer-sticky { position: sticky; top: 0; z-index: 30; }
-.analyzer-sticky.stuck { background: var(--bg); padding-top: 4px; }
-.analyzer-sticky.stuck .chart-card {
+/* The wrapper keeps its full height in flow at all times (set from JS) so
+   that sticking never changes the document height -- see
+   reserveAnalyzerHeight(). Only the card inside shrinks, and the reserved
+   space below it is pointer-transparent so content scrolling underneath
+   stays clickable. */
+.analyzer-sticky.stuck { pointer-events: none; }
+.analyzer-sticky.stuck > .chart-card {
+  pointer-events: auto;
   margin-bottom: 4px;
   box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.75);
 }
@@ -1701,13 +1707,41 @@ function setTab(name) {
 const ANALYZER_H_FULL  = 220;
 const ANALYZER_H_STUCK = 120;
 let analyzerStuck = false;
-function analyzerH() { return analyzerStuck ? ANALYZER_H_STUCK : ANALYZER_H_FULL; }
+
+// Only a touch device shrinks. The shrink is there to protect a portrait
+// phone viewport that is already giving space to the island; a desktop window
+// has room, and the full height keeps the spectrum readable while you work the
+// knobs. mqCoarse is the same query the fps throttle and the CSS touch
+// breakpoint use, so "is this a touch device" has one definition.
+function analyzerShrinks() { return !!(typeof mqCoarse !== 'undefined' && mqCoarse && mqCoarse.matches); }
+function analyzerH() { return (analyzerStuck && analyzerShrinks()) ? ANALYZER_H_STUCK : ANALYZER_H_FULL; }
 
 function resizeAnalyzer() {
   const slot = document.getElementById('analyzerSlot');
   if (slot) slot.style.height = analyzerH() + 'px';
   if (analyzerMode === 'sg') sizeSpectrogram();
   redrawStatic();
+}
+
+// A sticky element still occupies its flow box, so shrinking the analyzer
+// shortens the DOCUMENT by the same 100 px. On a mouse wheel that is fatal:
+// a 100 px tick at the boundary is exactly cancelled by the 100 px shrink
+// (scroll anchoring compensates), so the page will not cross it -- and while
+// stuck the document is 100 px shorter, so the last 100 px of content cannot
+// be reached at all.
+//
+// Reserve the unshrunk height on the wrapper and let only the card inside
+// change size. The document height then never moves.
+function reserveAnalyzerHeight() {
+  const wrap = document.getElementById('analyzerSticky');
+  const slot = document.getElementById('analyzerSlot');
+  if (!wrap || !slot) return;
+  const prevWrap = wrap.style.height, prevSlot = slot.style.height;
+  wrap.style.height = '';
+  slot.style.height = ANALYZER_H_FULL + 'px';     // measure at full size
+  const h = wrap.offsetHeight;
+  slot.style.height = prevSlot || analyzerH() + 'px';
+  wrap.style.height = h > 0 ? h + 'px' : prevWrap;
 }
 
 // A zero-height sentinel just above the sticky wrapper: when it scrolls out
@@ -1717,12 +1751,14 @@ function initStickyAnalyzer() {
   const wrap = document.getElementById('analyzerSticky');
   if (!sentinel || !wrap) return;
   if (!('IntersectionObserver' in window)) return;   // stays 220 px, still usable
+  reserveAnalyzerHeight();
   new IntersectionObserver(entries => {
     const stuck = !entries[0].isIntersecting;
     if (stuck === analyzerStuck) return;
     analyzerStuck = stuck;
     wrap.classList.toggle('stuck', stuck);
-    resizeAnalyzer();
+    resizeAnalyzer();          // wrapper height is reserved, so this cannot
+                               // change the document height
   }, { threshold: 0 }).observe(sentinel);
 }
 
@@ -2079,8 +2115,11 @@ function wirePedalPanel() {
       try { k.releasePointerCapture(e.pointerId); } catch (err) {}
     });
     k.addEventListener('pointercancel', () => { dragging = false; dropTouch(); });
+    // Only a focused knob takes the wheel; otherwise the wheel belongs to the
+    // page. Without this, scrolling past the panel silently retunes whatever
+    // the cursor crosses and the page stops moving.
     k.addEventListener('wheel', e => {
-      if (off()) return;
+      if (off() || document.activeElement !== k) return;
       e.preventDefault();
       setStep(knobToStep(key, state[key]) + (e.deltaY < 0 ? 1 : -1));
     }, { passive: false });
@@ -2155,6 +2194,7 @@ function wireControls() {
     const key = el.dataset.bind;
     el.addEventListener('input', () => setParam(key, parseFloat(el.value)));
     el.addEventListener('wheel', e => {
+      if (document.activeElement !== el) return;   // the wheel belongs to the page
       e.preventDefault();
       const step = parseFloat(el.step) || 1;
       const dir = e.deltaY < 0 ? 1 : -1;
@@ -4906,6 +4946,7 @@ bootDone = true;
 let resizeTimer = null;
 window.addEventListener('resize', () => {
   sizeIsland();
+  reserveAnalyzerHeight();
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     redrawStatic();

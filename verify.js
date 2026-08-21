@@ -378,6 +378,14 @@ console.log('\n[16] probe does not block scrolling');
     bad('knobs are touch-action: none — a thumb crossing one blocks scrolling');
   else if (/\.knob \{[^}]*touch-action:\s*pan-y/.test(all)) ok('knobs allow vertical panning');
   else bad('knobs have no touch-action rule');
+  // A control that eats the wheel unfocused stops the page scrolling on
+  // desktop and silently retunes itself.
+  if (/document\.activeElement !== k/.test(js) && /document\.activeElement !== el/.test(js))
+    ok('wheel only adjusts a focused control; otherwise the page scrolls');
+  else bad('a control takes the wheel unfocused — desktop scrolling will stall over it');
+  if (/reserveAnalyzerHeight/.test(js) && /wrap\.style\.height = h > 0/.test(js))
+    ok('sticky wrapper reserves its height, so sticking cannot change the document height');
+  else bad('sticky shrink changes document height — a wheel tick at the boundary nets zero');
   if (/TOUCH_PX_PER_STEP/.test(js) && /if \(dy >= dx\) \{ dropTouch\(\); return; \}/.test(js))
     ok('knob touch yields to a vertical gesture');
   else bad('knob claims every touch gesture — vertical drags will be swallowed');
