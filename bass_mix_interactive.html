@@ -180,7 +180,8 @@ canvas { display: block; width: 100% !important; }
               text-transform: uppercase; color: var(--text); white-space: nowrap; }
 .knob { width: 52px; height: 52px; border-radius: 50%; flex: none; position: relative;
         border: 1px solid var(--pedal-edge); background: var(--panel-2);
-        cursor: grab; touch-action: none; }
+        cursor: grab; touch-action: pan-y; }   /* pan-y: a thumb crossing a knob
+        must still scroll the page — the knob claims horizontal drags only */
 .knob:active { cursor: grabbing; }
 .knob:focus-visible { outline: 2px solid var(--darkgas-teal); outline-offset: 2px; }
 .knob-ptr { position: absolute; left: calc(50% - 1px); bottom: 50%; width: 2px; height: 40%;
@@ -469,7 +470,9 @@ select#deviceSelect {
 .frame-info.hot em { color: #ff8c42; }
 
 /* Analyzer slot: two canvases swapped into one fixed-height box */
-.sticky-sentinel { height: 0; margin: 0; padding: 0; }
+/* 1px, not 0: zero-area sentinels are unreliable with IntersectionObserver,
+   notably on iOS Safari where the toolbar resizes the scrollport. */
+.sticky-sentinel { height: 1px; margin: 0; padding: 0; }
 .analyzer-sticky { position: sticky; top: 0; z-index: 30; }
 .analyzer-sticky.stuck { background: var(--bg); padding-top: 4px; }
 .analyzer-sticky.stuck .chart-card {
@@ -847,58 +850,6 @@ select#deviceSelect {
     <canvas id="scopeCanvas" height="140"></canvas>
   </div>
 
-  <!-- ── NOISE / HISS TOOLS ── -->
-  <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>
-  <div class="noise-section">
-    <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="hissBtn" onclick="toggleHiss()">High-cut: OFF</button>
-        <span class="noise-tool-desc">Low-pass to roll off high-frequency hiss. Bass has little real content up here.</span>
-      </div>
-      <div class="noise-param" id="hissParam">
-        <div class="ctrl-label">Cutoff <span class="val" id="hissFreqVal">4.0 kHz</span></div>
-        <input type="range" id="hissFreqKnob" min="1000" max="16000" value="4000" step="250">
-      </div>
-    </div>
-
-    <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="gateBtn" onclick="toggleGate()">Gate: OFF</button>
-        <span class="noise-tool-desc">Mutes output when you're not playing, so hiss disappears between notes.</span>
-      </div>
-      <div class="noise-param" id="gateParam">
-        <div class="ctrl-label">Threshold <span class="val" id="gateThreshVal">-50 dB</span></div>
-        <input type="range" id="gateThreshKnob" min="-80" max="-20" value="-50" step="1">
-      </div>
-    </div>
-
-    <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="notchBtn" onclick="toggleNotch()">Notch: OFF</button>
-        <span class="noise-tool-desc">Narrow tunable notch to hunt a pure-tone whine. Sweep it until the tone drops.</span>
-      </div>
-      <div class="noise-param" id="notchParam">
-        <div class="ctrl-label">Notch freq <span class="val" id="notchFreqVal">3.00 kHz</span></div>
-        <input type="range" id="notchFreqKnob" min="500" max="15000" value="3000" step="50">
-        <div class="ctrl-label" style="margin-top:6px">Width (Q) <span class="val" id="notchQVal">8.0</span></div>
-        <input type="range" id="notchQKnob" min="2" max="30" value="8" step="0.5">
-      </div>
-    </div>
-  </div>
-
-  <!-- ── PRESETS ── -->
-  <div class="section-label">Presets — <span>saved locally</span></div>
-  <div class="preset-section">
-    <div class="preset-header">
-      <span class="preset-title">Presets</span>
-      <input class="preset-name-input" id="presetName" type="text" placeholder="Preset name…" maxlength="24">
-      <button class="preset-save-btn" onclick="savePreset()">+ Save</button>
-    </div>
-    <div class="preset-list" id="presetList">
-      <span class="preset-empty">No presets yet — dial in a sound and save it.</span>
-    </div>
-  </div>
-
   <!-- ── PEDAL PANEL — knobs and switches ── -->
   <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
   <div class="pedal-panel">
@@ -1015,6 +966,58 @@ select#deviceSelect {
     EQ is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> —
     it acts on the summed clean + distorted signal, not on the clean path alone.
   </p>
+
+  <!-- ── NOISE / HISS TOOLS ── -->
+  <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>
+  <div class="noise-section">
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="hissBtn" onclick="toggleHiss()">High-cut: OFF</button>
+        <span class="noise-tool-desc">Low-pass to roll off high-frequency hiss. Bass has little real content up here.</span>
+      </div>
+      <div class="noise-param" id="hissParam">
+        <div class="ctrl-label">Cutoff <span class="val" id="hissFreqVal">4.0 kHz</span></div>
+        <input type="range" id="hissFreqKnob" min="1000" max="16000" value="4000" step="250">
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="gateBtn" onclick="toggleGate()">Gate: OFF</button>
+        <span class="noise-tool-desc">Mutes output when you're not playing, so hiss disappears between notes.</span>
+      </div>
+      <div class="noise-param" id="gateParam">
+        <div class="ctrl-label">Threshold <span class="val" id="gateThreshVal">-50 dB</span></div>
+        <input type="range" id="gateThreshKnob" min="-80" max="-20" value="-50" step="1">
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="notchBtn" onclick="toggleNotch()">Notch: OFF</button>
+        <span class="noise-tool-desc">Narrow tunable notch to hunt a pure-tone whine. Sweep it until the tone drops.</span>
+      </div>
+      <div class="noise-param" id="notchParam">
+        <div class="ctrl-label">Notch freq <span class="val" id="notchFreqVal">3.00 kHz</span></div>
+        <input type="range" id="notchFreqKnob" min="500" max="15000" value="3000" step="50">
+        <div class="ctrl-label" style="margin-top:6px">Width (Q) <span class="val" id="notchQVal">8.0</span></div>
+        <input type="range" id="notchQKnob" min="2" max="30" value="8" step="0.5">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRESETS ── -->
+  <div class="section-label">Presets — <span>saved locally</span></div>
+  <div class="preset-section">
+    <div class="preset-header">
+      <span class="preset-title">Presets</span>
+      <input class="preset-name-input" id="presetName" type="text" placeholder="Preset name…" maxlength="24">
+      <button class="preset-save-btn" onclick="savePreset()">+ Save</button>
+    </div>
+    <div class="preset-list" id="presetList">
+      <span class="preset-empty">No presets yet — dial in a sound and save it.</span>
+    </div>
+  </div>
 
 </section>
 
@@ -2035,17 +2038,47 @@ function wirePedalPanel() {
       setStep(Math.round(((cl + KNOB_SWEEP / 2) / KNOB_SWEEP) * KNOB_STEPS));
     };
 
+    // Touch must never steal a vertical scroll. The panel sits mid-page and a
+    // thumb crossing a knob would otherwise freeze the page — the same bug the
+    // probe canvases had. touch-action: pan-y in the CSS hands vertical
+    // gestures to the browser; we claim only clearly horizontal ones, and then
+    // track RELATIVE movement so the value does not jump to the finger.
+    const TOUCH_SLOP = 8;         // px before deciding scroll vs turn
+    const TOUCH_PX_PER_STEP = 5;  // ~100 px of drag covers the full sweep
+    let tPid = null, tX = 0, tY = 0, tStep = 0, tClaimed = false;
+    const dropTouch = () => { tPid = null; tClaimed = false; };
+
     k.addEventListener('pointerdown', e => {
       if (off()) return;
-      dragging = true;
-      try { k.setPointerCapture(e.pointerId); } catch (err) {}
-      fromPointer(e); e.preventDefault();
+      if (e.pointerType === 'mouse') {
+        dragging = true;
+        try { k.setPointerCapture(e.pointerId); } catch (err) {}
+        fromPointer(e); e.preventDefault();
+        return;
+      }
+      tPid = e.pointerId; tX = e.clientX; tY = e.clientY;
+      tStep = knobToStep(key, state[key]); tClaimed = false;
     });
-    k.addEventListener('pointermove', e => { if (dragging) fromPointer(e); });
+
+    k.addEventListener('pointermove', e => {
+      if (e.pointerType === 'mouse') { if (dragging) fromPointer(e); return; }
+      if (e.pointerId !== tPid || off()) return;
+      if (!tClaimed) {
+        const dx = Math.abs(e.clientX - tX), dy = Math.abs(e.clientY - tY);
+        if (dx < TOUCH_SLOP && dy < TOUCH_SLOP) return;
+        if (dy >= dx) { dropTouch(); return; }     // vertical: let the page scroll
+        tClaimed = true;
+        try { k.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      setStep(tStep + Math.round((e.clientX - tX) / TOUCH_PX_PER_STEP));
+      e.preventDefault();
+    });
+
     k.addEventListener('pointerup', e => {
-      dragging = false; try { k.releasePointerCapture(e.pointerId); } catch (err) {}
+      dragging = false; dropTouch();
+      try { k.releasePointerCapture(e.pointerId); } catch (err) {}
     });
-    k.addEventListener('pointercancel', () => { dragging = false; });
+    k.addEventListener('pointercancel', () => { dragging = false; dropTouch(); });
     k.addEventListener('wheel', e => {
       if (off()) return;
       e.preventDefault();

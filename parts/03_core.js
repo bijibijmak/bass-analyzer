@@ -487,17 +487,47 @@ function wirePedalPanel() {
       setStep(Math.round(((cl + KNOB_SWEEP / 2) / KNOB_SWEEP) * KNOB_STEPS));
     };
 
+    // Touch must never steal a vertical scroll. The panel sits mid-page and a
+    // thumb crossing a knob would otherwise freeze the page — the same bug the
+    // probe canvases had. touch-action: pan-y in the CSS hands vertical
+    // gestures to the browser; we claim only clearly horizontal ones, and then
+    // track RELATIVE movement so the value does not jump to the finger.
+    const TOUCH_SLOP = 8;         // px before deciding scroll vs turn
+    const TOUCH_PX_PER_STEP = 5;  // ~100 px of drag covers the full sweep
+    let tPid = null, tX = 0, tY = 0, tStep = 0, tClaimed = false;
+    const dropTouch = () => { tPid = null; tClaimed = false; };
+
     k.addEventListener('pointerdown', e => {
       if (off()) return;
-      dragging = true;
-      try { k.setPointerCapture(e.pointerId); } catch (err) {}
-      fromPointer(e); e.preventDefault();
+      if (e.pointerType === 'mouse') {
+        dragging = true;
+        try { k.setPointerCapture(e.pointerId); } catch (err) {}
+        fromPointer(e); e.preventDefault();
+        return;
+      }
+      tPid = e.pointerId; tX = e.clientX; tY = e.clientY;
+      tStep = knobToStep(key, state[key]); tClaimed = false;
     });
-    k.addEventListener('pointermove', e => { if (dragging) fromPointer(e); });
+
+    k.addEventListener('pointermove', e => {
+      if (e.pointerType === 'mouse') { if (dragging) fromPointer(e); return; }
+      if (e.pointerId !== tPid || off()) return;
+      if (!tClaimed) {
+        const dx = Math.abs(e.clientX - tX), dy = Math.abs(e.clientY - tY);
+        if (dx < TOUCH_SLOP && dy < TOUCH_SLOP) return;
+        if (dy >= dx) { dropTouch(); return; }     // vertical: let the page scroll
+        tClaimed = true;
+        try { k.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      setStep(tStep + Math.round((e.clientX - tX) / TOUCH_PX_PER_STEP));
+      e.preventDefault();
+    });
+
     k.addEventListener('pointerup', e => {
-      dragging = false; try { k.releasePointerCapture(e.pointerId); } catch (err) {}
+      dragging = false; dropTouch();
+      try { k.releasePointerCapture(e.pointerId); } catch (err) {}
     });
-    k.addEventListener('pointercancel', () => { dragging = false; });
+    k.addEventListener('pointercancel', () => { dragging = false; dropTouch(); });
     k.addEventListener('wheel', e => {
       if (off()) return;
       e.preventDefault();

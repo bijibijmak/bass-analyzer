@@ -147,58 +147,6 @@
     <canvas id="scopeCanvas" height="140"></canvas>
   </div>
 
-  <!-- ── NOISE / HISS TOOLS ── -->
-  <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>
-  <div class="noise-section">
-    <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="hissBtn" onclick="toggleHiss()">High-cut: OFF</button>
-        <span class="noise-tool-desc">Low-pass to roll off high-frequency hiss. Bass has little real content up here.</span>
-      </div>
-      <div class="noise-param" id="hissParam">
-        <div class="ctrl-label">Cutoff <span class="val" id="hissFreqVal">4.0 kHz</span></div>
-        <input type="range" id="hissFreqKnob" min="1000" max="16000" value="4000" step="250">
-      </div>
-    </div>
-
-    <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="gateBtn" onclick="toggleGate()">Gate: OFF</button>
-        <span class="noise-tool-desc">Mutes output when you're not playing, so hiss disappears between notes.</span>
-      </div>
-      <div class="noise-param" id="gateParam">
-        <div class="ctrl-label">Threshold <span class="val" id="gateThreshVal">-50 dB</span></div>
-        <input type="range" id="gateThreshKnob" min="-80" max="-20" value="-50" step="1">
-      </div>
-    </div>
-
-    <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="notchBtn" onclick="toggleNotch()">Notch: OFF</button>
-        <span class="noise-tool-desc">Narrow tunable notch to hunt a pure-tone whine. Sweep it until the tone drops.</span>
-      </div>
-      <div class="noise-param" id="notchParam">
-        <div class="ctrl-label">Notch freq <span class="val" id="notchFreqVal">3.00 kHz</span></div>
-        <input type="range" id="notchFreqKnob" min="500" max="15000" value="3000" step="50">
-        <div class="ctrl-label" style="margin-top:6px">Width (Q) <span class="val" id="notchQVal">8.0</span></div>
-        <input type="range" id="notchQKnob" min="2" max="30" value="8" step="0.5">
-      </div>
-    </div>
-  </div>
-
-  <!-- ── PRESETS ── -->
-  <div class="section-label">Presets — <span>saved locally</span></div>
-  <div class="preset-section">
-    <div class="preset-header">
-      <span class="preset-title">Presets</span>
-      <input class="preset-name-input" id="presetName" type="text" placeholder="Preset name…" maxlength="24">
-      <button class="preset-save-btn" onclick="savePreset()">+ Save</button>
-    </div>
-    <div class="preset-list" id="presetList">
-      <span class="preset-empty">No presets yet — dial in a sound and save it.</span>
-    </div>
-  </div>
-
   <!-- ── PEDAL PANEL — knobs and switches ── -->
   <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
   <div class="pedal-panel">
@@ -315,6 +263,58 @@
     EQ is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> —
     it acts on the summed clean + distorted signal, not on the clean path alone.
   </p>
+
+  <!-- ── NOISE / HISS TOOLS ── -->
+  <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>
+  <div class="noise-section">
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="hissBtn" onclick="toggleHiss()">High-cut: OFF</button>
+        <span class="noise-tool-desc">Low-pass to roll off high-frequency hiss. Bass has little real content up here.</span>
+      </div>
+      <div class="noise-param" id="hissParam">
+        <div class="ctrl-label">Cutoff <span class="val" id="hissFreqVal">4.0 kHz</span></div>
+        <input type="range" id="hissFreqKnob" min="1000" max="16000" value="4000" step="250">
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="gateBtn" onclick="toggleGate()">Gate: OFF</button>
+        <span class="noise-tool-desc">Mutes output when you're not playing, so hiss disappears between notes.</span>
+      </div>
+      <div class="noise-param" id="gateParam">
+        <div class="ctrl-label">Threshold <span class="val" id="gateThreshVal">-50 dB</span></div>
+        <input type="range" id="gateThreshKnob" min="-80" max="-20" value="-50" step="1">
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="notchBtn" onclick="toggleNotch()">Notch: OFF</button>
+        <span class="noise-tool-desc">Narrow tunable notch to hunt a pure-tone whine. Sweep it until the tone drops.</span>
+      </div>
+      <div class="noise-param" id="notchParam">
+        <div class="ctrl-label">Notch freq <span class="val" id="notchFreqVal">3.00 kHz</span></div>
+        <input type="range" id="notchFreqKnob" min="500" max="15000" value="3000" step="50">
+        <div class="ctrl-label" style="margin-top:6px">Width (Q) <span class="val" id="notchQVal">8.0</span></div>
+        <input type="range" id="notchQKnob" min="2" max="30" value="8" step="0.5">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRESETS ── -->
+  <div class="section-label">Presets — <span>saved locally</span></div>
+  <div class="preset-section">
+    <div class="preset-header">
+      <span class="preset-title">Presets</span>
+      <input class="preset-name-input" id="presetName" type="text" placeholder="Preset name…" maxlength="24">
+      <button class="preset-save-btn" onclick="savePreset()">+ Save</button>
+    </div>
+    <div class="preset-list" id="presetList">
+      <span class="preset-empty">No presets yet — dial in a sound and save it.</span>
+    </div>
+  </div>
 
 </section>
 

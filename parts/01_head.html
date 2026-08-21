@@ -180,7 +180,8 @@ canvas { display: block; width: 100% !important; }
               text-transform: uppercase; color: var(--text); white-space: nowrap; }
 .knob { width: 52px; height: 52px; border-radius: 50%; flex: none; position: relative;
         border: 1px solid var(--pedal-edge); background: var(--panel-2);
-        cursor: grab; touch-action: none; }
+        cursor: grab; touch-action: pan-y; }   /* pan-y: a thumb crossing a knob
+        must still scroll the page — the knob claims horizontal drags only */
 .knob:active { cursor: grabbing; }
 .knob:focus-visible { outline: 2px solid var(--darkgas-teal); outline-offset: 2px; }
 .knob-ptr { position: absolute; left: calc(50% - 1px); bottom: 50%; width: 2px; height: 40%;
@@ -469,7 +470,9 @@ select#deviceSelect {
 .frame-info.hot em { color: #ff8c42; }
 
 /* Analyzer slot: two canvases swapped into one fixed-height box */
-.sticky-sentinel { height: 0; margin: 0; padding: 0; }
+/* 1px, not 0: zero-area sentinels are unreliable with IntersectionObserver,
+   notably on iOS Safari where the toolbar resizes the scrollport. */
+.sticky-sentinel { height: 1px; margin: 0; padding: 0; }
 .analyzer-sticky { position: sticky; top: 0; z-index: 30; }
 .analyzer-sticky.stuck { background: var(--bg); padding-top: 4px; }
 .analyzer-sticky.stuck .chart-card {
