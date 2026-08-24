@@ -283,7 +283,7 @@ function drawSgOverlay() {
 
   // EQ band markers — same four verticals as FFT mode
   [100, state.loMidFreq, state.hiMidFreq, 5000].forEach(f => {
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+    ctx.strokeStyle = TH.bandMarker; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
     ctx.beginPath(); ctx.moveTo(xp(f), PAD.t); ctx.lineTo(xp(f), PAD.t + ch); ctx.stroke();
     ctx.setLineDash([]);
   });

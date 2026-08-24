@@ -1,0 +1,13 @@
+<!-- Replaces the existing .header-row block at the top of parts/02_body.html
+     (currently lines 4–10). Only change: the theme toggle is now wrapped in
+     .header-actions alongside the new skin cycler. -->
+<div class="header-row">
+  <header>
+    <h1>Bass <em>Analyzer</em></h1>
+    <p>Preamp · tuner · spectrum</p>
+  </header>
+  <div class="header-actions">
+    <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
+  </div>
+</div>

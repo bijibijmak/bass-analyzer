@@ -705,6 +705,233 @@ select#deviceSelect {
 @media (hover: none) and (pointer: coarse) {
   input[type=range] { height: 26px; }
 }
+/* ═══════════════════════════════════════════════════════════
+   SKINS — three alternate looks, each with a light and dark mode.
+   Append this at the END of the <style> block in parts/01_head.html.
+
+   Axes:  html[data-skin="classic|aria|minimal|lab"]
+          html[data-theme="dark|light"]
+
+   Every skin only reassigns the existing variables, so nothing
+   downstream needs to change. The bare :root and :root[data-theme]
+   rules already in the file remain the Classic skin's values —
+   these blocks override them when a skin is selected.
+
+   Source order matters: each skin's dark block is followed by its
+   light block, so the more specific light selector always wins.
+   ═══════════════════════════════════════════════════════════ */
+
+/* the body glow washes were hardcoded teal — make them skinnable */
+:root { --wash-a: rgba(0,200,180,0.05); --wash-b: rgba(0,229,255,0.04); }
+body {
+  background-image:
+    radial-gradient(ellipse 70% 50% at 15% 5%,  var(--wash-a) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 95%, var(--wash-b) 0%, transparent 60%);
+}
+
+/* ─────────────────────────────────────────────
+   ARIA — glossy black, gold, oxblood
+   ───────────────────────────────────────────── */
+:root[data-skin="aria"] {
+  --bg: #0a0a0b;
+  --panel: #0d0d0f;
+  --panel-2: #141315;
+  --border: #2a2620;
+  --bass: #e8c96a;
+  --guitar: #e0384a;
+  --kick: #d98324;
+  --snare: #cfc4ae;
+  --hh: #8f9668;
+  --text: #efe9dc;
+  --dim: #8a8378;
+  --pedal-edge: #3a352a;
+  --darkgas-teal: #c9a227;   /* accent slot: antique gold */
+  --glow: rgba(201,162,39,0.35);
+  --island: rgba(10,10,11,0.94);
+  --wash-a: rgba(201,162,39,0.06);
+  --wash-b: rgba(224,56,74,0.04);
+  color-scheme: dark;
+}
+:root[data-skin="aria"][data-theme="light"] {
+  --bg: #f2efe8;
+  --panel: #faf8f2;
+  --panel-2: #eae5d9;
+  --border: #d8d0bd;
+  --bass: #8f6f0e;
+  --guitar: #a8121f;
+  --kick: #a86a12;
+  --snare: #6b5f45;
+  --hh: #4f6b3a;
+  --text: #1a1713;
+  --dim: #7a7368;
+  --pedal-edge: #c7bda6;
+  --darkgas-teal: #8f6f0e;
+  --glow: rgba(143,111,14,0.22);
+  --island: rgba(250,248,242,0.94);
+  --wash-a: rgba(143,111,14,0.05);
+  --wash-b: rgba(168,18,31,0.04);
+  color-scheme: light;
+}
+/* glossy black plastic: gold ring, red centre jewel */
+:root[data-skin="aria"] .knob {
+  border: 2px solid var(--darkgas-teal);
+  background: radial-gradient(circle at 34% 26%, #3a3733 0%, #131211 46%, #050505 100%);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.14);
+}
+:root[data-skin="aria"] .knob-hub { background: var(--guitar); width: 7px; height: 7px; }
+:root[data-skin="aria"][data-theme="light"] .knob {
+  background: radial-gradient(circle at 34% 26%, #ffffff 0%, #e8e2d3 52%, #cfc6ae 100%);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.14), inset 0 1px 2px rgba(255,255,255,0.7);
+}
+:root[data-skin="aria"] .pedal-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0) 40%),
+    var(--panel);
+}
+
+/* ─────────────────────────────────────────────
+   MINIMAL — pure contrast, a single red
+   ───────────────────────────────────────────── */
+:root[data-skin="minimal"] {
+  --bg: #000000;
+  --panel: #000000;
+  --panel-2: #0a0a0a;
+  --border: #ffffff;
+  --bass: #ffffff;
+  --guitar: #ff2f00;
+  --kick: #b8b8b8;
+  --snare: #7a7a7a;
+  --hh: #4d4d4d;
+  --text: #ffffff;
+  --dim: #8c8c8c;
+  --pedal-edge: #ffffff;
+  --darkgas-teal: #ff2f00;   /* accent slot: the one red */
+  --glow: rgba(255,47,0,0.30);
+  --island: rgba(0,0,0,0.94);
+  --wash-a: transparent;
+  --wash-b: transparent;
+  color-scheme: dark;
+}
+:root[data-skin="minimal"][data-theme="light"] {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f4f4f4;
+  --border: #111111;
+  --bass: #000000;
+  --guitar: #ff2f00;
+  --kick: #565656;
+  --snare: #8c8c8c;
+  --hh: #b5b5b5;
+  --text: #000000;
+  --dim: #767676;
+  --pedal-edge: #111111;
+  --darkgas-teal: #ff2f00;
+  --glow: rgba(255,47,0,0.22);
+  --island: rgba(255,255,255,0.94);
+  color-scheme: light;
+}
+/* no chrome anywhere: hairline geometry only */
+:root[data-skin="minimal"] .knob {
+  border: 1.5px solid var(--text);
+  background: transparent;
+  box-shadow: none;
+  width: 56px; height: 56px;
+}
+:root[data-skin="minimal"] .knob-ptr { background: var(--text); height: 46%; }
+:root[data-skin="minimal"] .knob-hub { display: none; }
+:root[data-skin="minimal"] .knob-read .val { color: var(--text); font-size: 0.72rem; }
+:root[data-skin="minimal"] .pedal-panel,
+:root[data-skin="minimal"] .chart-card,
+:root[data-skin="minimal"] .tuner-section { border-radius: 0; }
+:root[data-skin="minimal"] .tab-island { border-radius: 0; box-shadow: none; }
+:root[data-skin="minimal"] .tab-btn { border-radius: 0; }
+:root[data-skin="minimal"] .tab-btn[aria-selected="true"] {
+  background: var(--text); color: var(--bg); border-color: var(--text); box-shadow: none;
+}
+
+/* ─────────────────────────────────────────────
+   LAB — CRT phosphor (dark) / paper chart recorder (light)
+   ───────────────────────────────────────────── */
+:root[data-skin="lab"] {
+  --bg: #26281f;
+  --panel: #22251c;
+  --panel-2: #1d2018;
+  --border: #3b3e30;
+  --bass: #59ff8f;
+  --guitar: #ffb347;
+  --kick: #ffd166;
+  --snare: #7ad7ff;
+  --hh: #c3f7c8;
+  --text: #d6e4c6;
+  --dim: #8b9a7a;
+  --pedal-edge: #454a3a;
+  --darkgas-teal: #59ff8f;   /* accent slot: phosphor green */
+  --glow: rgba(89,255,143,0.35);
+  --island: rgba(29,32,24,0.94);
+  --wash-a: rgba(89,255,143,0.05);
+  --wash-b: rgba(255,179,71,0.04);
+  color-scheme: dark;
+}
+:root[data-skin="lab"][data-theme="light"] {
+  --bg: #cfc6b0;
+  --panel: #e8e0cd;
+  --panel-2: #ded5bf;
+  --border: #b3a992;
+  --bass: #1b2a4a;
+  --guitar: #b03a2e;
+  --kick: #8a6b1f;
+  --snare: #2e6b57;
+  --hh: #7a6a55;
+  --text: #2a2620;
+  --dim: #6f6656;
+  --pedal-edge: #a89e86;
+  --darkgas-teal: #1b2a4a;   /* accent slot: ink blue */
+  --glow: rgba(27,42,74,0.20);
+  --island: rgba(232,224,205,0.94);
+  --wash-a: rgba(176,58,46,0.05);
+  --wash-b: rgba(27,42,74,0.04);
+  color-scheme: light;
+}
+/* knurled instrument knob with a glowing index line */
+:root[data-skin="lab"] .knob {
+  border: 1px solid var(--pedal-edge);
+  background: repeating-conic-gradient(#2f332a 0deg 6deg, #20241c 6deg 12deg);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.55), inset 0 0 0 5px #191c15;
+}
+:root[data-skin="lab"] .knob-ptr {
+  width: 3px; left: calc(50% - 1.5px); height: 38%;
+  box-shadow: 0 0 7px var(--glow);
+}
+:root[data-skin="lab"] .knob-hub { display: none; }
+:root[data-skin="lab"][data-theme="light"] .knob {
+  background: repeating-conic-gradient(#e2d9c4 0deg 6deg, #cfc5ac 6deg 12deg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.18), inset 0 0 0 5px #ded5bf;
+}
+:root[data-skin="lab"] .chart-card {
+  background: linear-gradient(180deg, #14170f, #0b0d08);
+  box-shadow: inset 0 3px 14px rgba(0,0,0,0.7);
+  padding: 8px;
+}
+:root[data-skin="lab"][data-theme="light"] .chart-card {
+  background: var(--panel);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* ─────────────────────────────────────────────
+   SKIN PICKER — sits beside the existing moon/sun toggle
+   ───────────────────────────────────────────── */
+.skin-toggle {
+  flex-shrink: 0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+  height: 40px; min-width: 74px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel-2);
+  color: var(--text); cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.skin-toggle:hover { border-color: var(--darkgas-teal); color: var(--darkgas-teal); }
+.skin-toggle:focus-visible { outline: 2px solid var(--darkgas-teal); outline-offset: 2px; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -713,9 +940,12 @@ select#deviceSelect {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Darkgas B7K v2 · preamp · tuner · spectrum</p>
+    <p>Preamp · tuner · spectrum</p>
   </header>
-  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
+  <div class="header-actions">
+    <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -1610,64 +1840,201 @@ function blendGains(b) {
   return { dry: Math.cos(th), wet: Math.sin(th) };
 }
 
-// ─────────────────────────────────────────────
-// THEME (canvas colours — CSS handles the DOM)
-// ─────────────────────────────────────────────
-const THEMES = {
-  dark: {
-    chartBg:'#141418', gridLine:'#1c1c26', axisLabel:'#44445a', axisTitle:'#33334a',
-    refLine:'rgba(255,255,255,0.10)', refText:'rgba(255,255,255,0.20)',
-    unityLine:'rgba(255,255,255,0.08)', unityText:'rgba(255,255,255,0.18)',
-    bandMarker:'rgba(0,229,255,0.18)',
-    scopeBg:'#0a0a0e', scopeGrid:'#1a1a26', scopeZero:'#252535', scopeText:'#333348',
-    bass:'#00e5ff', bassGhost:'rgba(0,229,255,0.28)',
-    guitar:'#ff4d4d', kick:'#ffaa00', snare:'#c084fc', hh:'#86efac',
-    fftFill0:'rgba(0,229,255,0.28)', fftFill1:'rgba(0,200,180,0.10)', fftLine:'rgba(0,229,255,0.85)',
-    fftGlow:'#00e5ff', crosshair:'rgba(0,200,180,0.45)'
+// ═══════════════════════════════════════════════════════════
+// SKINS + THEME  (canvas colours — CSS handles the DOM)
+//
+// Two independent axes:
+//   skin  = classic | aria | minimal | lab   (data-skin on <html>)
+//   mode  = dark | light                     (data-theme on <html>)
+//
+// Every skin defines the full canvas key set, so no drawing code
+// needs to know which skin is active — it keeps reading TH.*.
+// Replaces the old THEMES / applyTheme / toggleTheme / initTheme
+// block in 03_core.js. The old function names still exist and
+// still behave, so existing call sites keep working.
+// ═══════════════════════════════════════════════════════════
+const SKINS = {
+
+  // ── CLASSIC — the original teal/cyan instrument look ──
+  classic: {
+    label: 'Classic',
+    dark: {
+      chartBg:'#141418', gridLine:'#1c1c26', axisLabel:'#44445a', axisTitle:'#33334a',
+      refLine:'rgba(255,255,255,0.10)', refText:'rgba(255,255,255,0.20)',
+      unityLine:'rgba(255,255,255,0.08)', unityText:'rgba(255,255,255,0.18)',
+      bandMarker:'rgba(0,229,255,0.18)',
+      scopeBg:'#0a0a0e', scopeGrid:'#1a1a26', scopeZero:'#252535', scopeText:'#333348',
+      bass:'#00e5ff', bassGhost:'rgba(0,229,255,0.28)',
+      guitar:'#ff4d4d', kick:'#ffaa00', snare:'#c084fc', hh:'#86efac',
+      fftFill0:'rgba(0,229,255,0.28)', fftFill1:'rgba(0,200,180,0.10)', fftLine:'rgba(0,229,255,0.85)',
+      fftGlow:'#00e5ff', crosshair:'rgba(0,200,180,0.45)'
+    },
+    light: {
+      chartBg:'#f7f8fb', gridLine:'#dde0ea', axisLabel:'#9498ad', axisTitle:'#aab0c2',
+      refLine:'rgba(20,24,40,0.14)', refText:'rgba(20,24,40,0.40)',
+      unityLine:'rgba(20,24,40,0.10)', unityText:'rgba(20,24,40,0.32)',
+      bandMarker:'rgba(0,140,160,0.30)',
+      scopeBg:'#eef0f6', scopeGrid:'#dde0ea', scopeZero:'#c2c6d4', scopeText:'#9498ad',
+      bass:'#0096c8', bassGhost:'rgba(0,120,170,0.35)',
+      guitar:'#d62b2b', kick:'#c97a00', snare:'#8a3fce', hh:'#2f9e57',
+      fftFill0:'rgba(0,150,200,0.26)', fftFill1:'rgba(0,154,138,0.10)', fftLine:'rgba(0,120,170,0.85)',
+      fftGlow:'#0096c8', crosshair:'rgba(0,154,138,0.55)'
+    }
   },
-  light: {
-    chartBg:'#f7f8fb', gridLine:'#dde0ea', axisLabel:'#9498ad', axisTitle:'#aab0c2',
-    refLine:'rgba(20,24,40,0.14)', refText:'rgba(20,24,40,0.40)',
-    unityLine:'rgba(20,24,40,0.10)', unityText:'rgba(20,24,40,0.32)',
-    bandMarker:'rgba(0,140,160,0.30)',
-    scopeBg:'#eef0f6', scopeGrid:'#dde0ea', scopeZero:'#c2c6d4', scopeText:'#9498ad',
-    bass:'#0096c8', bassGhost:'rgba(0,120,170,0.35)',
-    guitar:'#d62b2b', kick:'#c97a00', snare:'#8a3fce', hh:'#2f9e57',
-    fftFill0:'rgba(0,150,200,0.26)', fftFill1:'rgba(0,154,138,0.10)', fftLine:'rgba(0,120,170,0.85)',
-    fftGlow:'#0096c8', crosshair:'rgba(0,154,138,0.55)'
+
+  // ── ARIA — glossy black, gold and oxblood. Powerful, classy. ──
+  aria: {
+    label: 'Aria',
+    dark: {
+      chartBg:'#08080a', gridLine:'#1f1c15', axisLabel:'#6d6559', axisTitle:'#57503f',
+      refLine:'rgba(239,233,220,0.10)', refText:'rgba(239,233,220,0.22)',
+      unityLine:'rgba(239,233,220,0.08)', unityText:'rgba(239,233,220,0.20)',
+      bandMarker:'rgba(224,56,74,0.30)',
+      scopeBg:'#060607', scopeGrid:'#1c1913', scopeZero:'#2e2a20', scopeText:'#6d6559',
+      bass:'#e8c96a', bassGhost:'rgba(232,201,106,0.28)',
+      guitar:'#e0384a', kick:'#d98324', snare:'#cfc4ae', hh:'#8f9668',
+      fftFill0:'rgba(201,162,39,0.46)', fftFill1:'rgba(201,162,39,0.03)', fftLine:'#e8c96a',
+      fftGlow:'rgba(232,201,106,0.55)', crosshair:'rgba(224,56,74,0.50)'
+    },
+    light: {
+      chartBg:'#fbf9f4', gridLine:'#e4dcc8', axisLabel:'#9b9382', axisTitle:'#ada48f',
+      refLine:'rgba(26,23,19,0.14)', refText:'rgba(26,23,19,0.42)',
+      unityLine:'rgba(26,23,19,0.10)', unityText:'rgba(26,23,19,0.34)',
+      bandMarker:'rgba(168,18,31,0.28)',
+      scopeBg:'#f4f0e6', scopeGrid:'#e4dcc8', scopeZero:'#c9bfa6', scopeText:'#9b9382',
+      bass:'#8f6f0e', bassGhost:'rgba(143,111,14,0.32)',
+      guitar:'#a8121f', kick:'#a86a12', snare:'#6b5f45', hh:'#4f6b3a',
+      fftFill0:'rgba(143,111,14,0.30)', fftFill1:'rgba(143,111,14,0.02)', fftLine:'#8f6f0e',
+      fftGlow:'rgba(143,111,14,0)', crosshair:'rgba(168,18,31,0.50)'
+    }
+  },
+
+  // ── MINIMAL — pure contrast, one red. Value does the encoding. ──
+  minimal: {
+    label: 'Minimal',
+    dark: {
+      chartBg:'#000000', gridLine:'#232323', axisLabel:'#8c8c8c', axisTitle:'#6b6b6b',
+      refLine:'rgba(255,255,255,0.16)', refText:'rgba(255,255,255,0.34)',
+      unityLine:'rgba(255,255,255,0.12)', unityText:'rgba(255,255,255,0.30)',
+      bandMarker:'rgba(255,47,0,0.45)',
+      scopeBg:'#000000', scopeGrid:'#1c1c1c', scopeZero:'#333333', scopeText:'#8c8c8c',
+      bass:'#ffffff', bassGhost:'rgba(255,255,255,0.30)',
+      guitar:'#ff2f00', kick:'#b8b8b8', snare:'#7a7a7a', hh:'#4d4d4d',
+      fftFill0:'rgba(255,255,255,0.18)', fftFill1:'rgba(255,255,255,0.01)', fftLine:'#ffffff',
+      fftGlow:'rgba(0,0,0,0)', crosshair:'#ff2f00'
+    },
+    light: {
+      chartBg:'#ffffff', gridLine:'#e6e6e6', axisLabel:'#767676', axisTitle:'#949494',
+      refLine:'rgba(0,0,0,0.16)', refText:'rgba(0,0,0,0.40)',
+      unityLine:'rgba(0,0,0,0.12)', unityText:'rgba(0,0,0,0.34)',
+      bandMarker:'rgba(255,47,0,0.45)',
+      scopeBg:'#ffffff', scopeGrid:'#ececec', scopeZero:'#c9c9c9', scopeText:'#767676',
+      bass:'#000000', bassGhost:'rgba(0,0,0,0.26)',
+      guitar:'#ff2f00', kick:'#565656', snare:'#8c8c8c', hh:'#b5b5b5',
+      fftFill0:'rgba(0,0,0,0.14)', fftFill1:'rgba(0,0,0,0.01)', fftLine:'#000000',
+      fftGlow:'rgba(0,0,0,0)', crosshair:'#ff2f00'
+    }
+  },
+
+  // ── LAB — CRT phosphor in the dark, paper chart recorder in the light. ──
+  lab: {
+    label: 'Lab',
+    dark: {
+      chartBg:'#06110a', gridLine:'#183826', axisLabel:'#4e7a5c', axisTitle:'#3d6349',
+      refLine:'rgba(214,228,198,0.12)', refText:'rgba(214,228,198,0.26)',
+      unityLine:'rgba(214,228,198,0.09)', unityText:'rgba(214,228,198,0.22)',
+      bandMarker:'rgba(255,179,71,0.35)',
+      scopeBg:'#050e08', scopeGrid:'#14301f', scopeZero:'#26543a', scopeText:'#4e7a5c',
+      bass:'#59ff8f', bassGhost:'rgba(89,255,143,0.26)',
+      guitar:'#ffb347', kick:'#ffd166', snare:'#7ad7ff', hh:'#c3f7c8',
+      fftFill0:'rgba(89,255,143,0.30)', fftFill1:'rgba(89,255,143,0.02)', fftLine:'#59ff8f',
+      fftGlow:'rgba(89,255,143,0.60)', crosshair:'rgba(255,179,71,0.55)'
+    },
+    light: {
+      chartBg:'#f6f1e2', gridLine:'#e0c3ae', axisLabel:'#9a8b74', axisTitle:'#ab9c85',
+      refLine:'rgba(42,38,32,0.16)', refText:'rgba(42,38,32,0.42)',
+      unityLine:'rgba(42,38,32,0.11)', unityText:'rgba(42,38,32,0.34)',
+      bandMarker:'rgba(176,58,46,0.35)',
+      scopeBg:'#f1ead8', scopeGrid:'#e0c3ae', scopeZero:'#c2ab92', scopeText:'#9a8b74',
+      bass:'#1b2a4a', bassGhost:'rgba(27,42,74,0.28)',
+      guitar:'#b03a2e', kick:'#8a6b1f', snare:'#2e6b57', hh:'#7a6a55',
+      fftFill0:'rgba(27,42,74,0.20)', fftFill1:'rgba(27,42,74,0.01)', fftLine:'#1b2a4a',
+      fftGlow:'rgba(0,0,0,0)', crosshair:'rgba(176,58,46,0.55)'
+    }
   }
 };
-let TH = THEMES.dark;
+
+const SKIN_ORDER = ['classic', 'aria', 'minimal', 'lab'];
+
+let TH = SKINS.classic.dark;
 const THEME_KEY = 'b7k_theme';
+const SKIN_KEY  = 'b7k_skin';
 let bootDone = false;
 
-function applyTheme(mode, persist) {
-  TH = THEMES[mode] || THEMES.dark;
-  document.documentElement.setAttribute('data-theme', mode);
-  const btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = mode === 'light' ? '☀️' : '🌙';
-  if (persist) { try { localStorage.setItem(THEME_KEY, mode); } catch (e) {} }
+let curSkin = 'classic', curMode = 'dark';
+
+// The single place both axes land. Everything else delegates here.
+function applyLook(skin, mode, persist) {
+  curSkin = SKINS[skin] ? skin : 'classic';
+  curMode = mode === 'light' ? 'light' : 'dark';
+  TH = SKINS[curSkin][curMode];
+
+  const root = document.documentElement;
+  root.setAttribute('data-skin', curSkin);
+  root.setAttribute('data-theme', curMode);
+
+  const tBtn = document.getElementById('themeToggle');
+  if (tBtn) tBtn.textContent = curMode === 'light' ? '☀️' : '🌙';
+  const sBtn = document.getElementById('skinToggle');
+  if (sBtn) {
+    sBtn.textContent = SKINS[curSkin].label;
+    sBtn.setAttribute('title', 'Skin: ' + SKINS[curSkin].label + ' — tap to change');
+  }
+
+  if (persist) {
+    try {
+      localStorage.setItem(SKIN_KEY, curSkin);
+      localStorage.setItem(THEME_KEY, curMode);
+    } catch (e) {}
+  }
   if (bootDone) {
     redrawStatic();
     if (document.getElementById('refModal').classList.contains('open')) drawRefChart();
     if (!audioRunning) stopScope();
   }
 }
-function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-  applyTheme(cur === 'light' ? 'dark' : 'light', true);
+
+// Back-compatible names — same signatures as before.
+function applyTheme(mode, persist) { applyLook(curSkin, mode, persist); }
+function toggleTheme() { applyLook(curSkin, curMode === 'light' ? 'dark' : 'light', true); }
+
+function setSkin(name) { applyLook(name, curMode, true); }
+function cycleSkin() {
+  const i = SKIN_ORDER.indexOf(curSkin);
+  applyLook(SKIN_ORDER[(i + 1) % SKIN_ORDER.length], curMode, true);
 }
+
 function initTheme() {
-  let saved = null;
-  try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
-  if (saved === 'light' || saved === 'dark') { applyTheme(saved, false); return; }
+  let savedMode = null, savedSkin = null;
+  try {
+    savedMode = localStorage.getItem(THEME_KEY);
+    savedSkin = localStorage.getItem(SKIN_KEY);
+  } catch (e) {}
+
+  const skin = SKINS[savedSkin] ? savedSkin : 'classic';
+
+  if (savedMode === 'light' || savedMode === 'dark') {
+    applyLook(skin, savedMode, false);
+    return;
+  }
   const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-  applyTheme(prefersLight ? 'light' : 'dark', false);
+  applyLook(skin, prefersLight ? 'light' : 'dark', false);
+
   if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
       let override = null;
       try { override = localStorage.getItem(THEME_KEY); } catch (err) {}
-      if (!override) applyTheme(e.matches ? 'light' : 'dark', false);
+      if (!override) applyLook(curSkin, e.matches ? 'light' : 'dark', false);
     });
   }
 }
@@ -3053,7 +3420,7 @@ function drawSgOverlay() {
 
   // EQ band markers — same four verticals as FFT mode
   [100, state.loMidFreq, state.hiMidFreq, 5000].forEach(f => {
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+    ctx.strokeStyle = TH.bandMarker; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
     ctx.beginPath(); ctx.moveTo(xp(f), PAD.t); ctx.lineTo(xp(f), PAD.t + ch); ctx.stroke();
     ctx.setLineDash([]);
   });
