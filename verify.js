@@ -34,7 +34,7 @@ const wanted = new Set();
 for (const mm of js.matchAll(/getElementById\(\s*'([^']+)'\s*\)/g)) wanted.add(mm[1]);
 for (const mm of js.matchAll(/getElementById\(\s*"([^"]+)"\s*\)/g)) wanted.add(mm[1]);
 // dynamic id built by concatenation — check the expansions explicitly
-const TAB_NAMES = ['preamp','tuner','spectrum','detune','mix'];
+const TAB_NAMES = ['preamp','tuner','spectrum','detune','wah','mix'];
 const dynamic = [
   ...TAB_NAMES.map(t => 'panel-' + t),
   ...TAB_NAMES.map(t => 'tab-' + t),
@@ -175,8 +175,10 @@ TAB_NAMES.forEach(t => {
   if (!new RegExp(`setTab\\('${t}'\\)`).test(markup)) bad(`no island button calls setTab('${t}')`);
 });
 if (TAB_NAMES.every(t => new RegExp(`setTab\\('${t}'\\)`).test(markup))) ok('every tab has an island button');
-if (/repeat\(5, 1fr\)/.test(html)) ok('island grid is five columns');
-else bad('island grid is not five columns — buttons would wrap');
+// Derived, not literal: a new tab should not need this line edited.
+const cols = new RegExp('repeat\\(' + TAB_NAMES.length + ', 1fr\\)');
+if (cols.test(html)) ok(`island grid is ${TAB_NAMES.length} columns, one per tab`);
+else bad(`island grid is not ${TAB_NAMES.length} columns — buttons would wrap`);
 
 // ── 11. worklet contract matches the app ──
 console.log('\n[11] worklet contract');

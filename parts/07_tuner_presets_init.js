@@ -288,6 +288,7 @@ if ('serviceWorker' in navigator) {
 initTheme();
 wireControls();
 wirePedalPanel();
+wireWah();
 wireTrim('inTrimKnob',  'inTrimVal');
 wireTrim('outTrimKnob', 'outTrimVal');
 wireNoiseParam('hissFreqKnob',   'hissFreq',   'hissFreqVal',   v => (v / 1000).toFixed(1) + ' kHz');

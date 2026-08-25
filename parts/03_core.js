@@ -257,7 +257,7 @@ function initTheme() {
 // Only one panel's DOM is displayed at a time. Entering or leaving
 // the Spectrum tab connects / disconnects its filter chain.
 // ═══════════════════════════════════════════════════════════
-const TABS = ['preamp', 'tuner', 'spectrum', 'detune', 'mix'];
+const TABS = ['preamp', 'tuner', 'spectrum', 'detune', 'wah', 'mix'];
 let activeTab = 'preamp';
 
 function setTab(name) {
@@ -271,7 +271,9 @@ function setTab(name) {
   });
 
   if (prev === 'spectrum') spectrumExit();
+  if (prev === 'wah') wahExit(false);
   if (name === 'spectrum') spectrumEnter();
+  if (name === 'wah') wahEnter();
 
   window.scrollTo(0, 0);
   requestAnimationFrame(() => { sizeIsland(); redrawStatic(); });
@@ -816,5 +818,7 @@ function redrawStatic() {
     sxLayout();
   } else if (activeTab === 'detune') {
     renderDetune();
+  } else if (activeTab === 'wah') {
+    wahSyncUI();
   }
 }
