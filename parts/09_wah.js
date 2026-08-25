@@ -40,7 +40,7 @@ const WAH_DEFAULTS = {
   xFuzz: false,      // X axis drives fuzz amount
   pos: 0.35,         // heel..toe, 0..1
   fuzzAmt: 0.5,      // 0..1, only used when xFuzz is on
-  tiltHeel: 20, tiltToe: 70
+  tiltHeel: 25, tiltToe: 80
 };
 const wah = Object.assign({}, WAH_DEFAULTS);
 
@@ -270,42 +270,132 @@ function wireWahPad() {
 }
 
 // ── Tilt (phone) ───────────────────────────────────────────
+// Failure here has to be loud. deviceorientation needs a SECURE CONTEXT:
+// over plain http (which `npm run serve` gives you on the LAN) the event
+// never fires, and on Android there is no permission prompt to fail — so
+// it is entirely possible to attach a listener, report success and receive
+// nothing. Every branch below says what actually happened, and a watchdog
+// catches the silent case.
+// isSecureContext is TRUE on file:// in Chrome, so it cannot classify this
+// on its own — the protocol has to be checked first. Same lesson the detune
+// worklet guard learned, and verify.js [13] enforces it.
+function wahContext() {
+  if (typeof location === 'undefined') return 'unknown';
+  if (location.protocol === 'file:') return 'file';
+  return window.isSecureContext ? 'secure' : 'insecure';
+}
+const WAH_CTX_NOTE = {
+  file:     'opened as a local file — browsers do not report motion from file://',
+  insecure: 'not a secure context — browsers only report motion over https or from localhost',
+  secure:   'secure',
+  unknown:  'unknown'
+};
+
+let wahLastBeta = null, wahTiltSeen = 0, wahTiltWatch = null, wahCal = null;
+
+function wahTiltDiag() {
+  const el = document.getElementById('wahTiltDiag');
+  if (!el) return;
+  const has = typeof DeviceOrientationEvent !== 'undefined';
+  el.innerHTML =
+    'context <em>' + wahContext() + '</em>' +
+    ' · sensor <em>' + (has ? 'yes' : 'no') + '</em>' +
+    ' · grant <em>' + (has && typeof DeviceOrientationEvent.requestPermission === 'function'
+                        ? 'required' : 'not needed') + '</em>' +
+    ' · events <em>' + wahTiltSeen + '</em>' +
+    (wahLastBeta == null ? '' : ' · beta <em>' + wahLastBeta.toFixed(1) + '°</em>');
+}
+
 function wahOnTilt(e) {
   if (e.beta == null) return;
+  wahTiltSeen++;
+  wahLastBeta = e.beta;                      // recorded before any early exit,
+  if (wahCal) {                              // so calibration always has a value
+    wahCal.lo = Math.min(wahCal.lo, e.beta);
+    wahCal.hi = Math.max(wahCal.hi, e.beta);
+  }
+  wahTiltDiag();
   const lo = Math.min(wah.tiltHeel, wah.tiltToe), hi = Math.max(wah.tiltHeel, wah.tiltToe);
   if (hi - lo < 3) return;
   const inv = wah.tiltToe < wah.tiltHeel;
-  let p = (e.beta - lo) / (hi - lo);
-  wahLastBeta = e.beta;
+  const p = (e.beta - lo) / (hi - lo);
   wahExpress(inv ? 1 - p : p, null);
 }
-let wahLastBeta = null;
 
 async function wahTiltStart() {
-  if (typeof DeviceOrientationEvent === 'undefined') { wahSay('This device reports no orientation sensor.'); return; }
-  // iOS 13+ requires an explicit grant, and only from a user gesture.
+  if (typeof DeviceOrientationEvent === 'undefined') {
+    wahSay('This browser exposes no orientation sensor — desktop browsers generally do not.');
+    wahTiltDiag(); return;
+  }
+  const ctx = wahContext();
+  if (ctx !== 'secure') {
+    // Warn, then try anyway: if it somehow works the watchdog will say so.
+    wahSay('Heads up — this page is ' + WAH_CTX_NOTE[ctx] + '. Trying anyway…');
+  }
   if (typeof DeviceOrientationEvent.requestPermission === 'function') {
     try {
       const r = await DeviceOrientationEvent.requestPermission();
-      if (r !== 'granted') { wahSay('Motion access denied — tilt unavailable.'); return; }
-    } catch (err) { wahSay('Motion access needs a secure (https) page.'); return; }
+      if (r !== 'granted') { wahSay('Motion access denied. Reload and allow it to use tilt.'); wahTiltDiag(); return; }
+    } catch (err) {
+      wahSay('Motion access could not be requested: ' + err.message +
+             '. On iOS this needs an https page.');
+      wahTiltDiag(); return;
+    }
   }
+
   window.addEventListener('deviceorientation', wahOnTilt);
-  wahTiltOn = true; wahSyncUI();
-  wahSay('Tilt live. Rock the phone like a treadle.');
+  wahTiltOn = true;
+  wah.on = true;                 // tilt against a bypassed wah is silent
+  wahApplyAll(false);
+  wahSyncUI(); wahTiltDiag();
+
+  const before = wahTiltSeen;
+  clearTimeout(wahTiltWatch);
+  wahTiltWatch = setTimeout(() => {
+    if (wahTiltSeen === before) {
+      const c = wahContext();
+      wahSay(c === 'secure'
+        ? 'Listener attached but the device is sending no orientation events. ' +
+          'Either there is no sensor, or the browser is withholding it.'
+        : 'No orientation events — this page is ' + WAH_CTX_NOTE[c] +
+          '. Serve it over https, or from localhost, and tilt will work.');
+    } else {
+      wahSay('Tilt live — rock the phone like a treadle. Wah engaged automatically.');
+    }
+    wahTiltDiag();
+  }, 1500);
 }
+
 function wahTiltStop() {
   if (!wahTiltOn) return;
+  clearTimeout(wahTiltWatch);
   window.removeEventListener('deviceorientation', wahOnTilt);
-  wahTiltOn = false; wahSyncUI();
+  wahTiltOn = false; wahSyncUI(); wahTiltDiag();
 }
 function wahTiltToggle() { wahTiltOn ? wahTiltStop() : wahTiltStart(); }
+
 function wahSetTilt(which) {
   if (wahLastBeta == null) { wahSay('No tilt reading yet — enable tilt first.'); return; }
   wah[which === 'heel' ? 'tiltHeel' : 'tiltToe'] = Math.round(wahLastBeta);
   wahSyncUI();
   wahSay((which === 'heel' ? 'Heel' : 'Toe') + ' set at ' + Math.round(wahLastBeta) + '°.');
 }
+
+// Records the range you actually use, which beats guessing at how someone
+// holds their phone.
+function wahAutoCalibrate() {
+  if (!wahTiltOn) { wahSay('Enable tilt first, then calibrate.'); return; }
+  wahCal = { lo: 1e9, hi: -1e9 };
+  wahSay('Rock the phone heel to toe for three seconds…');
+  setTimeout(() => {
+    const c = wahCal; wahCal = null;
+    if (!c || c.hi - c.lo < 8) { wahSay('Not enough movement — try again, rocking further.'); return; }
+    wah.tiltHeel = Math.round(c.lo); wah.tiltToe = Math.round(c.hi);
+    wahSyncUI();
+    wahSay('Calibrated: heel ' + Math.round(c.lo) + '° → toe ' + Math.round(c.hi) + '°.');
+  }, 3000);
+}
+
 function wahSay(msg) { const el = document.getElementById('wahMsg'); if (el) el.textContent = msg; }
 
 // ── UI ─────────────────────────────────────────────────────
@@ -322,6 +412,7 @@ function wahSyncUI() {
   set('wahQVal', el => el.textContent = num(wah.q, 3.5).toFixed(1));
   set('wahLoVal', el => el.textContent = Math.round(wah.sweepLo) + ' Hz');
   set('wahHiVal', el => el.textContent = Math.round(wah.sweepHi) + ' Hz');
+  wahTiltDiag();
   set('wahTiltRange', el => el.textContent = Math.round(wah.tiltHeel) + '° → ' + Math.round(wah.tiltToe) + '°');
   document.querySelectorAll('[data-wahmode]').forEach(b =>
     b.classList.toggle('active', b.dataset.wahmode === wah.fuzzMode));
