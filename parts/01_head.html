@@ -743,6 +743,46 @@ select#deviceSelect {
 }
 .wah-pad.engaged .wah-hint { display: none; }
 
+
+/* ── Graphic EQ preamp ───────────────────────────────────── */
+/* touch-action: pan-y on the tracks is load-bearing: eleven vertical faders
+   is the worst case for the scroll bug this app hit three times, so a fader
+   only ever takes a horizontal touch drag. */
+.geq-panel {
+  border: 1px solid var(--pedal-edge); border-radius: 10px;
+  background: var(--panel); padding: 12px 8px 10px; margin-bottom: 8px;
+}
+.geq-strip { display: grid; grid-template-columns: repeat(11, 1fr); gap: 2px; align-items: end; }
+.geq-band { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.geq-val {
+  font-size: 0.46rem; color: var(--darkgas-teal);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.geq-track {
+  position: relative; width: 100%; max-width: 26px; height: 132px;
+  border: 1px solid var(--pedal-edge); border-radius: 4px; background: var(--panel-2);
+  cursor: ns-resize; touch-action: pan-y;
+}
+.geq-track:focus-visible { outline: 2px solid var(--darkgas-teal); outline-offset: 2px; }
+.geq-mid { position: absolute; left: 2px; right: 2px; bottom: 50%; height: 1px; background: var(--pedal-edge); }
+.geq-fill {
+  position: absolute; left: 3px; right: 3px; bottom: 50%; height: 0;
+  background: var(--darkgas-teal); opacity: 0.45; border-radius: 1px;
+}
+.geq-knob {
+  position: absolute; left: -1px; right: -1px; height: 10px; bottom: calc(50% - 5px);
+  background: var(--text); border-radius: 2px; box-shadow: 0 0 6px var(--glow);
+}
+.geq-user .geq-track { border-color: var(--darkgas-teal); }
+.geq-freq { font-size: 0.44rem; color: var(--dim); white-space: nowrap; }
+.geq-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.geq-freq-input {
+  width: 62px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.6rem;
+}
+.geq-freq-input:focus { outline: none; border-color: var(--darkgas-teal); }
+
 /* ═══════════════════════════════════════════════════════════
    SKINS — three alternate looks, each with a light and dark mode.
    Append this at the END of the <style> block in parts/01_head.html.

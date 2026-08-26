@@ -150,6 +150,13 @@
     <canvas id="scopeCanvas" height="140"></canvas>
   </div>
 
+  <div class="fft-toggle-row" id="preampSelect">
+    <span class="ctrl-sub" style="margin:0 4px 0 0">Preamp</span>
+    <button class="fft-btn active" type="button" data-preamp="b7k" onclick="setPreamp('b7k')">Darkgas B7K</button>
+    <button class="fft-btn"        type="button" data-preamp="geq" onclick="setPreamp('geq')">Graphic EQ</button>
+  </div>
+
+<div id="preampB7k">
   <!-- ── PEDAL PANEL — knobs and switches ── -->
   <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
   <div class="pedal-panel">
@@ -266,6 +273,66 @@
     EQ is <em style="color:var(--darkgas-teal);font-style:normal">post-blend</em> —
     it acts on the summed clean + distorted signal, not on the clean path alone.
   </p>
+</div>
+
+<div id="preampGeq" style="display:none">
+  <div class="section-label">Graphic EQ — <span>11 band · ±12 dB</span></div>
+  <div class="geq-panel">
+    <div class="geq-strip" id="geqStrip"></div>
+    <div class="geq-foot">
+      <button class="freq-btn" type="button" onclick="geqReset()">Flat</button>
+      <span class="ctrl-sub">Band 11
+        <input class="geq-freq-input" id="geqUserFreq" type="number" min="20" max="16000" step="1" value="700"> Hz
+      </span>
+    </div>
+  </div>
+  <p class="hint">
+    Drag a fader <em style="color:var(--darkgas-teal);font-style:normal">sideways</em> on a phone —
+    vertical swipes always scroll the page, so the EQ can never trap you. A mouse drags them up and down
+    as usual. Double-click a fader to zero it. The curve drawn over the analyzer is the calculated
+    response of these eleven filters.
+  </p>
+
+  <div class="section-label">Output — <span>as on the M108S</span></div>
+  <div class="noise-section">
+    <div class="noise-tool">
+      <div class="ctrl-label">Gain <span class="val" id="geqGainVal">+0.0 dB</span></div>
+      <input type="range" data-geqtrim="gain" min="-12" max="12" value="0" step="0.5">
+      <div class="noise-tool-desc">Pre-EQ boost, the same slider the pedal has.</div>
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Volume <span class="val" id="geqVolumeVal">+0.0 dB</span></div>
+      <input type="range" data-geqtrim="volume" min="-12" max="12" value="0" step="0.5">
+    </div>
+  </div>
+
+  <div class="section-label">Drive — <span>the same B7K section, as faders</span></div>
+  <div class="noise-section">
+    <div class="noise-tool">
+      <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
+      <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="noise-tool" id="cardLevelGeq">
+      <div class="ctrl-label">Level <span class="val" data-val="level">0.0 dB</span></div>
+      <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
+      <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Grunt <span class="val" data-val="grunt">Raw</span></div>
+      <input type="range" data-bind="grunt" min="0" max="2" value="1" step="1">
+      <div class="noise-tool-desc">Thin · Raw · Fat</div>
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Attack <span class="val" data-val="attack">Flat</span></div>
+      <input type="range" data-bind="attack" min="0" max="2" value="1" step="1">
+      <div class="noise-tool-desc">Cut · Flat · Boost — these are twins of the knobs on the B7K panel.</div>
+    </div>
+  </div>
+</div>
+
 
   <!-- ── NOISE / HISS TOOLS ── -->
   <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>

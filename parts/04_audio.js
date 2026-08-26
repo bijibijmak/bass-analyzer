@@ -311,6 +311,7 @@ async function startAudio() {
 
     audioRunning = true;
     startUiLoop();
+    geqOnAudioStart();   // the selected preamp may not be the B7K
 
     document.getElementById('audioToggle').textContent = '⏹ Disable Audio';
     document.getElementById('audioToggle').classList.add('active');

@@ -193,6 +193,8 @@ function drawFftOverlay(ctx, cw, ch, xp, withDbScale) {
   ctx.strokeStyle = TH.fftLine; ctx.lineWidth = 1.4;
   ctx.stroke();
 
+  drawGeqCurve(ctx, xp, cw, ch);
+
   if (peakHoldBuf && showPeakHoldLine) {
     ctx.beginPath(); started = false;
     for (let i = 1; i < binCount; i++) {
