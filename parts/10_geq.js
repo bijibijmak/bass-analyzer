@@ -2,9 +2,11 @@
 // GRAPHIC EQ PREAMP — 11 band, after the MXR M108S
 //
 // The M108S is a TEN band: 31.25 · 62.5 · 125 · 250 · 500 · 1k · 2k · 4k ·
-// 8k Hz peaking, plus a ±12 dB shelf at 16k, with Volume and Gain sliders
-// alongside. The eleventh band here is ours: a peaking filter whose centre
-// frequency you type in.
+// 8k Hz peaking, plus a ±12 dB shelf on top, with Volume and Gain sliders
+// alongside. Three deliberate departures: the top band sits at 10 kHz rather
+// than 16 kHz so it stays inside the analyzer's range, it is peaking rather
+// than shelving so its label means what it says at that frequency, and the
+// eleventh band is ours -- a peaking filter whose centre you type in.
 //
 // It is a second PREAMP, not a second tab. The Preamp tab carries a selector
 // and swaps this panel in for the B7K's knob panel; the drive section is
@@ -20,7 +22,10 @@
 // It is structurally impossible for this panel to block scrolling.
 // ═══════════════════════════════════════════════════════════
 
-const GEQ_FIXED = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+// Top band is 10 kHz, not the M108S's 16 kHz: the analyzer is capped at
+// 10 kHz, and a band above the chart is a control you can hear but never
+// see. Still a shelf, so it catches everything above it.
+const GEQ_FIXED = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 10000];
 const GEQ_N = GEQ_FIXED.length + 1;          // 11: ten fixed plus the user band
 const GEQ_MAX_DB = 12;
 const GEQ_Q = 1.4;                            // ~1 octave, matching octave spacing
@@ -36,9 +41,14 @@ const geq = {
 let preampKind = 'b7k';                       // 'b7k' | 'geq'
 let geqNodes = null, geqSpliced = false;
 
+const GEQ_USER_MAX = 10000;   // = AX_FMAX, so every band is on the chart
 const geqFreqAt = i => (i < GEQ_FIXED.length ? GEQ_FIXED[i]
-                                             : Math.max(20, Math.min(16000, num(geq.userFreq, 700))));
-const geqIsShelf = i => i === GEQ_FIXED.length - 1;    // 16k is a shelf on the real pedal
+                                             : Math.max(20, Math.min(GEQ_USER_MAX, num(geq.userFreq, 700))));
+// Every band is peaking, including the top one. The M108S's top band is a
+// shelf, but a shelf only reaches half its gain at the corner frequency —
+// with the corner at the chart's own ceiling that is a fader marked +12 that
+// delivers +6 at the highest frequency you can see. Measured before the
+// change: 0 dB at 2k, 1.1 at 6k, 6.0 at 10k for a +12 setting.
 const geqDbGain = db => Math.pow(10, num(db, 0) / 20);
 
 // ── Response, computed from the same filter maths that runs the audio ──
@@ -66,7 +76,7 @@ function geqResponseDb(freqs) {
   const mag = new Float32Array(freqs.length), phase = new Float32Array(freqs.length);
   for (let i = 0; i < GEQ_N; i++) {
     const b = geqCalcBq[i];
-    b.type = geqIsShelf(i) ? 'highshelf' : 'peaking';
+    b.type = 'peaking';
     b.frequency.value = geqFreqAt(i);
     b.Q.value = GEQ_Q;
     b.gain.value = num(geq.gains[i], 0);
@@ -86,7 +96,7 @@ function geqBuild() {
   let prev = n.in;
   for (let i = 0; i < GEQ_N; i++) {
     const b = ac.createBiquadFilter();
-    b.type = geqIsShelf(i) ? 'highshelf' : 'peaking';
+    b.type = 'peaking';
     b.frequency.value = geqFreqAt(i);
     b.Q.value = GEQ_Q;
     b.gain.value = num(geq.gains[i], 0);
@@ -173,7 +183,7 @@ function geqLoad() {
       if (Array.isArray(o.gains))
         for (let i = 0; i < GEQ_N; i++)
           geq.gains[i] = Math.max(-GEQ_MAX_DB, Math.min(GEQ_MAX_DB, num(parseFloat(o.gains[i]), 0)));
-      geq.userFreq = Math.max(20, Math.min(16000, num(parseFloat(o.userFreq), 700)));
+      geq.userFreq = Math.max(20, Math.min(GEQ_USER_MAX, num(parseFloat(o.userFreq), 700)));
       geq.gain   = Math.max(-GEQ_MAX_DB, Math.min(GEQ_MAX_DB, num(parseFloat(o.gain), 0)));
       geq.volume = Math.max(-GEQ_MAX_DB, Math.min(GEQ_MAX_DB, num(parseFloat(o.volume), 0)));
     } catch (e) {}
@@ -202,7 +212,7 @@ function geqSetTrim(which, db) {
   if (activeTab === 'preamp') redrawStatic();
 }
 function geqSetUserFreq(hz) {
-  geq.userFreq = Math.max(20, Math.min(16000, num(parseFloat(hz), 700)));
+  geq.userFreq = Math.max(20, Math.min(GEQ_USER_MAX, num(parseFloat(hz), 700)));
   if (geqNodes && audioCtx)
     geqNodes.bands[GEQ_N - 1].frequency.setTargetAtTime(geqFreqAt(GEQ_N - 1), audioCtx.currentTime, 0.02);
   geqSyncUI(); geqSave();
