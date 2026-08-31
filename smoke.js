@@ -189,26 +189,52 @@ setTimeout(() => {
     const loaded = ev('loadPresetsFromStorage')();
     if (loaded.length !== 1) throw new Error('migration produced ' + loaded.length + ' presets');
     const p = loaded[0];
-    const bad0 = Object.entries(p).filter(([k, v]) => k !== 'name' && !Number.isFinite(v));
+    // v3 adds a string (preamp) and an array (geqGains); everything else must
+    // still be a finite number.
+    const SKIP = new Set(['name', 'preamp', 'geqGains']);
+    const bad0 = Object.entries(p).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (bad0.length) bad('migrated preset has non-finite fields: ' + JSON.stringify(bad0));
-    else ok('v1 → v2 migration produced only finite numbers');
+    else ok('v1 → v3 migration produced only finite numbers');
+    if (Array.isArray(p.geqGains) && p.geqGains.length === 11 && p.geqGains.every(Number.isFinite))
+      ok('migrated preset carries 11 finite EQ band gains');
+    else bad('geqGains is ' + JSON.stringify(p.geqGains));
+    if (p.preamp === 'b7k') ok('migrated preset defaults to the B7K preamp');
+    else bad('preamp defaulted to ' + p.preamp);
     if ('tone' in p || 'pickup' in p) bad('tone/pickup survived migration');
     else ok('tone and pickup dropped');
     if (p.blend === 0 && p.level === 100 && p.drive === 0 && p.grunt === 1 && p.attack === 1)
       ok('drive section defaulted neutral (blend 0, level unity, drive min, Raw, Flat)');
     else bad('drive defaults wrong: ' + JSON.stringify(p));
-    if (!w.localStorage.getItem('b7k_presets_v2')) bad('v2 store not written on migrate');
-    else ok('v2 store written');
+    if (!w.localStorage.getItem('b7k_presets_v3')) bad('v3 store not written on migrate');
+    else ok('v3 store written');
+
+    // v2 is the store most users are actually on, so migrate that too.
+    w.localStorage.clear();
+    w.localStorage.setItem('b7k_presets_v2', JSON.stringify([{
+      name: 'Old v2', low: 2, blend: 40, level: 90, drive: 30, grunt: 2, attack: 0
+    }]));
+    const v2p = ev('loadPresetsFromStorage')()[0];
+    if (v2p && v2p.blend === 40 && v2p.grunt === 2 && v2p.geqGains.every(g => g === 0))
+      ok('v2 → v3 keeps the drive section and adds a flat EQ');
+    else bad('v2 migration gave ' + JSON.stringify(v2p));
 
     // Deliberately hostile: hand-edited garbage must not reach a gain node.
-    w.localStorage.setItem('b7k_presets_v2', JSON.stringify([
+    // Written to the CURRENT store, or the migration above would shadow it.
+    w.localStorage.clear();
+    w.localStorage.setItem('b7k_presets_v3', JSON.stringify([
       { name: 'Junk', low: 'x', loMid: null, treble: undefined, blend: NaN,
-        level: 'unity', drive: {}, grunt: 9, attack: -3, loMidFreq: 777, hiMidFreq: 'abc' }
+        level: 'unity', drive: {}, grunt: 9, attack: -3, loMidFreq: 777, hiMidFreq: 'abc',
+        geqGains: ['x', null, undefined, NaN, 99, -99, {}, [], 'y', 3, 'z'],
+        geqUserFreq: 'nope', geqGain: {}, geqVolume: NaN, preamp: 'nonsense' }
     ]));
     const j = ev('loadPresetsFromStorage')()[0];
-    const junkBad = Object.entries(j).filter(([k, v]) => k !== 'name' && !Number.isFinite(v));
+    const junkBad = Object.entries(j).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (junkBad.length) bad('garbage preset yielded non-finite: ' + JSON.stringify(junkBad));
     else ok('garbage preset fully coerced to finite defaults');
+    if (j.geqGains.every(Number.isFinite) && j.geqGains[4] === 12 && j.geqGains[5] === -12 &&
+        j.geqGains[9] === 3 && j.preamp === 'b7k' && Number.isFinite(j.geqUserFreq))
+      ok('garbage EQ bands coerced and clamped to ±12, preamp falls back to b7k');
+    else bad('geq garbage gave ' + JSON.stringify({g: j.geqGains, p: j.preamp, f: j.geqUserFreq}));
     if (j.loMidFreq === 1000 && j.hiMidFreq === 3000) ok('out-of-set band frequencies fall back to defaults');
     else bad(`band freqs = ${j.loMidFreq}/${j.hiMidFreq}`);
     if (j.grunt === 1 && j.attack === 1) ok('out-of-range switch positions fall back to centre');
@@ -229,6 +255,26 @@ setTimeout(() => {
     ev('deletePreset')(0);
     if (ev('loadPresetsFromStorage')().length === 0) ok('delete works');
     else bad('delete failed');
+
+    // geqGains round-trip — the failure that cost an evening: a curve dialled
+    // in, saved, flattened, then recalled must come back.
+    w.localStorage.clear();
+    ev('setPreamp')('geq');
+    const g = ev('geq');
+    g.gains[0] = 7.5; g.gains[5] = -9; g.gains[10] = 4;
+    g.userFreq = 820; g.gain = 2.5; g.volume = -3;
+    d.getElementById('presetName').value = 'Curve';
+    ev('savePreset')();
+    ev('geqReset')(); g.userFreq = 700; g.gain = 0; g.volume = 0;
+    ev('applyPreset')(0);
+    const back = ev('geq');
+    if (back.gains[0] === 7.5 && back.gains[5] === -9 && back.gains[10] === 4 &&
+        back.userFreq === 820 && back.gain === 2.5 && back.volume === -3 &&
+        ev('preampKind') === 'geq')
+      ok('EQ curve survives save → flat → recall, and the preamp comes back with it');
+    else bad('EQ did not round-trip: ' + JSON.stringify({
+      g: back.gains, f: back.userFreq, gain: back.gain, vol: back.volume, p: ev('preampKind') }));
+    ev('setPreamp')('b7k'); w.localStorage.clear();
   } catch (e) { bad('preset test threw: ' + e.stack); }
 
   console.log('\n[8] analyzer mode swap');

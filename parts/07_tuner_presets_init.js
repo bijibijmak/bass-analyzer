@@ -167,7 +167,8 @@ function updateTunerDisplay(hz) {
 // Undefined fields written into gain nodes produce NaN and silently kill
 // audio, so EVERY field is guarded and clamped on read, not just on migrate.
 // ═══════════════════════════════════════════════════════════
-const PRESET_KEY    = 'b7k_presets_v2';
+const PRESET_KEY    = 'b7k_presets_v3';
+const PRESET_KEY_V2 = 'b7k_presets_v2';
 const PRESET_KEY_V1 = 'b7k_presets_v1';
 const LOMID_FREQS = [500, 1000];
 const HIMID_FREQS = [1500, 3000];
@@ -180,6 +181,15 @@ function pnum(v, dflt, min, max) {
 function ppick(v, dflt, allowed) {
   const n = parseInt(v, 10);
   return allowed.indexOf(n) >= 0 ? n : dflt;
+}
+
+// The band array is rebuilt element by element rather than trusted, for the
+// same reason every scalar is: one undefined reaching setTargetAtTime turns a
+// filter's gain into NaN and silences it with no error.
+function pgains(a) {
+  const out = new Array(GEQ_N).fill(0);
+  if (Array.isArray(a)) for (let i = 0; i < GEQ_N; i++) out[i] = pnum(a[i], 0, -12, 12);
+  return out;
 }
 
 function normalizePreset(p) {
@@ -196,7 +206,12 @@ function normalizePreset(p) {
     level:     pnum(o.level, 100, 0, 100),
     drive:     pnum(o.drive,   0, 0, 100),
     grunt:     ppick(o.grunt,  1, [0, 1, 2]),
-    attack:    ppick(o.attack, 1, [0, 1, 2])
+    attack:    ppick(o.attack, 1, [0, 1, 2]),
+    preamp:      o.preamp === 'geq' ? 'geq' : 'b7k',
+    geqGains:    pgains(o.geqGains),
+    geqUserFreq: pnum(o.geqUserFreq, 700, 20, 10000),
+    geqGain:     pnum(o.geqGain,   0, -12, 12),
+    geqVolume:   pnum(o.geqVolume, 0, -12, 12)
   };
 }
 
@@ -209,14 +224,17 @@ function loadPresetsFromStorage() {
   try { raw = localStorage.getItem(PRESET_KEY); } catch (e) {}
 
   if (raw === null || raw === undefined) {
-    // No v2 store yet — migrate v1 if there is one. v1 is left in place.
-    let v1 = null;
-    try { v1 = JSON.parse(localStorage.getItem(PRESET_KEY_V1) || 'null'); } catch (e) {}
-    if (Array.isArray(v1) && v1.length) {
-      const migrated = v1.map(normalizePreset);
-      savePresetsToStorage(migrated);
-      console.log('[Presets] migrated', migrated.length, 'preset(s) from v1 → v2');
-      return migrated;
+    // No v3 store yet — migrate the newest older store there is. Both are
+    // left in place, so a downgrade still finds its own data.
+    for (const [key, from] of [[PRESET_KEY_V2, 'v2'], [PRESET_KEY_V1, 'v1']]) {
+      let old = null;
+      try { old = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
+      if (Array.isArray(old) && old.length) {
+        const migrated = old.map(normalizePreset);
+        savePresetsToStorage(migrated);
+        console.log('[Presets] migrated', migrated.length, 'preset(s) from ' + from + ' → v3');
+        return migrated;
+      }
     }
     return [];
   }
@@ -236,7 +254,12 @@ function savePreset() {
     low: state.low, loMid: state.loMid, loMidFreq: state.loMidFreq,
     hiMid: state.hiMid, hiMidFreq: state.hiMidFreq, treble: state.treble,
     blend: state.blend, level: state.level, drive: state.drive,
-    grunt: state.grunt, attack: state.attack
+    grunt: state.grunt, attack: state.attack,
+    preamp: preampKind,
+    geqGains: geq.gains.slice(),
+    geqUserFreq: geq.userFreq,
+    geqGain: geq.gain,
+    geqVolume: geq.volume
   }));
   savePresetsToStorage(presets);
   nameEl.value = '';
@@ -248,6 +271,15 @@ function applyPreset(idx) {
   if (!p) return;
   ['low','loMid','loMidFreq','hiMid','hiMidFreq','treble',
    'blend','level','drive','grunt','attack'].forEach(k => { state[k] = p[k]; });
+
+  for (let i = 0; i < GEQ_N; i++) geq.gains[i] = p.geqGains[i];
+  geq.userFreq = p.geqUserFreq;
+  geq.gain     = p.geqGain;
+  geq.volume   = p.geqVolume;
+  if (geqNodes) geqApply(false);
+  geqSyncUI(); geqSave();
+  setPreamp(p.preamp);      // also redraws, so the curve follows the recall
+
   syncUI();
   render();
 }
