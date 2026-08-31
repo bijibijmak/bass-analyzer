@@ -320,15 +320,22 @@
       <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
       <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
     </div>
-    <div class="noise-tool">
-      <div class="ctrl-label">Grunt <span class="val" data-val="grunt">Raw</span></div>
-      <input type="range" data-bind="grunt" min="0" max="2" value="1" step="1">
-      <div class="noise-tool-desc">Thin · Raw · Fat</div>
-    </div>
-    <div class="noise-tool">
-      <div class="ctrl-label">Attack <span class="val" data-val="attack">Flat</span></div>
-      <input type="range" data-bind="attack" min="0" max="2" value="1" step="1">
-      <div class="noise-tool-desc">Cut · Flat · Boost — these are twins of the knobs on the B7K panel.</div>
+    <div class="noise-tool geq-switch-row">
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n3" data-sw="grunt" tabindex="0" role="button" aria-label="Grunt switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="grunt"><span data-v="2">Fat</span><span data-v="0">Thin</span><span data-v="1">Raw</span></div>
+        </div>
+        <div class="sw-cap">Grunt</div>
+      </div>
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n3" data-sw="attack" tabindex="0" role="button" aria-label="Attack switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="attack"><span data-v="1">Flat</span><span data-v="2">Boost</span><span data-v="0">Cut</span></div>
+        </div>
+        <div class="sw-cap">Attack</div>
+      </div>
+      <div class="noise-tool-desc" style="flex:1 1 100%">Twins of the switches on the B7K panel — moving one moves the other.</div>
     </div>
   </div>
 </div>

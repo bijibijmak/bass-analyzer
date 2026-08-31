@@ -604,20 +604,24 @@ function knobClock(step) {
 
 // Switch positions live in the markup, listed top to bottom, so the physical
 // order on screen and the state value can never drift apart in code.
+// A switch id can appear on more than one panel — the B7K knob panel and the
+// graphic EQ both carry Grunt and Attack. Every instance is read from the
+// markup and every instance is synced, so they stay twins of each other.
 function swSpec(id) {
-  const wrap = document.querySelector('[data-swlabels="' + id + '"]');
-  if (!wrap) return null;
-  const spans = Array.from(wrap.querySelectorAll('span'));
-  return { spans, values: spans.map(sp => parseFloat(sp.dataset.v)) };
+  const wraps = Array.from(document.querySelectorAll('[data-swlabels="' + id + '"]'));
+  if (!wraps.length) return null;
+  const spans = Array.from(wraps[0].querySelectorAll('span'));
+  return { wraps, spans, values: spans.map(sp => parseFloat(sp.dataset.v)) };
 }
 function syncSwitch(id) {
   const sp = swSpec(id); if (!sp) return;
   const n = sp.values.length;
   let i = sp.values.indexOf(state[id]);
   if (i < 0) i = n >> 1;
-  const dot = document.querySelector('[data-sw="' + id + '"] .sw-dot');
-  if (dot) dot.style.top = (n === 3 ? [15, 50, 85][i] : [25, 75][i]) + '%';
-  sp.spans.forEach((el, k) => el.classList.toggle('on', k === i));
+  const top = (n === 3 ? [15, 50, 85][i] : [25, 75][i]) + '%';
+  document.querySelectorAll('[data-sw="' + id + '"] .sw-dot').forEach(d => { d.style.top = top; });
+  sp.wraps.forEach(w => Array.from(w.querySelectorAll('span'))
+    .forEach((el, k) => el.classList.toggle('on', k === i)));
 }
 function advanceSwitch(id) {
   const sp = swSpec(id); if (!sp) return;

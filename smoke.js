@@ -141,7 +141,10 @@ setTimeout(() => {
 
   console.log('\n[6] 3-position switches');
   const gruntPill = d.querySelector('[data-sw="grunt"]');
-  const gruntSpans = [...d.querySelectorAll('[data-swlabels="grunt"] span')];
+  // Grunt and Attack now appear on both preamp panels, so a bare
+  // querySelectorAll returns every instance concatenated. Scope to the first.
+  const swSpans = id => [...d.querySelector(`[data-swlabels="${id}"]`).querySelectorAll('span')];
+  const gruntSpans = swSpans('grunt');
   // Listed top to bottom on screen. Reading the values out of the markup is
   // the point: the physical order and the state value cannot drift in code.
   const order = gruntSpans.map(sp => sp.textContent);
@@ -149,7 +152,7 @@ setTimeout(() => {
   // It is deliberately not sorted by dB, so it has to be pinned here.
   if (order.join('/') === 'Fat/Thin/Raw') ok('grunt switch reads Fat/Thin/Raw top to bottom');
   else bad('grunt switch order is ' + order.join('/'));
-  const aOrder = [...d.querySelectorAll('[data-swlabels="attack"] span')].map(sp => sp.textContent);
+  const aOrder = swSpans('attack').map(sp => sp.textContent);
   if (aOrder.join('/') === 'Flat/Boost/Cut') ok('attack switch reads Flat/Boost/Cut top to bottom');
   else bad('attack switch order is ' + aOrder.join('/'));
 
@@ -161,9 +164,10 @@ setTimeout(() => {
     ok('clicking the pill cycles to Fat and moves state, dot and label together');
   else bad(`grunt=${ev('state.grunt')} on=${onSpan && onSpan.textContent}`);
 
-  const dot = d.querySelector('[data-sw="grunt"] .sw-dot');
-  if (dot.style.top === '15%') ok('dot sits at the top position for Fat');
-  else bad('dot is at ' + dot.style.top + ' for Fat');
+  const dots = [...d.querySelectorAll('[data-sw="grunt"] .sw-dot')];
+  if (dots.length >= 2 && dots.every(x => x.style.top === '15%'))
+    ok(`all ${dots.length} Grunt switches sit at the top position for Fat — the panels are twins`);
+  else bad('dots at ' + dots.map(x => x.style.top).join(',') + ' for Fat');
 
   // The 2-position frequency switch shares the same code path.
   ev('setParam')('loMidFreq', 1000);
