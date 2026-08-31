@@ -111,6 +111,40 @@ function renderColumn(img, bytes, map, n, thickness, vertical) {
 
 // ═══════════════════════════════════════════════════════════
 // FFT MODE — line renderer. No schematic curve here; that lives on Mix.
+// ── Display range ──────────────────────────────────────────
+// The analyser's dB window, not a gain. A passive bass through an iRig sits
+// far below line level, so the old fixed -90..-10 window left the trace in
+// the bottom third of the chart. The labels stay absolute dBFS either way.
+const FFT_RANGES = [
+  { id: 'line',  label: 'Line',  min: -90,  max: -10 },
+  { id: 'inst',  label: 'Instr', min: -95,  max: -35 },
+  { id: 'quiet', label: 'Quiet', min: -100, max: -50 }
+];
+const FFT_RANGE_KEY = 'b7k_fftrange';
+let fftRangeId = 'inst';
+
+function fftRange() { return FFT_RANGES.find(r => r.id === fftRangeId) || FFT_RANGES[1]; }
+
+function applyFftRange() {
+  const r = fftRange();
+  if (fftAnalyser) { fftAnalyser.minDecibels = r.min; fftAnalyser.maxDecibels = r.max; }
+  document.querySelectorAll('[data-fftrange]').forEach(b =>
+    b.classList.toggle('active', b.dataset.fftrange === fftRangeId));
+}
+function setFftRange(id) {
+  if (!FFT_RANGES.some(r => r.id === id)) return;
+  fftRangeId = id;
+  try { localStorage.setItem(FFT_RANGE_KEY, id); } catch (e) {}
+  applyFftRange();
+  redrawStatic();
+}
+function initFftRange() {
+  let saved = null;
+  try { saved = localStorage.getItem(FFT_RANGE_KEY); } catch (e) {}
+  if (FFT_RANGES.some(r => r.id === saved)) fftRangeId = saved;
+  applyFftRange();
+}
+
 // ═══════════════════════════════════════════════════════════
 function drawFftChart() {
   const s = setupCanvas('fftCanvas', analyzerH());

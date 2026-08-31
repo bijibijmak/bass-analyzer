@@ -260,8 +260,7 @@ async function startAudio() {
     fftAnalyser = audioCtx.createAnalyser();
     fftAnalyser.fftSize = CFG.fftSize;
     fftAnalyser.smoothingTimeConstant = 0.80;
-    fftAnalyser.minDecibels = -90;
-    fftAnalyser.maxDecibels = -10;
+    applyFftRange();     // window comes from the saved display range, not a literal
     fftBuf      = new Float32Array(fftAnalyser.frequencyBinCount);
     fftByteBuf  = new Uint8Array(fftAnalyser.frequencyBinCount);
     peakHoldBuf = new Float32Array(fftAnalyser.frequencyBinCount).fill(-Infinity);

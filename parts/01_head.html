@@ -744,6 +744,22 @@ select#deviceSelect {
 .wah-pad.engaged .wah-hint { display: none; }
 
 
+/* Desktop uses the width: Output | EQ | Drive. Below 900px it stays one
+   column in DOM order, which puts the EQ first where it belongs on a phone. */
+.geq-layout { display: block; }
+.geq-col { min-width: 0; }
+@media (min-width: 900px) {
+  .geq-layout {
+    display: grid; align-items: start; gap: 18px;
+    grid-template-columns: minmax(150px, 0.85fr) minmax(360px, 2.4fr) minmax(165px, 0.95fr);
+  }
+  .geq-col-left  { order: 1; }
+  .geq-col-main  { order: 2; }
+  .geq-col-right { order: 3; }
+  .geq-col .noise-section { margin-bottom: 0; }
+  .geq-col-right .geq-switch-row { gap: 16px; }
+}
+
 .geq-switch-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 
 /* ── Graphic EQ preamp ───────────────────────────────────── */

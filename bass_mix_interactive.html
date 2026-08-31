@@ -744,6 +744,22 @@ select#deviceSelect {
 .wah-pad.engaged .wah-hint { display: none; }
 
 
+/* Desktop uses the width: Output | EQ | Drive. Below 900px it stays one
+   column in DOM order, which puts the EQ first where it belongs on a phone. */
+.geq-layout { display: block; }
+.geq-col { min-width: 0; }
+@media (min-width: 900px) {
+  .geq-layout {
+    display: grid; align-items: start; gap: 18px;
+    grid-template-columns: minmax(150px, 0.85fr) minmax(360px, 2.4fr) minmax(165px, 0.95fr);
+  }
+  .geq-col-left  { order: 1; }
+  .geq-col-main  { order: 2; }
+  .geq-col-right { order: 3; }
+  .geq-col .noise-section { margin-bottom: 0; }
+  .geq-col-right .geq-switch-row { gap: 16px; }
+}
+
 .geq-switch-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 
 /* ── Graphic EQ preamp ───────────────────────────────────── */
@@ -1114,6 +1130,12 @@ body {
     <button class="fft-btn"        id="modeSgBtn"  onclick="setAnalyzerMode('sg')">Spectrogram</button>
     <span class="frame-info" id="frameInfo">frame <em>—</em></span>
   </div>
+  <div class="fft-toggle-row">
+    <span class="ctrl-sub" style="margin:0 4px 0 0">Range</span>
+    <button class="fft-btn" type="button" data-fftrange="line"  onclick="setFftRange('line')">Line</button>
+    <button class="fft-btn" type="button" data-fftrange="inst"  onclick="setFftRange('inst')">Instrument</button>
+    <button class="fft-btn" type="button" data-fftrange="quiet" onclick="setFftRange('quiet')">Quiet</button>
+  </div>
   <div class="fft-toggle-row" id="speedRow" style="display:none">
     <span class="speed-wrap">
       <span class="speed-label">Scroll</span>
@@ -1292,68 +1314,75 @@ body {
 </div>
 
 <div id="preampGeq" style="display:none">
-  <div class="section-label">Graphic EQ — <span>11 band · ±12 dB</span></div>
-  <div class="geq-panel">
-    <div class="geq-strip" id="geqStrip"></div>
-    <div class="geq-foot">
-      <button class="freq-btn" type="button" onclick="geqReset()">Flat</button>
-      <span class="ctrl-sub">Band 11
-        <input class="geq-freq-input" id="geqUserFreq" type="number" min="20" max="10000" step="1" value="700"> Hz
-      </span>
-    </div>
-  </div>
-  <p class="hint">
-    Drag a fader <em style="color:var(--darkgas-teal);font-style:normal">sideways</em> on a phone —
-    vertical swipes always scroll the page, so the EQ can never trap you. A mouse drags them up and down
-    as usual. Double-click a fader to zero it. The curve drawn over the analyzer is the calculated
-    response of these eleven filters.
-  </p>
-
-  <div class="section-label">Output — <span>as on the M108S</span></div>
-  <div class="noise-section">
-    <div class="noise-tool">
-      <div class="ctrl-label">Gain <span class="val" id="geqGainVal">+0.0 dB</span></div>
-      <input type="range" data-geqtrim="gain" min="-12" max="12" value="0" step="0.5">
-      <div class="noise-tool-desc">Pre-EQ boost, the same slider the pedal has.</div>
-    </div>
-    <div class="noise-tool">
-      <div class="ctrl-label">Volume <span class="val" id="geqVolumeVal">+0.0 dB</span></div>
-      <input type="range" data-geqtrim="volume" min="-12" max="12" value="0" step="0.5">
-    </div>
-  </div>
-
-  <div class="section-label">Drive — <span>the same B7K section, as faders</span></div>
-  <div class="noise-section">
-    <div class="noise-tool">
-      <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
-      <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
-    </div>
-    <div class="noise-tool" id="cardLevelGeq">
-      <div class="ctrl-label">Level <span class="val" data-val="level">0.0 dB</span></div>
-      <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
-    </div>
-    <div class="noise-tool">
-      <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
-      <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
-    </div>
-    <div class="noise-tool geq-switch-row">
-      <div class="swcell">
-        <div class="sw-main">
-          <div class="sw-pill n3" data-sw="grunt" tabindex="0" role="button" aria-label="Grunt switch"><div class="sw-dot"></div></div>
-          <div class="sw-labels" data-swlabels="grunt"><span data-v="2">Fat</span><span data-v="0">Thin</span><span data-v="1">Raw</span></div>
+  <div class="geq-layout">
+    <div class="geq-col geq-col-main">
+      <div class="section-label">Graphic EQ — <span>11 band · ±12 dB</span></div>
+      <div class="geq-panel">
+        <div class="geq-strip" id="geqStrip"></div>
+        <div class="geq-foot">
+          <button class="freq-btn" type="button" onclick="geqReset()">Flat</button>
+          <span class="ctrl-sub">Band 11
+            <input class="geq-freq-input" id="geqUserFreq" type="number" min="20" max="10000" step="1" value="700"> Hz
+          </span>
         </div>
-        <div class="sw-cap">Grunt</div>
       </div>
-      <div class="swcell">
-        <div class="sw-main">
-          <div class="sw-pill n3" data-sw="attack" tabindex="0" role="button" aria-label="Attack switch"><div class="sw-dot"></div></div>
-          <div class="sw-labels" data-swlabels="attack"><span data-v="1">Flat</span><span data-v="2">Boost</span><span data-v="0">Cut</span></div>
+      <p class="hint">
+        Drag a fader <em style="color:var(--darkgas-teal);font-style:normal">sideways</em> on a phone —
+        vertical swipes always scroll the page, so the EQ can never trap you. A mouse drags them up and down
+        as usual. Double-click a fader to zero it. The curve drawn over the analyzer is the calculated
+        response of these eleven filters.
+      </p>
+    </div>
+    <div class="geq-col geq-col-left">
+      <div class="section-label">Output — <span>as on the M108S</span></div>
+      <div class="noise-section">
+        <div class="noise-tool">
+          <div class="ctrl-label">Gain <span class="val" id="geqGainVal">+0.0 dB</span></div>
+          <input type="range" data-geqtrim="gain" min="-12" max="12" value="0" step="0.5">
+          <div class="noise-tool-desc">Pre-EQ boost, the same slider the pedal has.</div>
         </div>
-        <div class="sw-cap">Attack</div>
+        <div class="noise-tool">
+          <div class="ctrl-label">Volume <span class="val" id="geqVolumeVal">+0.0 dB</span></div>
+          <input type="range" data-geqtrim="volume" min="-12" max="12" value="0" step="0.5">
+        </div>
       </div>
-      <div class="noise-tool-desc" style="flex:1 1 100%">Twins of the switches on the B7K panel — moving one moves the other.</div>
+    </div>
+    <div class="geq-col geq-col-right">
+      <div class="section-label">Drive — <span>the same B7K section, as faders</span></div>
+      <div class="noise-section">
+        <div class="noise-tool">
+          <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
+          <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="noise-tool" id="cardLevelGeq">
+          <div class="ctrl-label">Level <span class="val" data-val="level">0.0 dB</span></div>
+          <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
+        </div>
+        <div class="noise-tool">
+          <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
+          <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="noise-tool geq-switch-row">
+          <div class="swcell">
+            <div class="sw-main">
+              <div class="sw-pill n3" data-sw="grunt" tabindex="0" role="button" aria-label="Grunt switch"><div class="sw-dot"></div></div>
+              <div class="sw-labels" data-swlabels="grunt"><span data-v="2">Fat</span><span data-v="0">Thin</span><span data-v="1">Raw</span></div>
+            </div>
+            <div class="sw-cap">Grunt</div>
+          </div>
+          <div class="swcell">
+            <div class="sw-main">
+              <div class="sw-pill n3" data-sw="attack" tabindex="0" role="button" aria-label="Attack switch"><div class="sw-dot"></div></div>
+              <div class="sw-labels" data-swlabels="attack"><span data-v="1">Flat</span><span data-v="2">Boost</span><span data-v="0">Cut</span></div>
+            </div>
+            <div class="sw-cap">Attack</div>
+          </div>
+          <div class="noise-tool-desc" style="flex:1 1 100%">Twins of the switches on the B7K panel — moving one moves the other.</div>
+        </div>
+      </div>
     </div>
   </div>
+
 </div>
 
 
@@ -3111,8 +3140,7 @@ async function startAudio() {
     fftAnalyser = audioCtx.createAnalyser();
     fftAnalyser.fftSize = CFG.fftSize;
     fftAnalyser.smoothingTimeConstant = 0.80;
-    fftAnalyser.minDecibels = -90;
-    fftAnalyser.maxDecibels = -10;
+    applyFftRange();     // window comes from the saved display range, not a literal
     fftBuf      = new Float32Array(fftAnalyser.frequencyBinCount);
     fftByteBuf  = new Uint8Array(fftAnalyser.frequencyBinCount);
     peakHoldBuf = new Float32Array(fftAnalyser.frequencyBinCount).fill(-Infinity);
@@ -3493,6 +3521,40 @@ function renderColumn(img, bytes, map, n, thickness, vertical) {
 
 // ═══════════════════════════════════════════════════════════
 // FFT MODE — line renderer. No schematic curve here; that lives on Mix.
+// ── Display range ──────────────────────────────────────────
+// The analyser's dB window, not a gain. A passive bass through an iRig sits
+// far below line level, so the old fixed -90..-10 window left the trace in
+// the bottom third of the chart. The labels stay absolute dBFS either way.
+const FFT_RANGES = [
+  { id: 'line',  label: 'Line',  min: -90,  max: -10 },
+  { id: 'inst',  label: 'Instr', min: -95,  max: -35 },
+  { id: 'quiet', label: 'Quiet', min: -100, max: -50 }
+];
+const FFT_RANGE_KEY = 'b7k_fftrange';
+let fftRangeId = 'inst';
+
+function fftRange() { return FFT_RANGES.find(r => r.id === fftRangeId) || FFT_RANGES[1]; }
+
+function applyFftRange() {
+  const r = fftRange();
+  if (fftAnalyser) { fftAnalyser.minDecibels = r.min; fftAnalyser.maxDecibels = r.max; }
+  document.querySelectorAll('[data-fftrange]').forEach(b =>
+    b.classList.toggle('active', b.dataset.fftrange === fftRangeId));
+}
+function setFftRange(id) {
+  if (!FFT_RANGES.some(r => r.id === id)) return;
+  fftRangeId = id;
+  try { localStorage.setItem(FFT_RANGE_KEY, id); } catch (e) {}
+  applyFftRange();
+  redrawStatic();
+}
+function initFftRange() {
+  let saved = null;
+  try { saved = localStorage.getItem(FFT_RANGE_KEY); } catch (e) {}
+  if (FFT_RANGES.some(r => r.id === saved)) fftRangeId = saved;
+  applyFftRange();
+}
+
 // ═══════════════════════════════════════════════════════════
 function drawFftChart() {
   const s = setupCanvas('fftCanvas', analyzerH());
@@ -6416,6 +6478,7 @@ wireControls();
 wirePedalPanel();
 wireWah();
 initGeq();
+initFftRange();
 wireTrim('inTrimKnob',  'inTrimVal');
 wireTrim('outTrimKnob', 'outTrimVal');
 wireNoiseParam('hissFreqKnob',   'hissFreq',   'hissFreqVal',   v => (v / 1000).toFixed(1) + ' kHz');
