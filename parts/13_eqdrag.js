@@ -209,7 +209,7 @@ function drawEqCurve(ctx, xp, cw, ch, interactive) {
   ctx.fillText('+12', PAD.l + 3, g.yOf(EQ_MAX_DB) + 8);
   ctx.fillText('−12', PAD.l + 3, g.yOf(-EQ_MAX_DB) - 2);
   ctx.fillText(interactive && eqDragAvailable() ? 'EQ curve · drag a dot' : 'EQ curve',
-               PAD.l + 3, g.yOf(0) - 4);
+               PAD.l + 3, PAD.t + 9);
   ctx.restore();
 }
 

@@ -164,7 +164,7 @@ function drawFftChart() {
   if (!fftEnabled) {
     ctx.fillStyle = TH.axisLabel; ctx.font = '11px Share Tech Mono,monospace'; ctx.textAlign = 'center';
     ctx.fillText(audioRunning ? 'Press Run to start the analyzer'
-                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch / 2);
+                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch - 10);
   }
 }
 
@@ -332,7 +332,7 @@ function drawSgOverlay() {
   if (!fftEnabled) {
     ctx.fillStyle = TH.axisLabel; ctx.font = '11px Share Tech Mono,monospace'; ctx.textAlign = 'center';
     ctx.fillText(audioRunning ? 'Press Run to start the analyzer'
-                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch / 2);
+                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch - 10);
   }
 }
 

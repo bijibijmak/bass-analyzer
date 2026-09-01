@@ -323,7 +323,9 @@ function loopSyncUI() {
   set('loopWavBtn', el => el.disabled = !loopWavBlob);
   set('loopM4aBtn', el => {
     el.disabled = !loopM4aBlob;
-    el.textContent = 'Download ' + (loopExportMime.indexOf('mp4') >= 0 ? 'M4A' : 'WebM');
+    // Only rename it once a capture has told us what the browser chose.
+    if (loopExportMime)
+      el.textContent = 'Download ' + (loopExportMime.indexOf('mp4') >= 0 ? 'M4A' : 'WebM');
   });
   set('loopLevelVal', el => el.textContent = Math.round(num(loop.level, 100)) + '%');
   document.querySelectorAll('[data-loopsw]').forEach(b =>

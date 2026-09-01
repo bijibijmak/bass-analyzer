@@ -1493,7 +1493,7 @@ body {
         compressor, so every pass is processed by whatever the knobs are doing
         right now &mdash; move them while it runs and you hear the change.
       </div>
-      <div class="noise-tool-desc" style="margin-top:4px"><span id="loopHost">capture <em>&mdash;</em></span> &middot; nothing here sits in your monitoring path, so it adds no delay</div>
+      <div class="noise-tool-desc" style="margin-top:4px">Nothing here sits in your monitoring path, so it adds no delay &middot; <span id="loopHost">capture <em>&mdash;</em></span></div>
     </div>
 
     <div class="noise-tool">
@@ -3748,7 +3748,7 @@ function drawFftChart() {
   if (!fftEnabled) {
     ctx.fillStyle = TH.axisLabel; ctx.font = '11px Share Tech Mono,monospace'; ctx.textAlign = 'center';
     ctx.fillText(audioRunning ? 'Press Run to start the analyzer'
-                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch / 2);
+                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch - 10);
   }
 }
 
@@ -3916,7 +3916,7 @@ function drawSgOverlay() {
   if (!fftEnabled) {
     ctx.fillStyle = TH.axisLabel; ctx.font = '11px Share Tech Mono,monospace'; ctx.textAlign = 'center';
     ctx.fillText(audioRunning ? 'Press Run to start the analyzer'
-                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch / 2);
+                              : 'Enable audio, then press Run', PAD.l + cw / 2, PAD.t + ch - 10);
   }
 }
 
@@ -6834,7 +6834,9 @@ function loopSyncUI() {
   set('loopWavBtn', el => el.disabled = !loopWavBlob);
   set('loopM4aBtn', el => {
     el.disabled = !loopM4aBlob;
-    el.textContent = 'Download ' + (loopExportMime.indexOf('mp4') >= 0 ? 'M4A' : 'WebM');
+    // Only rename it once a capture has told us what the browser chose.
+    if (loopExportMime)
+      el.textContent = 'Download ' + (loopExportMime.indexOf('mp4') >= 0 ? 'M4A' : 'WebM');
   });
   set('loopLevelVal', el => el.textContent = Math.round(num(loop.level, 100)) + '%');
   document.querySelectorAll('[data-loopsw]').forEach(b =>
@@ -7083,7 +7085,7 @@ function drawEqCurve(ctx, xp, cw, ch, interactive) {
   ctx.fillText('+12', PAD.l + 3, g.yOf(EQ_MAX_DB) + 8);
   ctx.fillText('−12', PAD.l + 3, g.yOf(-EQ_MAX_DB) - 2);
   ctx.fillText(interactive && eqDragAvailable() ? 'EQ curve · drag a dot' : 'EQ curve',
-               PAD.l + 3, g.yOf(0) - 4);
+               PAD.l + 3, PAD.t + 9);
   ctx.restore();
 }
 
