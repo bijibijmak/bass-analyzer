@@ -191,7 +191,7 @@ setTimeout(() => {
     const p = loaded[0];
     // v3 adds a string (preamp) and an array (geqGains); everything else must
     // still be a finite number.
-    const SKIP = new Set(['name', 'preamp', 'geqGains']);
+    const SKIP = new Set(['name', 'preamp', 'geqGains', 'compOn']);   // string, array, boolean
     const bad0 = Object.entries(p).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (bad0.length) bad('migrated preset has non-finite fields: ' + JSON.stringify(bad0));
     else ok('v1 → v3 migration produced only finite numbers');
@@ -274,6 +274,23 @@ setTimeout(() => {
       ok('EQ curve survives save → flat → recall, and the preamp comes back with it');
     else bad('EQ did not round-trip: ' + JSON.stringify({
       g: back.gains, f: back.userFreq, gain: back.gain, vol: back.volume, p: ev('preampKind') }));
+    // and the compressor rides along with it
+    w.localStorage.clear();
+    const cp = ev('comp');
+    cp.on = true; cp.threshold = -33; cp.ratio = 7.5; cp.attack = 12; cp.release = 250;
+    cp.makeup = 4.5; cp.knee = 9;
+    d.getElementById('presetName').value = 'Squashed';
+    ev('savePreset')();
+    cp.on = false; cp.threshold = -24; cp.ratio = 4; cp.attack = 5;
+    cp.release = 120; cp.makeup = 0; cp.knee = 6;
+    ev('applyPreset')(0);
+    const cb = ev('comp');
+    if (cb.on && cb.threshold === -33 && cb.ratio === 7.5 && cb.attack === 12 &&
+        cb.release === 250 && cb.makeup === 4.5 && cb.knee === 9)
+      ok('compressor survives save → reset → recall');
+    else bad('compressor did not round-trip: ' + JSON.stringify(cb));
+    cp.on = false;
+
     ev('setPreamp')('b7k'); w.localStorage.clear();
   } catch (e) { bad('preset test threw: ' + e.stack); }
 

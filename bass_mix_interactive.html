@@ -6684,7 +6684,14 @@ function normalizePreset(p) {
     geqGains:    pgains(o.geqGains),
     geqUserFreq: pnum(o.geqUserFreq, 700, 20, 10000),
     geqGain:     pnum(o.geqGain,   0, -12, 12),
-    geqVolume:   pnum(o.geqVolume, 0, -12, 12)
+    geqVolume:   pnum(o.geqVolume, 0, -12, 12),
+    compOn:        !!o.compOn,
+    compThreshold: pnum(o.compThreshold, -24, -60, 0),
+    compRatio:     pnum(o.compRatio,       4,   1, 20),
+    compAttack:    pnum(o.compAttack,      5, 0.2, 100),
+    compRelease:   pnum(o.compRelease,   120,  10, 1000),
+    compMakeup:    pnum(o.compMakeup,      0,   0, 24),
+    compKnee:      pnum(o.compKnee,        6,   0, 24)
   };
 }
 
@@ -6732,7 +6739,10 @@ function savePreset() {
     geqGains: geq.gains.slice(),
     geqUserFreq: geq.userFreq,
     geqGain: geq.gain,
-    geqVolume: geq.volume
+    geqVolume: geq.volume,
+    compOn: comp.on, compThreshold: comp.threshold, compRatio: comp.ratio,
+    compAttack: comp.attack, compRelease: comp.release,
+    compMakeup: comp.makeup, compKnee: comp.knee
   }));
   savePresetsToStorage(presets);
   nameEl.value = '';
@@ -6751,6 +6761,11 @@ function applyPreset(idx) {
   geq.volume   = p.geqVolume;
   if (geqNodes) geqApply(false);
   geqSyncUI(); geqSave();
+
+  comp.on = p.compOn; comp.threshold = p.compThreshold; comp.ratio = p.compRatio;
+  comp.attack = p.compAttack; comp.release = p.compRelease;
+  comp.makeup = p.compMakeup; comp.knee = p.compKnee;
+  compSave(); compApply();
   setPreamp(p.preamp);      // also redraws, so the curve follows the recall
 
   syncUI();
