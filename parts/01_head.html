@@ -784,6 +784,24 @@ select#deviceSelect {
 .geq-switch-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 
 /* ── Compressor gain-reduction meter ─────────────────────── */
+.loop-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+.loop-btn {
+  background: var(--btn-bg); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 5px; padding: 5px 11px; font-size: 0.62rem; font-family: inherit;
+  letter-spacing: 0.08em; cursor: pointer; min-height: 30px;
+}
+.loop-btn:disabled { opacity: 0.4; cursor: default; }
+.loop-btn.active { background: var(--darkgas-teal); color: #fff; border-color: var(--darkgas-teal); box-shadow: 0 0 10px var(--glow); }
+.loop-btn.rec.active { background: #d03a3a; border-color: #d03a3a; box-shadow: 0 0 10px rgba(208,58,58,0.5); }
+.loop-time { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.08em; }
+.loop-time em { color: var(--darkgas-teal); font-style: normal; }
+.loop-hint { font-size: 0.55rem; color: var(--dim); letter-spacing: 0.05em; flex: 1 1 180px; }
+.loop-wave-wrap { margin: 6px 0; line-height: 0; }
+#loopWave { width: 100%; height: 56px; border-radius: 4px; border: 1px solid var(--border); touch-action: pan-y; }
+.loop-sw-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
 .comp-gr {
   height: 8px; width: 100%; margin: 4px 0 2px;
   background: var(--panel-2); border: 1px solid var(--border);

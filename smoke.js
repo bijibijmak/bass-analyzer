@@ -607,6 +607,60 @@ setTimeout(() => {
     ev('applyLook')('classic', 'dark', true);
   } catch (e) { bad('skins threw: ' + e.stack); }
 
+  console.log('\n[19] looper');
+  try {
+    const ids = ['loopBar', 'loopRecBtn', 'loopPlayBtn', 'loopTime', 'loopRecBtn2',
+                 'loopPlayBtn2', 'loopTime2', 'loopWave', 'loopMsg', 'loopHost',
+                 'loopExportBtn', 'loopWavBtn', 'loopM4aBtn', 'loopLevelVal'];
+    const gone = ids.filter(i => !d.getElementById(i));
+    if (!gone.length) ok(`${ids.length} looper elements present`);
+    else bad('missing: ' + gone.join(', '));
+
+    // Nothing may throw before audio exists — these are the first buttons a
+    // curious user presses, and they press them before Enable Audio.
+    ev('loopRecToggle')();
+    ev('loopToggle')();
+    ev('loopExportToggle')();
+    ok('transport handled without audio, without throwing');
+    if (/Enable audio first/.test(d.getElementById('loopMsg').textContent))
+      ok('and says so');
+    else bad('no "enable audio" message');
+
+    if (d.getElementById('loopPlayBtn').disabled && d.getElementById('loopPlayBtn2').disabled)
+      ok('Loop is disabled until something is recorded');
+    else bad('Loop offered with an empty buffer');
+    if (d.getElementById('loopWavBtn').disabled && d.getElementById('loopM4aBtn').disabled)
+      ok('downloads disabled until something is captured');
+    else bad('download offered with no capture');
+
+    ev('loopSetSwitch')('muteLive');
+    if (ev('loop').muteLive === false &&
+        !d.querySelector('[data-loopsw="muteLive"]').classList.contains('active'))
+      ok('switches toggle and repaint');
+    else bad('switch did not toggle');
+    ev('loopSetSwitch')('muteLive');
+
+    ev('loopSetLevel')(60);
+    if (ev('loop').level === 60 && d.getElementById('loopLevelVal').textContent === '60%')
+      ok('loop level reads back');
+    else bad('level readout wrong: ' + d.getElementById('loopLevelVal').textContent);
+    ev('loopSetLevel')(100);
+
+    // The WAV encoder is pure arithmetic, so jsdom can check it properly.
+    const wav = ev('loopWav')(new w.Float32Array([0, 1, -1, 0.5]), 48000);
+    const dv = new DataView(wav);
+    const tag = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+    if (tag === 'RIFF' && dv.byteLength === 44 + 8 && dv.getUint32(24, true) === 48000)
+      ok('WAV: RIFF header, 44-byte prologue, rate carried through');
+    else bad(`WAV header wrong: ${tag} len ${dv.byteLength} rate ${dv.getUint32(24, true)}`);
+    if (dv.getInt16(44 + 2, true) === 32767 && dv.getInt16(44 + 4, true) === -32768)
+      ok('WAV: full scale maps to +32767 / -32768 without wrapping');
+    else bad(`WAV clipping wrong: ${dv.getInt16(46, true)} / ${dv.getInt16(48, true)}`);
+
+    ev('loopReset')();
+    ok('loopReset survives a context that never existed');
+  } catch (e) { bad('looper threw: ' + e.stack); }
+
   console.log('\n[13] no late errors');
   if (errors.length) bad('errors accumulated:\n      ' + errors.join('\n      '));
   else ok('clean throughout');

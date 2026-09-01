@@ -204,12 +204,11 @@ async function toggleDetune() {
 
     applyDetuneParams();
 
-    // Splice in ahead of the drive section.
-    inGainNode.disconnect(dryGainNode);
-    inGainNode.disconnect(gruntFilter);
-    inGainNode.connect(dtNode);
-    dtNode.connect(dryGainNode);
-    dtNode.connect(gruntFilter);
+    // Splice across the preampIn → dtOut edge, ahead of the compressor and
+    // the drive section. Everything downstream stays wired exactly as it was.
+    preampIn.disconnect(dtOut);
+    preampIn.connect(dtNode);
+    dtNode.connect(dtOut);
 
     detune.engaged = true;
     dtSay(`<em>Engaged</em> · ${dtEngine.kind}`);
@@ -231,11 +230,11 @@ async function toggleDetune() {
 }
 
 function detuneDisengage() {
-  if (detune.engaged && dtNode && inGainNode) {
+  if (detune.engaged && dtNode && preampIn) {
     try {
-      inGainNode.disconnect(dtNode);
-      inGainNode.connect(dryGainNode);
-      inGainNode.connect(gruntFilter);
+      preampIn.disconnect(dtNode);
+      dtNode.disconnect(dtOut);
+      preampIn.connect(dtOut);
     } catch (e) { console.warn('[Detune] unsplice', e); }
   }
   if (dtEngine) { try { dtEngine.dispose(); } catch (e) {} }

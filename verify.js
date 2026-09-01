@@ -144,9 +144,14 @@ else ok(`${valKeys.size} data-val keys all have formatters`);
 // ── 8. drive-section wiring sanity ──
 console.log('\n[8] drive topology');
 const wiringChecks = [
-  ['dry leg from input',        /inGainNode\.connect\(dryGainNode\)/],
+  ['input feeds the live leg',  /inGainNode\.connect\(liveGain\)/],
+  ['live leg into the bus',     /liveGain\.connect\(preampIn\)/],
+  ['loop leg into the bus',     /loopGain\.connect\(preampIn\)/],
+  ['bus → detune edge',         /preampIn\.connect\(dtOut\)/],
+  ['detune edge → comp edge',   /dtOut\.connect\(compOut\)/],
+  ['dry leg from the bus',      /compOut\.connect\(dryGainNode\)/],
   ['dry leg into sum',          /dryGainNode\.connect\(sumBus\)/],
-  ['wet: grunt first',          /inGainNode\.connect\(gruntFilter\)/],
+  ['wet: grunt first',          /compOut\.connect\(gruntFilter\)/],
   ['wet: grunt → attack',       /gruntFilter\.connect\(attackFilter\)/],
   ['wet: attack → drive',       /attackFilter\.connect\(driveGainNode\)/],
   ['wet: drive → clipper',      /driveGainNode\.connect\(clipperNode\)/],
@@ -156,6 +161,73 @@ const wiringChecks = [
   ['spectrum splice point',     /gateGainNode\.connect\(outGainNode\)/],
 ];
 wiringChecks.forEach(([label, re]) => re.test(js) ? ok(label) : bad(label));
+
+// A splice must take out exactly the edge it puts back. When the compressor
+// landed it moved the drive section behind compOut but left the detune
+// splice reaching for inGainNode → dryGainNode, an edge that no longer
+// existed: engaging detune threw on the first disconnect and the failure was
+// invisible to every check here. So assert the edges rather than the nodes.
+[
+  ['detune',     'preampIn', 'dtOut',   'dtNode'],
+  ['compressor', 'dtOut',    'compOut', 'compNode'],
+].forEach(([name, a, b, n]) => {
+  const want = [
+    [`${a}.disconnect(${b})`,  `${name} opens the ${a} → ${b} edge`],
+    [`${a}.connect(${n})`,     `${name} feeds ${n} from ${a}`],
+    [`${n}.connect(${b})`,     `${name} returns ${n} to ${b}`],
+    [`${a}.disconnect(${n})`,  `${name} unsplice drops ${n}`],
+    [`${n}.disconnect(${b})`,  `${name} unsplice releases ${b}`],
+    [`${a}.connect(${b})`,     `${name} unsplice restores the ${a} → ${b} edge`],
+  ];
+  const gone = want.filter(([lit]) => js.indexOf(lit) < 0);
+  if (gone.length) gone.forEach(([lit, label]) => bad(`${label} — no "${lit}"`));
+  else ok(`${name} splice edges agree with the graph`);
+});
+
+// Every node the graph builds must be released when the context closes, or
+// the next Enable Audio splices a corpse into a live graph.
+['preampIn', 'dtOut', 'compOut'].forEach(n => {
+  const stop = (js.match(/function stopAudio\(\)[\s\S]*?\n\}/) || [''])[0];
+  if (new RegExp(`\\b${n}\\b`).test(stop)) ok(`${n} released on stop`);
+  else bad(`${n} survives stopAudio — a stale node will be spliced into the next context`);
+});
+['loopReset', 'compReset', 'detuneReset'].forEach(fn => {
+  const stop = (js.match(/function stopAudio\(\)[\s\S]*?\n\}/) || [''])[0];
+  if (stop.indexOf(fn + '()') >= 0) ok(`stopAudio calls ${fn}()`);
+  else bad(`stopAudio never calls ${fn}() — module state outlives its context`);
+});
+
+// ── 8b. looper ──
+console.log('\n[8b] looper');
+if (/inGainNode\.connect\(loopRecNode\)/.test(js))
+  ok('records dry, off the input — so the loop is re-processed on every pass, not frozen');
+else bad('record tap is not on inGainNode — the recording would carry the preamp baked in');
+if (/loopSrc\.connect\(loopGain\)/.test(js) && /loopGain\.connect\(preampIn\)/.test(js))
+  ok('playback re-enters where the live instrument does');
+else bad('loop playback does not land on preampIn');
+if (/gateGainNode\.connect\(loopExportTap\)/.test(js))
+  ok('export taps the finished output, after cleanup');
+else bad('export does not tap gateGainNode');
+// Nothing in the looper may sit between the instrument and the speakers.
+{
+  const inSeries = /(?:liveGain|preampIn|dtOut|compOut)\.connect\(loop(?:RecNode|ExportTap)\)/.test(js);
+  if (!inSeries) ok('no capture node is in series with the monitored path');
+  else bad('a capture node is spliced into the monitored path — that would add block latency');
+}
+if (/loopSrc\.loop = true/.test(js)) ok('the buffer source actually loops');
+else bad('loop flag never set');
+if (/audio\/mp4/.test(js) && !/audio\/mpeg/.test(js))
+  ok('compressed export is M4A — MediaRecorder has no MP3 encoder in any browser');
+else bad('export format list is wrong');
+if (/setUint16\(34, 16, true\)/.test(js) && /setUint32\(24, rate, true\)/.test(js))
+  ok('WAV header declares 16-bit at the context sample rate');
+else bad('WAV header is malformed');
+{
+  const css = markupRaw.match(/<style>([\s\S]*?)<\/style>/g) || [];
+  if (/#loopWave[^}]*touch-action:\s*pan-y/.test(css.join('\n')))
+    ok('the waveform lets a thumb scroll past it');
+  else bad('#loopWave has no pan-y rule — a swipe starting on it would stall the page');
+}
 
 // ── 9. preset schema ──
 console.log('\n[9] presets');

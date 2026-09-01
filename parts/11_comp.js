@@ -146,10 +146,10 @@ async function compBuild() {
 // preamp on a board. The tuner and input meter stay on inGainNode, so they
 // keep seeing the raw instrument.
 function compSplice() {
-  if (compSpliced || !compNode || !compOut || !audioCtx) return;
+  if (compSpliced || !compNode || !compOut || !dtOut || !audioCtx) return;
   try {
-    inGainNode.disconnect(compOut);
-    inGainNode.connect(compNode);
+    dtOut.disconnect(compOut);
+    dtOut.connect(compNode);
     compNode.connect(compOut);
     compSpliced = true;
   } catch (e) { console.warn('[Comp] splice', e); }
@@ -157,12 +157,21 @@ function compSplice() {
 function compUnsplice() {
   if (!compSpliced) return;
   try {
-    inGainNode.disconnect(compNode);
+    dtOut.disconnect(compNode);
     compNode.disconnect(compOut);
-    inGainNode.connect(compOut);
+    dtOut.connect(compOut);
   } catch (e) { console.warn('[Comp] unsplice', e); }
   compSpliced = false;
   compGr = 0;
+}
+
+// Called from stopAudio(). compBuild() returns early when compNode is set,
+// so without this a second Enable Audio would splice a node belonging to a
+// closed context into the new graph — and pass no sound at all.
+function compReset() {
+  compNode = null; compOut = null; compSpliced = false;
+  compModuleAdded = false; compGr = 0; compHost = '—';
+  compSyncUI();
 }
 
 async function compApply() {

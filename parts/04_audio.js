@@ -29,6 +29,18 @@ let attackFilter = null;     // highshelf, pre-clipper
 let clipperNode = null;      // asymmetric soft clip
 let sumBus = null;           // dry + wet
 
+// Preamp bus. Everything that can feed the preamp lands on preampIn, and the
+// two optional blocks each own their own edge downstream of it, so one
+// splicing can never disturb the other:
+//
+//   inGain ─→ liveGain ─┐
+//                       ├→ preampIn ─[detune]→ dtOut ─[comp]→ compOut ─→ dry/wet
+//   loopGain ───────────┘
+//
+// Gain nodes are pure multiplies, so the two spare hops cost zero samples.
+let preampIn = null;         // live + loop mix point
+let dtOut = null;            // detune splices between preampIn and here
+
 // EQ + cleanup
 let filterLow = null, filterLoMid = null, filterHiMid = null, filterTreble = null;
 let filterHiss = null, filterNotch = null, gateGainNode = null;
@@ -279,11 +291,21 @@ async function startAudio() {
     inGainNode.connect(inAnalyser);
     inGainNode.connect(tunerAnalyser);          // pre-EQ tap
 
-    // dry leg — unity gain, untouched by Level / Drive / Grunt / Attack
-    // The compressor splices between the input and this bus; the tuner and
-    // input meter stay on inGainNode, so they keep seeing the raw instrument.
-    compOut = audioCtx.createGain();
-    inGainNode.connect(compOut);
+    // The preamp bus. The tuner and the input meter stay upstream on
+    // inGainNode, so they keep seeing the raw instrument whatever the
+    // looper, the detune or the compressor are doing.
+    liveGain = audioCtx.createGain();
+    loopGain = audioCtx.createGain();
+    loopGain.gain.value = 0;          // silent until the looper plays
+    preampIn = audioCtx.createGain();
+    dtOut    = audioCtx.createGain();
+    compOut  = audioCtx.createGain();
+
+    inGainNode.connect(liveGain);
+    liveGain.connect(preampIn);
+    loopGain.connect(preampIn);
+    preampIn.connect(dtOut);          // detune splices across this edge
+    dtOut.connect(compOut);           // the compressor splices across this one
 
     compOut.connect(dryGainNode);
     dryGainNode.connect(sumBus);
@@ -328,6 +350,7 @@ async function startAudio() {
     statusEl.innerHTML = `<em>Live · ctx:${audioCtx.state}</em>${trackLabel}${lat}`;
     statusEl.classList.remove('err');
     document.getElementById('metersRow').style.display = '';
+    document.getElementById('loopBar').style.display = '';
     document.getElementById('trimRow').style.display = '';
 
     // If the user was already sitting on the Spectrum tab, wire it up now.
@@ -349,6 +372,8 @@ async function startAudio() {
 function stopAudio() {
   spectrumExit(true);
   detuneReset();          // the worklet dies with the context
+  loopReset();            // its nodes died with the context too
+  compReset();            // ditto, and compBuild() short-circuits on a stale node
   stopUiLoop();
   stopScope();
   stopTuner();
@@ -357,6 +382,7 @@ function stopAudio() {
 
   audioCtx = micStream = sourceNode = null;
   inGainNode = outGainNode = null;
+  preampIn = dtOut = compOut = null;
   dryGainNode = wetBlendNode = levelGainNode = driveGainNode = null;
   gruntFilter = attackFilter = clipperNode = sumBus = null;
   filterLow = filterLoMid = filterHiMid = filterTreble = null;
@@ -383,6 +409,7 @@ function stopAudio() {
   byp.classList.remove('bypass-on');
   byp.textContent = 'Bypass: OFF';
   document.getElementById('metersRow').style.display = 'none';
+  document.getElementById('loopBar').style.display = 'none';
   document.getElementById('trimRow').style.display = 'none';
   document.getElementById('inMeter').style.width = '0%';
   document.getElementById('outMeter').style.width = '0%';

@@ -65,6 +65,12 @@
       <div class="audio-status" id="audioStatus">Click "Enable Audio" — allow mic access when prompted</div>
       <span class="audio-status" id="detuneBadge" style="display:none;flex:0 0 auto;color:var(--darkgas-teal)"></span>
     </div>
+    <div class="loop-bar" id="loopBar" style="display:none">
+      <button class="loop-btn rec" id="loopRecBtn" onclick="loopRecToggle()">&#9679; Record</button>
+      <button class="loop-btn" id="loopPlayBtn" onclick="loopToggle()" disabled>&#9654; Loop</button>
+      <span class="loop-time" id="loopTime"><em>&mdash;</em></span>
+      <span class="loop-hint">record a lick, loop it, then tune the preamp with both hands free</span>
+    </div>
     <div class="meters" id="metersRow" style="display:none">
       <div class="meter-wrap">
         <div class="meter-label">Input <span id="inDb" style="color:var(--darkgas-teal);font-size:0.58rem;margin-left:4px">&ndash;&infin;</span></div>
@@ -387,6 +393,55 @@
 
 </div>
 
+
+  <!-- ── LOOPER ── -->
+  <div class="section-label">Looper &mdash; <span>hands-free tuning</span></div>
+  <div class="noise-section" id="loopSection">
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="loopRecBtn2" onclick="loopRecToggle()">&#9679; Record</button>
+        <button class="noise-btn" id="loopPlayBtn2" onclick="loopToggle()" disabled>&#9654; Loop</button>
+        <span class="fft-info" id="loopTime2"><em>&mdash;</em></span>
+      </div>
+      <div class="loop-wave-wrap"><canvas id="loopWave" height="56"></canvas></div>
+      <div class="noise-tool-desc" id="loopMsg">
+        The lick is recorded dry, off the input. Playback re-enters ahead of the
+        compressor, so every pass is processed by whatever the knobs are doing
+        right now &mdash; move them while it runs and you hear the change.
+      </div>
+      <div class="noise-tool-desc" style="margin-top:4px"><span id="loopHost">capture <em>&mdash;</em></span> &middot; nothing here sits in your monitoring path, so it adds no delay</div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="ctrl-label">Loop level <span class="val" id="loopLevelVal">100%</span></div>
+      <input type="range" data-loop="level" min="0" max="200" value="100" step="5">
+      <div class="loop-sw-row">
+        <button class="noise-btn active" type="button" data-loopsw="muteLive" onclick="loopSetSwitch('muteLive')">Mute live</button>
+        <button class="noise-btn active" type="button" data-loopsw="autoTrim" onclick="loopSetSwitch('autoTrim')">Auto-trim</button>
+      </div>
+      <div class="noise-tool-desc">
+        Mute live silences the instrument while the loop runs, so you hear only
+        the lick. Auto-trim cuts the silence at each end and fades 5&nbsp;ms in and
+        out, so the seam does not click on every pass.
+      </div>
+    </div>
+
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="loopExportBtn" onclick="loopExportToggle()">&#9679; Capture output</button>
+      </div>
+      <div class="loop-sw-row">
+        <button class="noise-btn" type="button" id="loopWavBtn" onclick="loopDownload('wav')" disabled>Download WAV</button>
+        <button class="noise-btn" type="button" id="loopM4aBtn" onclick="loopDownload('m4a')" disabled>Download M4A</button>
+      </div>
+      <div class="noise-tool-desc">
+        Records the finished sound &mdash; everything, cleanup included &mdash; not the dry
+        input. WAV is lossless. No browser will encode MP3 for a web page, so the
+        compressed file is M4A (AAC), which opens everywhere MP3 does.
+      </div>
+    </div>
+  </div>
 
   <!-- ── NOISE / HISS TOOLS ── -->
   <div class="section-label">Cleanup — <span>noise &amp; hiss</span></div>

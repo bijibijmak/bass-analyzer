@@ -339,6 +339,7 @@ wireWah();
 initGeq();
 initFftRange();
 initComp();
+initLoop();
 wireTrim('inTrimKnob',  'inTrimVal');
 wireTrim('outTrimKnob', 'outTrimVal');
 wireNoiseParam('hissFreqKnob',   'hissFreq',   'hissFreqVal',   v => (v / 1000).toFixed(1) + ' kHz');
