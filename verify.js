@@ -229,6 +229,42 @@ else bad('WAV header is malformed');
   else bad('#loopWave has no pan-y rule — a swipe starting on it would stall the page');
 }
 
+// ── 8c. the EQ curve, and dragging it ──
+console.log('\n[8c] EQ on the chart');
+if (!/function geqResponseDb/.test(js) && !/function drawGeqCurve/.test(js))
+  ok('one response function for both preamps, not two that can disagree');
+else bad('the graphic EQ still has its own private response/curve code');
+if (/function eqResponseDb/.test(js) && /getFrequencyResponse/.test(js))
+  ok('the curve is the filters\' own response, not a second implementation');
+else bad('eqResponseDb missing or not using getFrequencyResponse');
+// The curve must survive the analyzer being off — you set an EQ before you run it.
+if (/drawFftOverlay\(ctx, cw, ch, xp, true\);\s*\n\s*drawEqCurve\(ctx, xp, cw, ch, true\)/.test(js))
+  ok('drawn by the chart, not by the live trace — so it shows with the analyzer stopped');
+else bad('drawEqCurve is not called from drawFftChart');
+if (/drawEqCurve\(ctx, xp, cw, ch, false\)/.test(js))
+  ok('the Mix overlay gets the curve without handles');
+else bad('mix chart does not draw the curve');
+
+// Desktop only, deliberately: an up-and-down drag is the page scroll gesture.
+if (/function eqDragStart[\s\S]{0,200}e\.pointerType !== 'mouse'\) return false/.test(js))
+  ok('a drag can only start from a mouse — touch keeps scrolling');
+else bad('eqDragStart is not gated to pointerType mouse');
+if (/if \(interactive && eqDragAvailable\(\)\)/.test(js))
+  ok('handles are only drawn where they can be used');
+else bad('handles drawn without checking for a fine pointer');
+if (/pointer: fine/.test(js)) ok('"fine pointer" is what decides, not a user-agent guess');
+else bad('no (pointer: fine) query');
+if (/if \(id === 'fftCanvas' && eqDragStart\(el, e\)\) return;/.test(js))
+  ok('the probe yields to a handle grab, and only on the FFT canvas');
+else bad('drag is not wired ahead of the probe');
+// Everything that made touch scrolling work has to survive this feature.
+if (/if \(dy >= dx\) \{ release\(\); return; \}/.test(js))
+  ok('the touch gesture rules are untouched');
+else bad('the touch scroll yield was lost');
+if (/function eqNearestStep/.test(js) && /Math\.log2\(hz \/ s\)/.test(js))
+  ok('switch positions snap by log distance — 707 Hz is the midpoint of 500 and 1k, not 750');
+else bad('eqNearestStep missing or snapping linearly');
+
 // ── 9. preset schema ──
 console.log('\n[9] presets');
 if (/b7k_presets_v2/.test(js)) ok('v2 key present'); else bad('v2 key missing');

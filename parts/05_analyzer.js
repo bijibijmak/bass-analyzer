@@ -159,6 +159,7 @@ function drawFftChart() {
 
   drawBandMarkers(ctx, ch, xp);
   drawFftOverlay(ctx, cw, ch, xp, true);
+  drawEqCurve(ctx, xp, cw, ch, true);
 
   if (!fftEnabled) {
     ctx.fillStyle = TH.axisLabel; ctx.font = '11px Share Tech Mono,monospace'; ctx.textAlign = 'center';
@@ -227,7 +228,6 @@ function drawFftOverlay(ctx, cw, ch, xp, withDbScale) {
   ctx.strokeStyle = TH.fftLine; ctx.lineWidth = 1.4;
   ctx.stroke();
 
-  drawGeqCurve(ctx, xp, cw, ch);
 
   if (peakHoldBuf && showPeakHoldLine) {
     ctx.beginPath(); started = false;
@@ -391,6 +391,7 @@ function drawMixChart() {
 
   // Live FFT sits underneath the schematic curves
   drawFftOverlay(ctx, cw, ch, xp, false);
+  drawEqCurve(ctx, xp, cw, ch, false);   // no handles off the main chart
 
   if (showInstruments) {
     drawCurve(ctx, hhCurve,     xp, yp, TH.hh,     1.3, false);
@@ -810,6 +811,8 @@ function wireProbe() {
     const release = () => { held = false; pid = null; decided = false; hideProbe(); };
 
     el.addEventListener('pointerdown', e => {
+      // A mouse landing on an EQ handle is editing the EQ, not probing.
+      if (id === 'fftCanvas' && eqDragStart(el, e)) return;
       if (e.pointerType === 'mouse') {
         held = true; decided = true; pid = e.pointerId;
         capture(e); showProbe(e.clientX, e.clientY); e.preventDefault();
@@ -823,7 +826,11 @@ function wireProbe() {
     });
 
     el.addEventListener('pointermove', e => {
-      if (e.pointerType === 'mouse') { showProbe(e.clientX, e.clientY); return; }
+      if (id === 'fftCanvas' && eqDragMove(el, e)) return;
+      if (e.pointerType === 'mouse') {
+        if (id === 'fftCanvas') eqHoverCursor(el, e);
+        showProbe(e.clientX, e.clientY); return;
+      }
       if (e.pointerId !== pid) return;
       if (!decided) {
         const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
@@ -835,8 +842,9 @@ function wireProbe() {
       if (held) { showProbe(e.clientX, e.clientY); e.preventDefault(); }
     });
 
-    el.addEventListener('pointerup',     release);
-    el.addEventListener('pointercancel', release);
+    const endAny = e => { if (!eqDragEnd(el, e)) release(); };
+    el.addEventListener('pointerup',     endAny);
+    el.addEventListener('pointercancel', endAny);
     el.addEventListener('pointerleave',  e => { if (e.pointerType === 'mouse') hideProbe(); });
   });
 }

@@ -51,43 +51,6 @@ const geqFreqAt = i => (i < GEQ_FIXED.length ? GEQ_FIXED[i]
 // change: 0 dB at 2k, 1.1 at 6k, 6.0 at 10k for a +12 setting.
 const geqDbGain = db => Math.pow(10, num(db, 0) / 20);
 
-// ── Response, computed from the same filter maths that runs the audio ──
-// getFrequencyResponse on a throwaway OfflineAudioContext, so the drawn curve
-// is the filters' real response rather than a second implementation that can
-// drift from it. The context is never started; it exists only to own biquads.
-let geqCalcCtx = null, geqCalcBq = null;
-function geqCalcInit() {
-  if (geqCalcBq) return true;
-  try {
-    const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-    if (!OC) return false;
-    geqCalcCtx = new OC(1, 1, 44100);
-    geqCalcBq = [];
-    for (let i = 0; i < GEQ_N; i++) geqCalcBq.push(geqCalcCtx.createBiquadFilter());
-  } catch (e) { geqCalcBq = null; return false; }
-  return true;
-}
-
-// Summed dB response across an array of frequencies.
-function geqResponseDb(freqs) {
-  const out = new Float32Array(freqs.length);
-  if (!geqCalcInit()) return out;
-  const f32 = freqs instanceof Float32Array ? freqs : Float32Array.from(freqs);
-  const mag = new Float32Array(freqs.length), phase = new Float32Array(freqs.length);
-  for (let i = 0; i < GEQ_N; i++) {
-    const b = geqCalcBq[i];
-    b.type = 'peaking';
-    b.frequency.value = geqFreqAt(i);
-    b.Q.value = GEQ_Q;
-    b.gain.value = num(geq.gains[i], 0);
-    b.getFrequencyResponse(f32, mag, phase);
-    for (let k = 0; k < out.length; k++) out[k] += 20 * Math.log10(Math.max(mag[k], 1e-7));
-  }
-  const trim = num(geq.gain, 0) + num(geq.volume, 0);
-  for (let k = 0; k < out.length; k++) out[k] += trim;
-  return out;
-}
-
 // ── Graph ──────────────────────────────────────────────────
 function geqBuild() {
   if (!audioCtx || geqNodes) return;
@@ -332,47 +295,6 @@ function wireGeq() {
       el.value = v; geqSetTrim(el.dataset.geqtrim, v);
     }, { passive: false });
   });
-}
-
-// ── The curve, drawn over the live FFT ─────────────────────
-// The theoretical response of the eleven filters, on its own ±12 dB scale
-// centred at mid-height. Plotting it against the analyser's ~90 dB span
-// would reduce a 12 dB boost to a barely visible wobble.
-function drawGeqCurve(ctx, xp, cw, ch) {
-  if (preampKind !== 'geq') return;
-  const N = 200;
-  const fs = new Float32Array(N);
-  for (let i = 0; i < N; i++) fs[i] = AX_FMIN * Math.pow(AX_FMAX / AX_FMIN, i / (N - 1));
-  const db = geqResponseDb(fs);
-  const mid = PAD.t + ch / 2;
-  const perDb = (ch * 0.34) / GEQ_MAX_DB;
-  const yOf = d => mid - Math.max(-GEQ_MAX_DB * 1.6, Math.min(GEQ_MAX_DB * 1.6, d)) * perDb;
-
-  ctx.save();
-  // unity reference and the ±12 dB rails
-  ctx.strokeStyle = TH.unityLine; ctx.lineWidth = 1; ctx.setLineDash([2, 6]);
-  [-GEQ_MAX_DB, 0, GEQ_MAX_DB].forEach(d => {
-    ctx.beginPath(); ctx.moveTo(PAD.l, yOf(d)); ctx.lineTo(PAD.l + cw, yOf(d)); ctx.stroke();
-  });
-  ctx.setLineDash([]);
-
-  ctx.beginPath();
-  for (let i = 0; i < N; i++) {
-    const x = xp(fs[i]);
-    if (x < PAD.l - 1 || x > PAD.l + cw + 1) continue;
-    const y = yOf(db[i]);
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  if (CFG.glow) { ctx.shadowColor = TH.bass; ctx.shadowBlur = 6; }
-  ctx.strokeStyle = TH.bass; ctx.lineWidth = 1.8;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.fillStyle = TH.axisLabel; ctx.font = '8px Share Tech Mono,monospace'; ctx.textAlign = 'left';
-  ctx.fillText('+12', PAD.l + 3, yOf(GEQ_MAX_DB) + 8);
-  ctx.fillText('−12', PAD.l + 3, yOf(-GEQ_MAX_DB) - 2);
-  ctx.fillText('EQ curve', PAD.l + 3, yOf(0) - 4);
-  ctx.restore();
 }
 
 // The strip is built from GEQ_FIXED rather than written out by hand, so the

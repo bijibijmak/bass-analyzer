@@ -58,7 +58,11 @@ const dom = new JSDOM(html, {
     window.scrollTo = () => {};
     window.URL.createObjectURL = () => 'blob:stub';
     Object.defineProperty(window, 'isSecureContext', { get: () => true });
-    window.matchMedia = q => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} });
+    // jsdom is a desktop: a fine pointer, not a coarse one. Answering every
+    // query "false" made (pointer: fine) false too, which silently disabled
+    // the EQ handles the tests below exist to exercise.
+    window.matchMedia = q => ({ matches: /pointer:\s*fine/.test(q), media: q,
+                                addEventListener() {}, removeEventListener() {} });
     window.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 16);
     window.cancelAnimationFrame = id => clearTimeout(id);
     window.onerror = (msg, src, line, col, err) => { errors.push((err && err.stack) || msg); };
@@ -660,6 +664,144 @@ setTimeout(() => {
     ev('loopReset')();
     ok('loopReset survives a context that never existed');
   } catch (e) { bad('looper threw: ' + e.stack); }
+
+  console.log('\n[20] EQ on the chart');
+  try {
+    ev('setPreamp')('b7k');
+    ['low','loMid','hiMid','treble'].forEach(k => ev('setParam')(k, 0));
+    ev('setParam')('loMidFreq', 1000); ev('setParam')('hiMidFreq', 3000);
+
+    const b = ev('eqBands')();
+    if (b.length === 4 && b.map(x => x.id).join(',') === 'low,loMid,hiMid,treble')
+      ok('B7K offers its four post-blend bands');
+    else bad('B7K bands are ' + b.map(x => x.id).join(','));
+    if (!b.some(x => /grunt|attack/i.test(x.id)))
+      ok('Grunt and Attack stay off the curve — wet-path only, and ahead of a clipper');
+    else bad('a pre-clipper band leaked onto the curve');
+
+    // THE drift guard. The curve claims to be what the audio does; prove it
+    // by reading the frequencies and types straight out of applyAudioParams.
+    const src = ev('applyAudioParams').toString();
+    const grab = node => {
+      const t = new RegExp(node + "\\.type = '([a-z]+)'").exec(src);
+      const f = new RegExp(node + "\\.frequency\\.value = ([^;]+);").exec(src);
+      const q = new RegExp(node + "\\.Q\\.value = ([\\d.]+);").exec(src);
+      return { type: t && t[1], freq: f && ev(f[1].trim()), q: q ? parseFloat(q[1]) : null };
+    };
+    const pairs = [['low','filterLow'],['loMid','filterLoMid'],['hiMid','filterHiMid'],['treble','filterTreble']];
+    let drift = 0;
+    pairs.forEach(([id, node]) => {
+      const want = grab(node), got = b.find(x => x.id === id);
+      if (want.type === got.type && want.freq === got.freq && (want.q || null) === (got.q || null)) return;
+      bad(`${id}: curve draws ${got.type} ${got.freq}Hz Q${got.q}, audio runs ${want.type} ${want.freq}Hz Q${want.q}`);
+      drift++;
+    });
+    if (!drift) ok('all four bands draw the same filter the audio actually runs');
+
+    // A shelf gives half its gain at its own corner, so the grip is moved to
+    // where the band actually acts — measured in Chromium at +12: Low 11.61 dB
+    // at 40 Hz (97% of 12), Treble 11.11 at 9 kHz (93%). At the corners both
+    // read 6.00, and the dot would crawl at half the cursor's speed.
+    const lowB = b.find(x => x.id === 'low'), trebB = b.find(x => x.id === 'treble');
+    if (lowB.hx === 40 && lowB.freq === 100 && trebB.hx === 9000 && trebB.freq === 5000)
+      ok('shelf grips sit where the shelf is developed, not on the corner');
+    else bad(`shelf grips at low ${lowB.hx}, treble ${trebB.hx}`);
+    if (b.filter(x => x.type === 'peaking').every(x => !x.hx))
+      ok('peaking bands keep their grip on the centre frequency');
+    else bad('a peaking band moved its grip off centre');
+
+    ev('setPreamp')('geq');
+    const g = ev('eqBands')();
+    if (g.length === ev('GEQ_N')) ok(`graphic EQ offers all ${g.length} bands`);
+    else bad(`graphic EQ gave ${g.length} bands, expected ${ev('GEQ_N')}`);
+    if (!g[0].sweep && g[g.length-1].sweep && g[g.length-1].sweep.range)
+      ok('only the 11th band sweeps; the fixed ten do not');
+    else bad('sweepable bands are wrong');
+    ev('setPreamp')('b7k');
+    if (ev('eqBands')()[1].sweep.steps.join('/') === '500/1000')
+      ok('B7K Lo-Mid is a two-position switch, as on the pedal — a drag flips it');
+    else bad('B7K Lo-Mid sweep is not the 500/1k switch');
+
+    // snapping, on the log axis
+    const near = ev('eqNearestStep');
+    const snaps = [[520,500],[690,500],[730,1000],[1400,1000]];
+    const wrong = snaps.filter(([hz, want]) => near(hz, [500,1000]) !== want);
+    if (!wrong.length) ok('520→500, 690→500, 730→1k, 1400→1k — the midpoint sits at 707 Hz');
+    else bad('snapped wrong: ' + JSON.stringify(wrong.map(x => [x[0], near(x[0],[500,1000])])));
+
+    // geometry round trip
+    const geo = ev('eqGeom')(200);
+    const rt = [-12,-3,0,4.5,12].filter(d => Math.abs(geo.dbOf(geo.yOf(d)) - d) > 1e-9);
+    if (!rt.length) ok('dB→y→dB is exact across the range');
+    else bad('geometry does not round-trip at ' + rt.join(', '));
+
+    // hit-testing
+    const hs = [{id:'low',x:100,y:100,ch:200},{id:'treble',x:400,y:100,ch:200}];
+    const hit = ev('eqHitBand');
+    if (hit(103,104,hs) && hit(103,104,hs).id === 'low') ok('a click near a dot grabs that band');
+    else bad('near miss did not hit');
+    if (hit(250,100,hs) === null) ok('a click on empty chart grabs nothing — the probe still gets it');
+    else bad('empty space grabbed a band');
+
+    // a whole drag, through the real handlers
+    ev('setParam')('low', 0);
+    w.eqHandlesTest = null;
+    const cv = d.getElementById('fftCanvas');
+    const mk = (type, x, y) => { const e = new w.Event(type, {bubbles:true});
+      e.pointerType='mouse'; e.pointerId=1; e.clientX=x; e.clientY=y;
+      e.preventDefault=()=>{}; return e; };
+    // seed a handle where the drag maths can find it
+    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
+    const started = ev('eqDragStart')(cv, mk('pointerdown',100,150));
+    if (started) ok('mousedown on the dot starts a drag');
+    else bad('drag did not start');
+    ev('eqDragMove')(cv, mk('pointermove',100,120));   // 30 px up
+    const perDb = ev('eqGeom')(300).perDb;
+    const want = Math.round((30/perDb)/0.5)*0.5;
+    if (Math.abs(ev('state').low - want) < 1e-9)
+      ok(`30 px up put Low at ${ev('state').low} dB (${perDb.toFixed(2)} px/dB, quantised to 0.5)`);
+    else bad(`Low is ${ev('state').low}, expected ${want}`);
+    ev('eqDragEnd')(cv, mk('pointerup',100,120));
+    if (ev('eqDrag') === null) ok('mouseup releases the band');
+    else bad('drag never ended');
+
+    // Everything above called the drag functions directly. Dispatch a real
+    // event sequence on the canvas instead, so the wiring inside wireProbe is
+    // what is being tested — a bad patch there would pass every check above.
+    ev('setParam')('low', 0);
+    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
+    cv.dispatchEvent(mk('pointerdown',100,150));
+    cv.dispatchEvent(mk('pointermove',100,133));
+    cv.dispatchEvent(mk('pointerup',100,133));
+    if (ev('state').low === 2 && ev('eqDrag') === null)
+      ok('a real pointerdown/move/up on the canvas moved Low to +2.0 dB through the real listeners');
+    else bad(`event path gave low=${ev('state').low}, drag=${JSON.stringify(ev('eqDrag'))}`);
+    // and the probe must still get a click that misses every handle
+    ev('eqHandles').length = 0;
+    ev('setParam')('low', 0);
+    cv.dispatchEvent(mk('pointerdown',260,150));
+    if (ev('state').low === 0 && d.getElementById('freqTooltip').style.display === 'block')
+      ok('a click on empty chart still reads a frequency instead of editing');
+    else bad('probe did not take the empty click');
+    cv.dispatchEvent(mk('pointerup',260,150));
+
+    // and it cannot start from a finger
+    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
+    const touch = mk('pointerdown',100,150); touch.pointerType = 'touch';
+    if (ev('eqDragStart')(cv, touch) === false)
+      ok('a finger on the same spot does not grab — it scrolls the page');
+    else bad('touch started a drag');
+
+    // clamping
+    ev('setParam')('low', 0);
+    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
+    ev('eqDragStart')(cv, mk('pointerdown',100,150));
+    ev('eqDragMove')(cv, mk('pointermove',100,-4000));
+    if (ev('state').low === 12) ok('dragged past the top, Low stops at +12 dB');
+    else bad('clamp failed at ' + ev('state').low);
+    ev('eqDragEnd')(cv, mk('pointerup',100,-4000));
+    ev('setParam')('low', 0);
+  } catch (e) { bad('EQ drag threw: ' + e.stack); }
 
   console.log('\n[13] no late errors');
   if (errors.length) bad('errors accumulated:\n      ' + errors.join('\n      '));
