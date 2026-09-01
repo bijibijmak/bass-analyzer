@@ -783,6 +783,18 @@ select#deviceSelect {
 
 .geq-switch-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 
+/* ── Compressor gain-reduction meter ─────────────────────── */
+.comp-gr {
+  height: 8px; width: 100%; margin: 4px 0 2px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 4px; overflow: hidden;
+}
+.comp-gr-bar {
+  height: 100%; width: 0;
+  background: var(--darkgas-teal); box-shadow: 0 0 8px var(--glow);
+  transition: width 0.06s linear;
+}
+
 /* ── Graphic EQ preamp ───────────────────────────────────── */
 /* touch-action: pan-y on the tracks is load-bearing: eleven vertical faders
    is the worst case for the scroll bug this app hit three times, so a fader

@@ -16,7 +16,7 @@ node --check /tmp/wsola_module.js
 
 # 2. page script = app parts, with the core included for the fallback host
 cat "$P/03_core.js" "$P/04_audio.js" "$P/05_analyzer.js" "$P/06_spectrum.js" \
-    "$P/wsola_core.js" "$P/08_detune.js" "$P/09_wah.js" "$P/10_geq.js" "$P/07_tuner_presets_init.js" > /tmp/app.js
+    "$P/wsola_core.js" "$P/08_detune.js" "$P/09_wah.js" "$P/10_geq.js" "$P/11_comp.js" "$P/07_tuner_presets_init.js" > /tmp/app.js
 node --check /tmp/app.js
 
 # 3. substitute the worklet source into the inert inline block

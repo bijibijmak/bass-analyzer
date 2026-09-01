@@ -323,6 +323,7 @@ wirePedalPanel();
 wireWah();
 initGeq();
 initFftRange();
+initComp();
 wireTrim('inTrimKnob',  'inTrimVal');
 wireTrim('outTrimKnob', 'outTrimVal');
 wireNoiseParam('hissFreqKnob',   'hissFreq',   'hissFreqVal',   v => (v / 1000).toFixed(1) + ' kHz');

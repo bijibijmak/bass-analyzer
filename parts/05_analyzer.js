@@ -632,6 +632,7 @@ function startUiLoop() {
 
     // Meters stay at full rate: they are cheap and they should feel live.
     tickMeters();
+    compTickMeter();
 
     // Drawing is what gets throttled. Returning here leaves the frame-time
     // readout measuring draw-to-draw, which is the rate we actually care

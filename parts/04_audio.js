@@ -280,11 +280,16 @@ async function startAudio() {
     inGainNode.connect(tunerAnalyser);          // pre-EQ tap
 
     // dry leg — unity gain, untouched by Level / Drive / Grunt / Attack
-    inGainNode.connect(dryGainNode);
+    // The compressor splices between the input and this bus; the tuner and
+    // input meter stay on inGainNode, so they keep seeing the raw instrument.
+    compOut = audioCtx.createGain();
+    inGainNode.connect(compOut);
+
+    compOut.connect(dryGainNode);
     dryGainNode.connect(sumBus);
 
     // wet leg
-    inGainNode.connect(gruntFilter);
+    compOut.connect(gruntFilter);
     gruntFilter.connect(attackFilter);
     attackFilter.connect(driveGainNode);
     driveGainNode.connect(clipperNode);
@@ -311,6 +316,7 @@ async function startAudio() {
     audioRunning = true;
     startUiLoop();
     geqOnAudioStart();   // the selected preamp may not be the B7K
+    compApply();         // and the compressor may be on
 
     document.getElementById('audioToggle').textContent = '⏹ Disable Audio';
     document.getElementById('audioToggle').classList.add('active');
@@ -416,6 +422,7 @@ function toggleBypass() {
   btn.textContent = bypassed ? 'Bypass: ON' : 'Bypass: OFF';
   btn.classList.toggle('bypass-on', bypassed);
   if (audioCtx) applyAudioParams();
+  compApply();  // bypass takes the compressor with it
 }
 
 // ── Level meters + noise gate (driven from the shared UI loop) ──

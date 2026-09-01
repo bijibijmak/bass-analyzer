@@ -156,6 +156,40 @@
     <canvas id="scopeCanvas" height="140"></canvas>
   </div>
 
+  <!-- ── COMPRESSOR ── -->
+  <div class="section-label">Compressor — <span>ahead of the preamp</span></div>
+  <div class="noise-section" id="compSection">
+    <div class="noise-tool">
+      <div class="noise-tool-head">
+        <button class="noise-btn" id="compBtn" onclick="compToggle()">Comp: OFF</button>
+        <span class="fft-info" id="compHost">engine <em>—</em></span>
+      </div>
+      <div class="ctrl-label">Gain reduction <span class="val" id="compGrVal">0.0 dB</span></div>
+      <div class="comp-gr"><div class="comp-gr-bar" id="compGrBar"></div></div>
+      <div class="noise-tool-desc">
+        Feed-forward with no lookahead, so it adds zero samples of delay.
+      </div>
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Threshold <span class="val" id="compThreshVal">-24 dB</span></div>
+      <input type="range" data-comp="threshold" min="-60" max="0" value="-24" step="1">
+      <div class="ctrl-label">Ratio <span class="val" id="compRatioVal">4.0:1</span></div>
+      <input type="range" data-comp="ratio" min="1" max="20" value="4" step="0.5">
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Attack <span class="val" id="compAttackVal">5.0 ms</span></div>
+      <input type="range" data-comp="attack" min="0.2" max="100" value="5" step="0.2">
+      <div class="ctrl-label">Release <span class="val" id="compRelVal">120 ms</span></div>
+      <input type="range" data-comp="release" min="10" max="1000" value="120" step="5">
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Knee <span class="val" id="compKneeVal">6 dB</span></div>
+      <input type="range" data-comp="knee" min="0" max="24" value="6" step="1">
+      <div class="ctrl-label">Makeup <span class="val" id="compMakeupVal">+0.0 dB</span></div>
+      <input type="range" data-comp="makeup" min="0" max="24" value="0" step="0.5">
+    </div>
+  </div>
+
   <div class="fft-toggle-row" id="preampSelect">
     <span class="ctrl-sub" style="margin:0 4px 0 0">Preamp</span>
     <button class="fft-btn active" type="button" data-preamp="b7k" onclick="setPreamp('b7k')">Darkgas B7K</button>
