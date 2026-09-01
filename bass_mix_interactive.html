@@ -70,7 +70,12 @@ body {
     radial-gradient(ellipse 70% 50% at 15% 5%, rgba(0,200,180,0.05) 0%, transparent 60%),
     radial-gradient(ellipse 50% 40% at 85% 95%, rgba(0,229,255,0.04) 0%, transparent 60%);
 }
+/* 600px is right for a phone and wastes a desktop. Widened above 900px;
+   the inner panels keep their own 560px caps, so only the layouts that ask
+   for the room take it. */
+:root { --shell-wide: 1180px; }
 .app-wrap { max-width: 600px; margin: 0 auto; }
+@media (min-width: 900px) { .app-wrap { max-width: var(--shell-wide); } }
 
 header h1 {
   font-family: 'Bebas Neue', sans-serif;
@@ -744,14 +749,30 @@ select#deviceSelect {
 .wah-pad.engaged .wah-hint { display: none; }
 
 
+/* Above 900px the content panels follow the shell rather than staying at
+   their phone width, so the page is one column instead of a full-width chart
+   with narrow cards under it. The list-like panels also go multi-column,
+   which is where most of the scrolling was. */
+@media (min-width: 900px) {
+  /* Flow panels follow the shell. The pedal, tuner and detune cards do NOT:
+     they are pictures of instruments, and stretching the B7K to 1180px spread
+     its knobs so far apart it stopped reading as a pedal. */
+  .audio-bar, .disclosure, .noise-section, .preset-section { max-width: var(--shell-wide); }
+  .noise-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start; }
+  .noise-section > .geq-switch-row { grid-column: 1 / -1; }
+  .geq-col .noise-section { display: block; }
+  .preset-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+}
+
 /* Desktop uses the width: Output | EQ | Drive. Below 900px it stays one
    column in DOM order, which puts the EQ first where it belongs on a phone. */
 .geq-layout { display: block; }
 .geq-col { min-width: 0; }
 @media (min-width: 900px) {
   .geq-layout {
-    display: grid; align-items: start; gap: 18px;
-    grid-template-columns: minmax(150px, 0.85fr) minmax(360px, 2.4fr) minmax(165px, 0.95fr);
+    display: grid; align-items: start; gap: 20px;
+    /* Symmetric sides: the faders are centred on the page by construction. */
+    grid-template-columns: 1fr minmax(340px, 620px) 1fr;
   }
   .geq-col-left  { order: 1; }
   .geq-col-main  { order: 2; }
