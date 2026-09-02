@@ -42,7 +42,7 @@ function ctx2d() {
 const dom = new JSDOM(html, {
   runScripts: 'dangerously',
   pretendToBeVisual: true,
-  url: 'https://localhost/bass_mix_interactive.html',
+  url: 'https://localhost/index.html',
   beforeParse(window) {
     window.HTMLCanvasElement.prototype.getContext = function () { const c = ctx2d(); c.canvas = this; return c; };
     // jsdom leaves clientWidth at 0; give every element a plausible width so

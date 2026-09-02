@@ -2,7 +2,7 @@
   "name": "Bass Analyzer",
   "short_name": "Bass Analyzer",
   "description": "Darkgas B7K v2 preamp, chromatic tuner, overtone spectrum and mix analyzer.",
-  "start_url": "bass_mix_interactive.html",
+  "start_url": "./",
   "scope": ".",
   "display": "standalone",
   "orientation": "portrait-primary",

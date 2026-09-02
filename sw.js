@@ -1,9 +1,9 @@
 // Service worker — network-first so the app always loads the newest version
 // when online, but still works offline from cache. Network-first avoids the
 // classic "stale PWA won't update" trap.
-const CACHE = 'b7k-v3.4';
+const CACHE = 'b7k-v4.0';
 const ASSETS = [
-  './bass_mix_interactive.html',
+  './index.html',
   './wsola-worklet.js',
   './manifest.json',
   './icon-192.png',
@@ -45,7 +45,7 @@ self.addEventListener('fetch', e => {
           // request hands the HTML page back when a .js is missing — which
           // surfaces as "Unable to load a worklet's module" and points nowhere
           // useful. Let a missing asset fail as a missing asset.
-          if (req.mode === 'navigate') return caches.match('./bass_mix_interactive.html');
+          if (req.mode === 'navigate') return caches.match('./index.html');
           return Response.error();
         })
       )

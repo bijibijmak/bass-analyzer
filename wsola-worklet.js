@@ -1,6 +1,6 @@
 // GENERATED — do not edit.
 // Source of truth is parts/wsola_core.js + parts/wsola_wrapper.js.
-// An identical copy lives inline in bass_mix_interactive.html.
+// An identical copy lives inline in index.html.
 //@@GENERATED-HEADER-END
 // ═══════════════════════════════════════════════════════════
 // WSOLA pitch-shift core — host-agnostic.

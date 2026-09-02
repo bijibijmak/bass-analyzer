@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Assembles bass_mix_interactive.html + wsola-worklet.js from parts/.
+# Assembles index.html + wsola-worklet.js from parts/.
+# index.html, not a long filename: GitHub Pages then serves the app at the
+# bare folder URL, which is what the phone adds to its home screen.
 #
 # The WSOLA core is emitted into three places and must stay identical in all
 # of them: the standalone worklet file, the inline <script id="wsolaSrc">
@@ -33,11 +35,11 @@ assert '</script>' not in mod, 'worklet source contains </script> and would brea
 body = body.replace('@@WSOLA_SRC@@', mod.strip('\n'))
 
 html = head + body + '\n<script>\n' + app + '</script>\n</body>\n</html>\n'
-open(out + '/bass_mix_interactive.html', 'w').write(html)
+open(out + '/index.html', 'w').write(html)
 
 hdr = ("// GENERATED — do not edit.\n"
        "// Source of truth is parts/wsola_core.js + parts/wsola_wrapper.js.\n"
-       "// An identical copy lives inline in bass_mix_interactive.html.\n"
+       "// An identical copy lives inline in index.html.\n"
        "//@@GENERATED-HEADER-END\n")
 open(out + '/wsola-worklet.js', 'w').write(hdr + mod.strip('\n') + '\n')
 print('built ->', out)

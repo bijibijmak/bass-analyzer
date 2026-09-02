@@ -1,4 +1,4 @@
-// Static verification for bass_mix_interactive.html — spec §"Static"
+// Static verification for index.html — spec §"Static"
 // Usage: node verify.js <path-to-html>
 const fs = require('fs');
 const file = process.argv[2];
