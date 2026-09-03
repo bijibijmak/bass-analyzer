@@ -23,12 +23,29 @@ node --check /tmp/app.js
 
 # 3. substitute the worklet source into the inert inline block
 python3 - "$OUT" <<'PY'
-import sys, io
+import sys, io, os
 out = sys.argv[1]
+os.makedirs(out, exist_ok=True)
 head = open('parts/01_head.html').read()
 body = open('parts/02_body.html').read()
 app  = open('/tmp/app.js').read()
 mod  = open('/tmp/wsola_module.js').read()
+
+import hashlib, re
+ver = re.search(r"const APP_VERSION = '([^']+)'", app)
+assert ver, 'APP_VERSION missing from the page script'
+ver = ver.group(1)
+
+# Hash the page as assembled but with the stamp still a placeholder, so the
+# hash describes the source rather than itself.
+stamp_hash = hashlib.sha256((head + body + app).encode('utf-8')).hexdigest()[:7]
+build = 'v%s \u00b7 %s' % (ver, stamp_hash)
+assert '@@BUILD@@' in body, 'build placeholder missing from 02_body.html'
+body = body.replace('@@BUILD@@', build)
+
+sw = open('parts/sw.js').read()
+assert '@@CACHE@@' in sw, 'cache placeholder missing from parts/sw.js'
+open(out + '/sw.js', 'w').write(sw.replace('@@CACHE@@', 'b7k-' + stamp_hash))
 
 assert '@@WSOLA_SRC@@' in body, 'placeholder missing from 02_body.html'
 assert '</script>' not in mod, 'worklet source contains </script> and would break the inline block'
@@ -42,6 +59,6 @@ hdr = ("// GENERATED — do not edit.\n"
        "// An identical copy lives inline in index.html.\n"
        "//@@GENERATED-HEADER-END\n")
 open(out + '/wsola-worklet.js', 'w').write(hdr + mod.strip('\n') + '\n')
-print('built ->', out)
+print('built ->', out, build)
 PY
 node --check "$OUT/wsola-worklet.js"

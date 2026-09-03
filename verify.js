@@ -412,6 +412,38 @@ else bad('host kind not reported');
 if (/n \* ratio > OUT/.test(js)) ok('jitter cushion sized from the block length');
 else bad('no jitter cushion — large-block hosts will zero-fill and detune inaccurately');
 
+// ── 19. the version stamp ──
+// The stamp exists so that "is my phone showing the current build?" has an
+// answer you can read off the screen. That only works if the number in the
+// page, the number in the service worker cache and the source all agree.
+console.log('\n[19] version stamp');
+(() => {
+  const ver = (js.match(/const APP_VERSION = '([^']+)'/) || [])[1];
+  if (ver) ok('APP_VERSION is ' + ver);
+  else { bad('APP_VERSION missing from the page script'); return; }
+
+  const shown = (markup.match(/id="appVer"[^>]*>([^<]+)</) || [])[1];
+  if (!shown) { bad('no version shown in the markup'); return; }
+  const m = shown.match(/^v(\S+)\s+\u00b7\s+([0-9a-f]{7})$/);
+  if (!m) { bad('the stamp does not read "v<version> \u00b7 <7 hex>": ' + JSON.stringify(shown)); return; }
+  ok('the header reads ' + JSON.stringify(shown));
+  if (m[1] === ver) ok('the shown version matches APP_VERSION');
+  else bad(`header says v${m[1]} but APP_VERSION is ${ver}`);
+
+  if (!/@@BUILD@@|@@CACHE@@/.test(html)) ok('no unsubstituted build placeholders');
+  else bad('a build placeholder survived into the output');
+
+  const swp = path.join(dir, 'sw.js');
+  if (!fs.existsSync(swp)) { bad('sw.js not beside the page'); return; }
+  const swSrc = fs.readFileSync(swp, 'utf8');
+  const cache = (swSrc.match(/const CACHE = '([^']+)'/) || [])[1];
+  if (cache === 'b7k-' + m[2])
+    ok(`the service worker cache is ${cache}, so a new build cannot be served from an old cache`);
+  else bad(`cache is ${cache} but the page stamp is ${m[2]} — a stale cache could survive a release`);
+  if (/GENERATED from parts\/sw\.js/.test(swSrc)) ok('sw.js is generated, not hand-edited');
+  else bad('sw.js has no generated header — it may have been edited in place');
+})();
+
 const swPath = path.join(dir, 'sw.js');
 if (fs.existsSync(swPath)) {
   const sw = fs.readFileSync(swPath, 'utf8');

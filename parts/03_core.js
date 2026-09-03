@@ -8,6 +8,13 @@
 // Heavy features are behind LITE so the Pi Zero 2W build is a
 // flag flip, not a fork. Set LITE_DEFAULT = true, or load with ?lite=1
 // ─────────────────────────────────────────────
+// Bumped by hand for releases. The build stamp beside it in the header is a
+// content hash, computed at build time over the assembled page — so it moves
+// exactly when the code moves and never when it does not. Comparing the stamp
+// on the phone against the one on the computer is the whole point: it answers
+// "am I looking at the current build?" without anyone having to check.
+const APP_VERSION = '4.0.0';
+
 const LITE_DEFAULT = false;
 const LITE = LITE_DEFAULT ||
   new URLSearchParams(location.search).get('lite') === '1';
