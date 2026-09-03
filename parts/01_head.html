@@ -784,6 +784,23 @@ select#deviceSelect {
 .geq-switch-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 
 /* ── Compressor gain-reduction meter ─────────────────────── */
+.para-panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+.para-hint { font-size: 0.57rem; color: var(--dim); letter-spacing: 0.05em; line-height: 1.5; margin-bottom: 9px; }
+.para-rows { display: grid; gap: 6px; }
+.para-row { display: grid; grid-template-columns: 18px 1fr 1fr 1fr; gap: 8px; align-items: center; }
+.para-n { font-size: 0.55rem; color: var(--dim); text-align: right; }
+.para-row label { display: flex; align-items: center; gap: 4px; }
+.para-row input {
+  width: 100%; min-width: 0; background: var(--btn-bg); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
+  font-family: inherit; font-size: 0.62rem; min-height: 30px;
+}
+.para-row em { font-style: normal; font-size: 0.5rem; color: var(--dim); letter-spacing: 0.08em; flex: 0 0 auto; }
+.para-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }
+@media (min-width: 900px) {
+  .para-panel { max-width: var(--shell-wide); }
+  .para-rows { grid-template-columns: repeat(2, 1fr); gap: 6px 22px; }
+}
 .app-ver {
   display: inline-block; margin-left: 6px; font-size: 0.52rem;
   letter-spacing: 0.1em; color: var(--dim); white-space: nowrap;

@@ -119,17 +119,25 @@ function geqApply(immediate) {
 }
 
 // ── Preamp selection ───────────────────────────────────────
+const PREAMP_KINDS = ['b7k', 'geq', 'para'];
 function setPreamp(kind) {
-  preampKind = (kind === 'geq') ? 'geq' : 'b7k';
+  preampKind = PREAMP_KINDS.indexOf(kind) >= 0 ? kind : 'b7k';
   try { localStorage.setItem(PREAMP_KEY, preampKind); } catch (e) {}
-  const b7k = document.getElementById('preampB7k');
-  const g = document.getElementById('preampGeq');
-  if (b7k) b7k.style.display = preampKind === 'b7k' ? '' : 'none';
-  if (g) g.style.display = preampKind === 'geq' ? '' : 'none';
+  [['preampB7k', 'b7k'], ['preampGeq', 'geq'], ['preampPara', 'para']].forEach(([id, k]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = preampKind === k ? '' : 'none';
+  });
   document.querySelectorAll('[data-preamp]').forEach(btn =>
     btn.classList.toggle('active', btn.dataset.preamp === preampKind));
-  if (audioRunning) { preampKind === 'geq' ? geqSplice() : geqUnsplice(); }
+  // The graphic and the parametric splice across the same edge, so exactly
+  // one of them may be in the chain at a time. Unsplice first, always.
+  if (audioRunning) {
+    geqUnsplice(); paraUnsplice();
+    if (preampKind === 'geq') geqSplice();
+    else if (preampKind === 'para') paraSplice();
+  }
   geqSyncUI();
+  if (typeof paraSyncUI === 'function') paraSyncUI();
   redrawStatic();
 }
 // Called from startAudio, so the selection survives enabling audio later.
@@ -159,7 +167,7 @@ function geqLoad() {
   }
   let p = null;
   try { p = localStorage.getItem(PREAMP_KEY); } catch (e) {}
-  preampKind = p === 'geq' ? 'geq' : 'b7k';
+  preampKind = (p === 'geq' || p === 'para') ? p : 'b7k';
 }
 
 // ── Faders ─────────────────────────────────────────────────

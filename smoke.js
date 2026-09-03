@@ -195,10 +195,17 @@ setTimeout(() => {
     const p = loaded[0];
     // v3 adds a string (preamp) and an array (geqGains); everything else must
     // still be a finite number.
-    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'compOn']);   // strings, arrays, boolean
+    // paraBands is an array of objects; its contents are checked below rather
+    // than by the flat finite sweep.
+    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'paraBands', 'compOn']);
+    const badBand = (arr) => (arr || []).some(b =>
+      !b || !Number.isFinite(b.f) || !Number.isFinite(b.db) || !Number.isFinite(b.q) ||
+      b.f < 20 || b.f > 10000 || Math.abs(b.db) > 12 || b.q < 0.5 || b.q > 18);
     const bad0 = Object.entries(p).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (bad0.length) bad('migrated preset has non-finite fields: ' + JSON.stringify(bad0));
     else ok('v1 → v3 migration produced only finite numbers');
+    if (badBand(p.paraBands)) bad('migrated preset has a bad parametric band');
+    else ok('parametric bands survive migration in range');
     if (Array.isArray(p.geqGains) && p.geqGains.length === 11 && p.geqGains.every(Number.isFinite))
       ok('migrated preset carries 11 finite EQ band gains');
     else bad('geqGains is ' + JSON.stringify(p.geqGains));
@@ -235,6 +242,8 @@ setTimeout(() => {
     const junkBad = Object.entries(j).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (junkBad.length) bad('garbage preset yielded non-finite: ' + JSON.stringify(junkBad));
     else ok('garbage preset fully coerced to finite defaults');
+    if (badBand(j.paraBands)) bad('garbage preset produced a bad parametric band');
+    else ok('garbage cannot produce an out-of-range parametric band');
     if (j.geqGains.every(Number.isFinite) && j.geqGains[4] === 12 && j.geqGains[5] === -12 &&
         j.geqGains[9] === 3 && j.preamp === 'b7k' && Number.isFinite(j.geqUserFreq))
       ok('garbage EQ bands coerced and clamped to ±12, preamp falls back to b7k');
@@ -873,6 +882,73 @@ setTimeout(() => {
     else bad('clamp gave ' + [cl(99), cl(-99), cl(3.5)].join(', '));
     ev('setParam')('low', 0);
   } catch (e) { bad('EQ drag threw: ' + e.stack); }
+
+  console.log('\n[21] parametric EQ');
+  try {
+    ev('setPreamp')('para');
+    if (ev('preampKind') === 'para') ok('the third preamp selects');
+    else bad('preampKind is ' + ev('preampKind'));
+    const shown = id => d.getElementById(id) && d.getElementById(id).style.display !== 'none';
+    if (shown('preampPara') && !shown('preampGeq') && !shown('preampB7k'))
+      ok('its panel shows and the other two hide');
+    else bad('panel visibility wrong');
+
+    const b = ev('eqBands')();
+    if (b.length === ev('PARA_N')) ok(`${b.length} bands`);
+    else bad(b.length + ' bands');
+    if (b.every(x => x.free && x.setQ && x.sweep && x.sweep.range))
+      ok('every band is free: gain, width and a continuous frequency range');
+    else bad('a band is missing free/setQ/sweep');
+    if (b[0].sweep.range[0] === 20 && b[0].sweep.range[1] === 10000)
+      ok('range is 20 Hz to 10 kHz — the whole chart, nothing hides off-screen');
+    else bad('range is ' + b[0].sweep.range.join('..'));
+
+    // Selection must be nearest centre, not influence: that is the whole
+    // point once a band can be moved to where you are pointing.
+    ev('paraSet')(2, 'f', 400); ev('paraSet')(2, 'q', 18); ev('paraSet')(2, 'db', 0);
+    const pick = ev('eqBandAtFreq')(405);
+    if (pick && pick.id === 'para2')
+      ok('grabbing at 405 Hz picks the band at 400 Hz, even at Q 18 where it has almost no influence there');
+    else bad('picked ' + (pick && pick.id));
+
+    // exact, non-round frequencies
+    ev('paraSet')(0, 'f', 100.5);
+    if (Math.abs(ev('para').bands[0].f - 100.5) < 1e-9) ok('100.5 Hz is a frequency, not rounded away');
+    else bad('got ' + ev('para').bands[0].f);
+    ev('paraSet')(1, 'f', 505);
+    if (ev('para').bands[1].f === 505) ok('505 Hz too');
+    else bad('got ' + ev('para').bands[1].f);
+
+    // clamps
+    ev('paraSet')(0, 'f', 99999); ev('paraSet')(1, 'db', 99); ev('paraSet')(2, 'q', -5);
+    if (ev('para').bands[0].f === 10000 && ev('para').bands[1].db === 12 && ev('para').bands[2].q === 0.5)
+      ok('frequency, gain and width all clamp at their limits');
+    else bad('clamps gave ' + JSON.stringify(ev('para').bands.slice(0, 3)));
+
+    // bands may cross: there is no strip to keep in order
+    ev('paraSet')(0, 'f', 800); ev('paraSet')(1, 'f', 300);
+    if (ev('para').bands[0].f === 800 && ev('para').bands[1].f === 300)
+      ok('bands cross freely — band 1 above band 2 is allowed');
+    else bad('crossing was blocked');
+
+    ev('paraReset')();
+    if (ev('para').bands.map(x => x.f).join(',') === ev('PARA_DEFAULTS').join(','))
+      ok('reset restores the starting spread');
+    else bad('reset gave ' + ev('para').bands.map(x => x.f).join(','));
+
+    // the numeric rows are the phone's way in
+    const rows = d.querySelectorAll('#paraRows .para-row');
+    if (rows.length === ev('PARA_N')) ok(`${rows.length} numeric rows built`);
+    else bad(rows.length + ' rows');
+    const f0 = d.getElementById('paraF0');
+    if (f0 && parseFloat(f0.value) === ev('para').bands[0].f) ok('the rows read back the live values');
+    else bad('row value is ' + (f0 && f0.value));
+    f0.value = '250'; f0.dispatchEvent(new w.Event('input', { bubbles: true }));
+    if (ev('para').bands[0].f === 250) ok('typing into a row moves the band');
+    else bad('typing gave ' + ev('para').bands[0].f);
+    ev('paraReset')();
+    ev('setPreamp')('b7k');
+  } catch (e) { bad('parametric threw: ' + e.stack); }
 
   console.log('\n[13] no late errors');
   if (errors.length) bad('errors accumulated:\n      ' + errors.join('\n      '));

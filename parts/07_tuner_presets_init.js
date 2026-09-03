@@ -195,6 +195,19 @@ function pgains(a) {
 // Widths default to the old fixed value, so a preset saved before bands had
 // their own Q loads back sounding exactly as it did. No schema bump needed:
 // a missing field simply reads as the default it always effectively had.
+// A preset saved before the parametric existed simply gets its defaults, so
+// loading one is never destructive — it just leaves that preamp untouched.
+function pbands(a) {
+  const out = PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 }));
+  if (Array.isArray(a)) for (let i = 0; i < PARA_N; i++) {
+    const s = a[i] || {};
+    out[i] = { f:  pnum(s.f,  PARA_DEFAULTS[i], PARA_FMIN, PARA_FMAX),
+               db: pnum(s.db, 0, -12, 12),
+               q:  pnum(s.q,  1.4, EQ_Q_MIN, EQ_Q_MAX) };
+  }
+  return out;
+}
+
 function pqs(a) {
   const out = new Array(GEQ_N).fill(GEQ_Q);
   if (Array.isArray(a)) for (let i = 0; i < GEQ_N; i++) out[i] = pnum(a[i], GEQ_Q, EQ_Q_MIN, EQ_Q_MAX);
@@ -216,7 +229,8 @@ function normalizePreset(p) {
     drive:     pnum(o.drive,   0, 0, 100),
     grunt:     ppick(o.grunt,  1, [0, 1, 2]),
     attack:    ppick(o.attack, 1, [0, 1, 2]),
-    preamp:      o.preamp === 'geq' ? 'geq' : 'b7k',
+    preamp:      (o.preamp === 'geq' || o.preamp === 'para') ? o.preamp : 'b7k',
+    paraBands:   pbands(o.paraBands),
     geqGains:    pgains(o.geqGains),
     geqQs:       pqs(o.geqQs),
     loMidQ:      pnum(o.loMidQ, 2.2, EQ_Q_MIN, EQ_Q_MAX),
@@ -277,6 +291,7 @@ function savePreset() {
     preamp: preampKind,
     geqGains: geq.gains.slice(),
     geqQs: geq.qs.slice(),
+    paraBands: para.bands.map(b => ({ f: b.f, db: b.db, q: b.q })),
     geqUserFreq: geq.userFreq,
     geqGain: geq.gain,
     geqVolume: geq.volume,
@@ -301,6 +316,10 @@ function applyPreset(idx) {
   geq.volume   = p.geqVolume;
   if (geqNodes) geqApply(false);
   geqSyncUI(); geqSave();
+
+  for (let i = 0; i < PARA_N; i++) para.bands[i] = { f: p.paraBands[i].f, db: p.paraBands[i].db, q: p.paraBands[i].q };
+  if (paraNodes) paraApply(false);
+  paraSyncUI(); paraSave();
 
   comp.on = p.compOn; comp.threshold = p.compThreshold; comp.ratio = p.compRatio;
   comp.attack = p.compAttack; comp.release = p.compRelease;
@@ -350,6 +369,7 @@ wireControls();
 wirePedalPanel();
 wireWah();
 initGeq();
+initPara();
 initFftRange();
 initComp();
 initLoop();

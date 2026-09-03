@@ -784,6 +784,23 @@ select#deviceSelect {
 .geq-switch-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 
 /* ── Compressor gain-reduction meter ─────────────────────── */
+.para-panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+.para-hint { font-size: 0.57rem; color: var(--dim); letter-spacing: 0.05em; line-height: 1.5; margin-bottom: 9px; }
+.para-rows { display: grid; gap: 6px; }
+.para-row { display: grid; grid-template-columns: 18px 1fr 1fr 1fr; gap: 8px; align-items: center; }
+.para-n { font-size: 0.55rem; color: var(--dim); text-align: right; }
+.para-row label { display: flex; align-items: center; gap: 4px; }
+.para-row input {
+  width: 100%; min-width: 0; background: var(--btn-bg); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
+  font-family: inherit; font-size: 0.62rem; min-height: 30px;
+}
+.para-row em { font-style: normal; font-size: 0.5rem; color: var(--dim); letter-spacing: 0.08em; flex: 0 0 auto; }
+.para-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px; }
+@media (min-width: 900px) {
+  .para-panel { max-width: var(--shell-wide); }
+  .para-rows { grid-template-columns: repeat(2, 1fr); gap: 6px 22px; }
+}
 .app-ver {
   display: inline-block; margin-left: 6px; font-size: 0.52rem;
   letter-spacing: 0.1em; color: var(--dim); white-space: nowrap;
@@ -1091,7 +1108,7 @@ body {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · c330f3f</span></p>
+    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · eeea9b4</span></p>
   </header>
   <div class="header-actions">
     <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
@@ -1287,6 +1304,7 @@ body {
     <span class="ctrl-sub" style="margin:0 4px 0 0">Preamp</span>
     <button class="fft-btn active" type="button" data-preamp="b7k" onclick="setPreamp('b7k')">Darkgas B7K</button>
     <button class="fft-btn"        type="button" data-preamp="geq" onclick="setPreamp('geq')">Graphic EQ</button>
+    <button class="fft-btn"        type="button" data-preamp="para" onclick="setPreamp('para')">Parametric</button>
   </div>
 
 <div id="preampB7k">
@@ -1480,6 +1498,23 @@ body {
 
 </div>
 
+
+<div id="preampPara" style="display:none">
+  <div class="section-label">Parametric &mdash; <span>six bands, anywhere you like</span></div>
+  <div class="para-panel">
+    <div class="para-hint" id="paraHint">
+      Drag the curve above: up and down for gain, sideways to move a band,
+      hold Alt for width. Nothing is fixed &mdash; a band goes wherever the problem
+      is. The numbers below are the same six bands, for exact values and for
+      the phone, where dragging is off so the page can still scroll.
+    </div>
+    <div class="para-rows" id="paraRows"></div>
+    <div class="para-foot">
+      <button class="noise-btn" type="button" onclick="paraReset()">Reset bands</button>
+      <span class="noise-tool-desc">20 Hz &ndash; 10 kHz &middot; &plusmn;12 dB &middot; Q 0.5 &ndash; 18</span>
+    </div>
+  </div>
+</div>
 
   <!-- ── LOOPER ── -->
   <div class="section-label">Looper &mdash; <span>hands-free tuning</span></div>
@@ -3370,6 +3405,7 @@ async function startAudio() {
     audioRunning = true;
     startUiLoop();
     geqOnAudioStart();   // the selected preamp may not be the B7K
+    paraOnAudioStart();
     compApply();         // and the compressor may be on
 
     document.getElementById('audioToggle').textContent = '⏹ Disable Audio';
@@ -6063,17 +6099,25 @@ function geqApply(immediate) {
 }
 
 // ── Preamp selection ───────────────────────────────────────
+const PREAMP_KINDS = ['b7k', 'geq', 'para'];
 function setPreamp(kind) {
-  preampKind = (kind === 'geq') ? 'geq' : 'b7k';
+  preampKind = PREAMP_KINDS.indexOf(kind) >= 0 ? kind : 'b7k';
   try { localStorage.setItem(PREAMP_KEY, preampKind); } catch (e) {}
-  const b7k = document.getElementById('preampB7k');
-  const g = document.getElementById('preampGeq');
-  if (b7k) b7k.style.display = preampKind === 'b7k' ? '' : 'none';
-  if (g) g.style.display = preampKind === 'geq' ? '' : 'none';
+  [['preampB7k', 'b7k'], ['preampGeq', 'geq'], ['preampPara', 'para']].forEach(([id, k]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = preampKind === k ? '' : 'none';
+  });
   document.querySelectorAll('[data-preamp]').forEach(btn =>
     btn.classList.toggle('active', btn.dataset.preamp === preampKind));
-  if (audioRunning) { preampKind === 'geq' ? geqSplice() : geqUnsplice(); }
+  // The graphic and the parametric splice across the same edge, so exactly
+  // one of them may be in the chain at a time. Unsplice first, always.
+  if (audioRunning) {
+    geqUnsplice(); paraUnsplice();
+    if (preampKind === 'geq') geqSplice();
+    else if (preampKind === 'para') paraSplice();
+  }
   geqSyncUI();
+  if (typeof paraSyncUI === 'function') paraSyncUI();
   redrawStatic();
 }
 // Called from startAudio, so the selection survives enabling audio later.
@@ -6103,7 +6147,7 @@ function geqLoad() {
   }
   let p = null;
   try { p = localStorage.getItem(PREAMP_KEY); } catch (e) {}
-  preampKind = p === 'geq' ? 'geq' : 'b7k';
+  preampKind = (p === 'geq' || p === 'para') ? p : 'b7k';
 }
 
 // ── Faders ─────────────────────────────────────────────────
@@ -6989,6 +7033,16 @@ const eqDragAvailable = () => !!mqFine.matches;
 // on the real pedal, so a sideways drag flips rather than sweeps. `range` is a
 // continuous sweep, which only the graphic EQ's user band has.
 function eqBands() {
+  if (typeof preampKind !== 'undefined' && preampKind === 'para') {
+    return para.bands.map((b, i) => ({
+      id: 'para' + i, label: 'Band ' + (i + 1),
+      freq: b.f, db: b.db, q: b.q, type: 'peaking', step: 0.5,
+      free: true,                                   // its centre moves with the drag
+      setDb: v => paraSet(i, 'db', v),
+      setQ:  v => paraSet(i, 'q', v),
+      sweep: { range: [PARA_FMIN, PARA_FMAX], set: hz => paraSet(i, 'f', hz) }
+    }));
+  }
   if (typeof preampKind !== 'undefined' && preampKind === 'geq') {
     const out = [];
     for (let i = 0; i < GEQ_N; i++) {
@@ -7204,6 +7258,17 @@ function eqSensitivity(band, f) {
 // right: you get the band you were reaching for.
 function eqBandAtFreq(f) {
   const bands = eqBands();
+  // Freely-tunable bands: nearest centre wins. Influence would be perverse
+  // here — set Q to 18 and the band 5 Hz from your cursor has almost none,
+  // so you would be handed a different band than the one you are pointing at.
+  if (bands.length && bands[0].free) {
+    let near = null, nd = Infinity;
+    for (const b of bands) {
+      const d = Math.abs(Math.log2(f / b.freq));
+      if (d < nd) { nd = d; near = b; }
+    }
+    return near;
+  }
   let best = null, bestS = 0.02;
   for (const b of bands) {
     const sv = Math.abs(eqSensitivity(b, f));
@@ -7264,6 +7329,7 @@ function eqDragStart(el, e) {
   // frequency under the cursor, and drag from there.
   eqDrag = { id: b.id, x0: e.clientX, y0: e.clientY, f,
              base: eqResponseDb(eqBands(), [f])[0], db0: num(b.db, 0), q0: num(b.q, 1.4),
+             f0: num(b.freq, f),
              ch: eqGeo.ch, moved: false };
   try { el.setPointerCapture(e.pointerId); } catch (err) {}
   el.style.cursor = 'grabbing';
@@ -7279,7 +7345,11 @@ function eqDragMove(el, e) {
   if (!b) { eqDragEnd(el, e); return true; }
   const g = eqGeom(eqDrag.ch);
   const dy = e.clientY - eqDrag.y0;
-  if (!eqDrag.moved && Math.abs(dy) < EQ_DRAG_SLOP && !e.altKey) { e.preventDefault(); return true; }
+  const dx = e.clientX - eqDrag.x0;
+  // Both axes. This used to measure dy alone, which meant a purely sideways
+  // drag never cleared the threshold — and sideways is precisely the gesture
+  // that moves a band's frequency, so it did nothing at all.
+  if (!eqDrag.moved && Math.hypot(dx, dy) < EQ_DRAG_SLOP && !e.altKey) { e.preventDefault(); return true; }
   eqDrag.moved = true;
 
   if (e.altKey) {
@@ -7325,7 +7395,12 @@ function eqDragMove(el, e) {
         const snapped = eqNearestStep(f, b.sweep.steps);
         if (snapped !== b.freq) b.sweep.set(snapped);
       } else {
-        b.sweep.set(Math.max(b.sweep.range[0], Math.min(b.sweep.range[1], f)));
+        // Relative, in log space. Setting the band to the cursor's absolute
+        // frequency would teleport it the instant you pressed the mouse
+        // down; multiplying its own frequency by how far the cursor has
+        // travelled means nothing moves until you move.
+        const moved = eqDrag.f0 * (f / eqDrag.f);
+        b.sweep.set(Math.max(b.sweep.range[0], Math.min(b.sweep.range[1], moved)));
       }
     }
   }
@@ -7365,12 +7440,197 @@ function eqTip(b, cx, cy, widthMode) {
   let s = b.label + '  ·  ' + sign + num(b.db, 0).toFixed(1) + ' dB';
   if (b.setQ) s += '  ·  Q ' + num(b.q, 1.4).toFixed(1) + (widthMode ? ' ←' : '');
   else if (widthMode) s += '  ·  a shelf has no width';
-  if (b.sweep) s += '  ·  ' + freqDisplay(b.freq);
+  if (b.sweep) s += '  ·  ' + (b.free ? (b.freq >= 1000 ? (b.freq / 1000).toFixed(2) + ' kHz'
+                                                       : b.freq.toFixed(1) + ' Hz')
+                                     : freqDisplay(b.freq));
   tip.textContent = s;
   tip.style.display = 'block';
   tip.style.left = Math.max(6, Math.min(cx + 14, window.innerWidth - tip.offsetWidth - 16)) + 'px';
   tip.style.top = Math.max(6, cy - 30) + 'px';
 }
+// ═══════════════════════════════════════════════════════════
+// PARAMETRIC EQ — the curve is the instrument
+//
+// The graphic EQ is a fixed octave grid you sweep with faders. This is the
+// other half of the job: nothing is fixed, every band goes wherever the
+// problem is. 100.5 Hz, 505 Hz, anywhere between 20 and 10 k.
+//
+// There are no faders here on purpose. A fader implies a fixed frequency,
+// and the whole point of this preamp is that nothing is fixed. What it has
+// instead is the curve — grab it and drag — and a row of typed numbers per
+// band, because dragging is desktop-only and a preamp you cannot touch on a
+// phone is half a preamp.
+//
+// Bands may cross each other freely. There is no strip whose left-to-right
+// order they could scramble, so stacking three of them inside one octave to
+// build a shape is a feature, not a mistake.
+// ═══════════════════════════════════════════════════════════
+
+const PARA_N = 6;
+const PARA_KEY = 'b7k_para';
+const PARA_FMIN = 20, PARA_FMAX = 10000;      // = the chart, so nothing hides off-screen
+
+// Spread across the range a bass actually occupies, all flat, all an octave
+// wide. A starting position, not a preset: everything moves.
+const PARA_DEFAULTS = [60, 150, 400, 1000, 2500, 6000];
+
+const para = { bands: PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 })) };
+let paraNodes = null, paraSpliced = false;
+
+const paraClampF  = f => Math.max(PARA_FMIN, Math.min(PARA_FMAX, num(parseFloat(f), 1000)));
+const paraClampDb = v => Math.max(-12, Math.min(12, num(parseFloat(v), 0)));
+const paraClampQ  = v => Math.max(EQ_Q_MIN, Math.min(EQ_Q_MAX, num(parseFloat(v), 1.4)));
+
+// ── Graph ──────────────────────────────────────────────────
+function paraBuild() {
+  if (!audioCtx || paraNodes) return;
+  const ac = audioCtx;
+  const n = { in: ac.createGain(), out: ac.createGain(), bands: [] };
+  let prev = n.in;
+  for (let i = 0; i < PARA_N; i++) {
+    const b = ac.createBiquadFilter();
+    b.type = 'peaking';
+    b.frequency.value = paraClampF(para.bands[i].f);
+    b.Q.value = paraClampQ(para.bands[i].q);
+    b.gain.value = paraClampDb(para.bands[i].db);
+    prev.connect(b); prev = b; n.bands.push(b);
+  }
+  prev.connect(n.out);
+  paraNodes = n;
+}
+function paraDestroy() {
+  if (!paraNodes) return;
+  try {
+    paraNodes.in.disconnect(); paraNodes.out.disconnect();
+    paraNodes.bands.forEach(b => b.disconnect());
+  } catch (e) {}
+  paraNodes = null;
+}
+
+// Splices across the same edge the graphic EQ uses, so the two can never be
+// in the chain at once.
+function paraSplice() {
+  if (paraSpliced || !audioCtx || !audioRunning) return;
+  paraBuild();
+  if (!paraNodes) return;
+  try {
+    sumBus.disconnect(filterLow);
+    filterTreble.disconnect(filterHiss);
+    sumBus.connect(paraNodes.in);
+    paraNodes.out.connect(filterHiss);
+    paraSpliced = true;
+  } catch (e) { console.warn('[Para] splice', e); }
+}
+function paraUnsplice() {
+  if (!paraSpliced) return;
+  try {
+    sumBus.disconnect(paraNodes.in);
+    paraNodes.out.disconnect(filterHiss);
+    sumBus.connect(filterLow);
+    filterTreble.connect(filterHiss);
+  } catch (e) { console.warn('[Para] unsplice', e); }
+  paraSpliced = false;
+  paraDestroy();
+}
+
+function paraApply(immediate) {
+  if (!paraNodes || !audioCtx) return;
+  const t = audioCtx.currentTime, S = immediate ? 0.001 : 0.02;
+  for (let i = 0; i < PARA_N; i++) {
+    const n = paraNodes.bands[i], b = para.bands[i];
+    n.frequency.setTargetAtTime(paraClampF(b.f), t, S);
+    n.Q.setTargetAtTime(paraClampQ(b.q), t, S);
+    n.gain.setTargetAtTime(paraClampDb(b.db), t, S);
+  }
+}
+
+function paraOnAudioStart() { if (preampKind === 'para') paraSplice(); }
+function paraOnAudioStop() { paraSpliced = false; paraDestroy(); }
+
+// ── Setters ────────────────────────────────────────────────
+function paraSet(i, key, v) {
+  const b = para.bands[i];
+  if (!b) return;
+  b[key] = key === 'f' ? paraClampF(v) : key === 'db' ? paraClampDb(v) : paraClampQ(v);
+  if (paraNodes && audioCtx) {
+    const n = paraNodes.bands[i], t = audioCtx.currentTime;
+    const p = key === 'f' ? n.frequency : key === 'db' ? n.gain : n.Q;
+    p.setTargetAtTime(key === 'f' ? b.f : key === 'db' ? b.db : b.q, t, 0.02);
+  }
+  paraSave();
+  paraSyncUI();
+  if (activeTab === 'preamp') redrawStatic();
+}
+function paraReset() {
+  para.bands = PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 }));
+  if (paraNodes) paraApply(false);
+  paraSave(); paraSyncUI();
+  if (activeTab === 'preamp') redrawStatic();
+}
+
+// ── Persistence ────────────────────────────────────────────
+function paraSave() {
+  try { localStorage.setItem(PARA_KEY, JSON.stringify(para)); } catch (e) {}
+}
+function paraLoad() {
+  let raw = null;
+  try { raw = localStorage.getItem(PARA_KEY); } catch (e) {}
+  if (!raw) return;
+  try {
+    const o = JSON.parse(raw) || {};
+    if (Array.isArray(o.bands))
+      for (let i = 0; i < PARA_N; i++) {
+        const s = o.bands[i] || {};
+        para.bands[i] = { f: paraClampF(s.f), db: paraClampDb(s.db), q: paraClampQ(s.q) };
+      }
+  } catch (e) {}
+}
+
+// ── UI: numbers, not faders ────────────────────────────────
+function paraBuildStrip() {
+  const host = document.getElementById('paraRows');
+  if (!host || host.childElementCount) return;
+  let html = '';
+  for (let i = 0; i < PARA_N; i++) {
+    html +=
+      '<div class="para-row">' +
+        '<span class="para-n">' + (i + 1) + '</span>' +
+        '<label class="para-f"><input type="number" id="paraF' + i + '" data-para="' + i + '" data-k="f" ' +
+          'min="' + PARA_FMIN + '" max="' + PARA_FMAX + '" step="0.5" inputmode="decimal"><em>Hz</em></label>' +
+        '<label class="para-g"><input type="number" id="paraG' + i + '" data-para="' + i + '" data-k="db" ' +
+          'min="-12" max="12" step="0.5" inputmode="decimal"><em>dB</em></label>' +
+        '<label class="para-q"><input type="number" id="paraQ' + i + '" data-para="' + i + '" data-k="q" ' +
+          'min="' + EQ_Q_MIN + '" max="' + EQ_Q_MAX + '" step="0.1" inputmode="decimal"><em>Q</em></label>' +
+      '</div>';
+  }
+  host.innerHTML = html;
+}
+
+function paraSyncUI() {
+  for (let i = 0; i < PARA_N; i++) {
+    const b = para.bands[i];
+    if (!b) continue;
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      if (el && document.activeElement !== el && parseFloat(el.value) !== v) el.value = v;
+    };
+    set('paraF' + i, Math.round(b.f * 10) / 10);
+    set('paraG' + i, Math.round(b.db * 10) / 10);
+    set('paraQ' + i, Math.round(b.q * 10) / 10);
+  }
+}
+
+function wirePara() {
+  const host = document.getElementById('paraRows');
+  if (!host) return;
+  host.addEventListener('input', e => {
+    const el = e.target;
+    if (!el.dataset || el.dataset.para === undefined) return;
+    paraSet(parseInt(el.dataset.para, 10), el.dataset.k, el.value);
+  });
+}
+
+function initPara() { paraLoad(); paraBuildStrip(); wirePara(); paraSyncUI(); }
 // ═══════════════════════════════════════════════════════════
 // CHROMATIC TUNER — McLeod Pitch Method (normalised square difference)
 // Unchanged from v2. Robust against the octave / harmonic-locking errors
@@ -7568,6 +7828,19 @@ function pgains(a) {
 // Widths default to the old fixed value, so a preset saved before bands had
 // their own Q loads back sounding exactly as it did. No schema bump needed:
 // a missing field simply reads as the default it always effectively had.
+// A preset saved before the parametric existed simply gets its defaults, so
+// loading one is never destructive — it just leaves that preamp untouched.
+function pbands(a) {
+  const out = PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 }));
+  if (Array.isArray(a)) for (let i = 0; i < PARA_N; i++) {
+    const s = a[i] || {};
+    out[i] = { f:  pnum(s.f,  PARA_DEFAULTS[i], PARA_FMIN, PARA_FMAX),
+               db: pnum(s.db, 0, -12, 12),
+               q:  pnum(s.q,  1.4, EQ_Q_MIN, EQ_Q_MAX) };
+  }
+  return out;
+}
+
 function pqs(a) {
   const out = new Array(GEQ_N).fill(GEQ_Q);
   if (Array.isArray(a)) for (let i = 0; i < GEQ_N; i++) out[i] = pnum(a[i], GEQ_Q, EQ_Q_MIN, EQ_Q_MAX);
@@ -7589,7 +7862,8 @@ function normalizePreset(p) {
     drive:     pnum(o.drive,   0, 0, 100),
     grunt:     ppick(o.grunt,  1, [0, 1, 2]),
     attack:    ppick(o.attack, 1, [0, 1, 2]),
-    preamp:      o.preamp === 'geq' ? 'geq' : 'b7k',
+    preamp:      (o.preamp === 'geq' || o.preamp === 'para') ? o.preamp : 'b7k',
+    paraBands:   pbands(o.paraBands),
     geqGains:    pgains(o.geqGains),
     geqQs:       pqs(o.geqQs),
     loMidQ:      pnum(o.loMidQ, 2.2, EQ_Q_MIN, EQ_Q_MAX),
@@ -7650,6 +7924,7 @@ function savePreset() {
     preamp: preampKind,
     geqGains: geq.gains.slice(),
     geqQs: geq.qs.slice(),
+    paraBands: para.bands.map(b => ({ f: b.f, db: b.db, q: b.q })),
     geqUserFreq: geq.userFreq,
     geqGain: geq.gain,
     geqVolume: geq.volume,
@@ -7674,6 +7949,10 @@ function applyPreset(idx) {
   geq.volume   = p.geqVolume;
   if (geqNodes) geqApply(false);
   geqSyncUI(); geqSave();
+
+  for (let i = 0; i < PARA_N; i++) para.bands[i] = { f: p.paraBands[i].f, db: p.paraBands[i].db, q: p.paraBands[i].q };
+  if (paraNodes) paraApply(false);
+  paraSyncUI(); paraSave();
 
   comp.on = p.compOn; comp.threshold = p.compThreshold; comp.ratio = p.compRatio;
   comp.attack = p.compAttack; comp.release = p.compRelease;
@@ -7723,6 +8002,7 @@ wireControls();
 wirePedalPanel();
 wireWah();
 initGeq();
+initPara();
 initFftRange();
 initComp();
 initLoop();

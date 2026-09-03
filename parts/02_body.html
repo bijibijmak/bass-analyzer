@@ -200,6 +200,7 @@
     <span class="ctrl-sub" style="margin:0 4px 0 0">Preamp</span>
     <button class="fft-btn active" type="button" data-preamp="b7k" onclick="setPreamp('b7k')">Darkgas B7K</button>
     <button class="fft-btn"        type="button" data-preamp="geq" onclick="setPreamp('geq')">Graphic EQ</button>
+    <button class="fft-btn"        type="button" data-preamp="para" onclick="setPreamp('para')">Parametric</button>
   </div>
 
 <div id="preampB7k">
@@ -393,6 +394,23 @@
 
 </div>
 
+
+<div id="preampPara" style="display:none">
+  <div class="section-label">Parametric &mdash; <span>six bands, anywhere you like</span></div>
+  <div class="para-panel">
+    <div class="para-hint" id="paraHint">
+      Drag the curve above: up and down for gain, sideways to move a band,
+      hold Alt for width. Nothing is fixed &mdash; a band goes wherever the problem
+      is. The numbers below are the same six bands, for exact values and for
+      the phone, where dragging is off so the page can still scroll.
+    </div>
+    <div class="para-rows" id="paraRows"></div>
+    <div class="para-foot">
+      <button class="noise-btn" type="button" onclick="paraReset()">Reset bands</button>
+      <span class="noise-tool-desc">20 Hz &ndash; 10 kHz &middot; &plusmn;12 dB &middot; Q 0.5 &ndash; 18</span>
+    </div>
+  </div>
+</div>
 
   <!-- ── LOOPER ── -->
   <div class="section-label">Looper &mdash; <span>hands-free tuning</span></div>

@@ -31,6 +31,16 @@ const eqDragAvailable = () => !!mqFine.matches;
 // on the real pedal, so a sideways drag flips rather than sweeps. `range` is a
 // continuous sweep, which only the graphic EQ's user band has.
 function eqBands() {
+  if (typeof preampKind !== 'undefined' && preampKind === 'para') {
+    return para.bands.map((b, i) => ({
+      id: 'para' + i, label: 'Band ' + (i + 1),
+      freq: b.f, db: b.db, q: b.q, type: 'peaking', step: 0.5,
+      free: true,                                   // its centre moves with the drag
+      setDb: v => paraSet(i, 'db', v),
+      setQ:  v => paraSet(i, 'q', v),
+      sweep: { range: [PARA_FMIN, PARA_FMAX], set: hz => paraSet(i, 'f', hz) }
+    }));
+  }
   if (typeof preampKind !== 'undefined' && preampKind === 'geq') {
     const out = [];
     for (let i = 0; i < GEQ_N; i++) {
@@ -246,6 +256,17 @@ function eqSensitivity(band, f) {
 // right: you get the band you were reaching for.
 function eqBandAtFreq(f) {
   const bands = eqBands();
+  // Freely-tunable bands: nearest centre wins. Influence would be perverse
+  // here — set Q to 18 and the band 5 Hz from your cursor has almost none,
+  // so you would be handed a different band than the one you are pointing at.
+  if (bands.length && bands[0].free) {
+    let near = null, nd = Infinity;
+    for (const b of bands) {
+      const d = Math.abs(Math.log2(f / b.freq));
+      if (d < nd) { nd = d; near = b; }
+    }
+    return near;
+  }
   let best = null, bestS = 0.02;
   for (const b of bands) {
     const sv = Math.abs(eqSensitivity(b, f));
@@ -306,6 +327,7 @@ function eqDragStart(el, e) {
   // frequency under the cursor, and drag from there.
   eqDrag = { id: b.id, x0: e.clientX, y0: e.clientY, f,
              base: eqResponseDb(eqBands(), [f])[0], db0: num(b.db, 0), q0: num(b.q, 1.4),
+             f0: num(b.freq, f),
              ch: eqGeo.ch, moved: false };
   try { el.setPointerCapture(e.pointerId); } catch (err) {}
   el.style.cursor = 'grabbing';
@@ -321,7 +343,11 @@ function eqDragMove(el, e) {
   if (!b) { eqDragEnd(el, e); return true; }
   const g = eqGeom(eqDrag.ch);
   const dy = e.clientY - eqDrag.y0;
-  if (!eqDrag.moved && Math.abs(dy) < EQ_DRAG_SLOP && !e.altKey) { e.preventDefault(); return true; }
+  const dx = e.clientX - eqDrag.x0;
+  // Both axes. This used to measure dy alone, which meant a purely sideways
+  // drag never cleared the threshold — and sideways is precisely the gesture
+  // that moves a band's frequency, so it did nothing at all.
+  if (!eqDrag.moved && Math.hypot(dx, dy) < EQ_DRAG_SLOP && !e.altKey) { e.preventDefault(); return true; }
   eqDrag.moved = true;
 
   if (e.altKey) {
@@ -367,7 +393,12 @@ function eqDragMove(el, e) {
         const snapped = eqNearestStep(f, b.sweep.steps);
         if (snapped !== b.freq) b.sweep.set(snapped);
       } else {
-        b.sweep.set(Math.max(b.sweep.range[0], Math.min(b.sweep.range[1], f)));
+        // Relative, in log space. Setting the band to the cursor's absolute
+        // frequency would teleport it the instant you pressed the mouse
+        // down; multiplying its own frequency by how far the cursor has
+        // travelled means nothing moves until you move.
+        const moved = eqDrag.f0 * (f / eqDrag.f);
+        b.sweep.set(Math.max(b.sweep.range[0], Math.min(b.sweep.range[1], moved)));
       }
     }
   }
@@ -407,7 +438,9 @@ function eqTip(b, cx, cy, widthMode) {
   let s = b.label + '  ·  ' + sign + num(b.db, 0).toFixed(1) + ' dB';
   if (b.setQ) s += '  ·  Q ' + num(b.q, 1.4).toFixed(1) + (widthMode ? ' ←' : '');
   else if (widthMode) s += '  ·  a shelf has no width';
-  if (b.sweep) s += '  ·  ' + freqDisplay(b.freq);
+  if (b.sweep) s += '  ·  ' + (b.free ? (b.freq >= 1000 ? (b.freq / 1000).toFixed(2) + ' kHz'
+                                                       : b.freq.toFixed(1) + ' Hz')
+                                     : freqDisplay(b.freq));
   tip.textContent = s;
   tip.style.display = 'block';
   tip.style.left = Math.max(6, Math.min(cx + 14, window.innerWidth - tip.offsetWidth - 16)) + 'px';
