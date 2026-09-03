@@ -138,12 +138,12 @@ function applyAudioParams() {
 
   filterLoMid.type = 'peaking';
   filterLoMid.frequency.value = num(state.loMidFreq, 1000);
-  filterLoMid.Q.value = 2.2;
+  filterLoMid.Q.value = num(state.loMidQ, 2.2);
   filterLoMid.gain.setTargetAtTime(byp ? 0 : num(state.loMid, 0), t, S);
 
   filterHiMid.type = 'peaking';
   filterHiMid.frequency.value = num(state.hiMidFreq, 3000);
-  filterHiMid.Q.value = 2.2;
+  filterHiMid.Q.value = num(state.hiMidQ, 2.2);
   filterHiMid.gain.setTargetAtTime(byp ? 0 : num(state.hiMid, 0), t, S);
 
   filterTreble.type = 'highshelf';

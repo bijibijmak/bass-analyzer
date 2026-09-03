@@ -192,6 +192,15 @@ function pgains(a) {
   return out;
 }
 
+// Widths default to the old fixed value, so a preset saved before bands had
+// their own Q loads back sounding exactly as it did. No schema bump needed:
+// a missing field simply reads as the default it always effectively had.
+function pqs(a) {
+  const out = new Array(GEQ_N).fill(GEQ_Q);
+  if (Array.isArray(a)) for (let i = 0; i < GEQ_N; i++) out[i] = pnum(a[i], GEQ_Q, EQ_Q_MIN, EQ_Q_MAX);
+  return out;
+}
+
 function normalizePreset(p) {
   const o = (p && typeof p === 'object') ? p : {};
   return {
@@ -209,6 +218,9 @@ function normalizePreset(p) {
     attack:    ppick(o.attack, 1, [0, 1, 2]),
     preamp:      o.preamp === 'geq' ? 'geq' : 'b7k',
     geqGains:    pgains(o.geqGains),
+    geqQs:       pqs(o.geqQs),
+    loMidQ:      pnum(o.loMidQ, 2.2, EQ_Q_MIN, EQ_Q_MAX),
+    hiMidQ:      pnum(o.hiMidQ, 2.2, EQ_Q_MIN, EQ_Q_MAX),
     geqUserFreq: pnum(o.geqUserFreq, 700, 20, 10000),
     geqGain:     pnum(o.geqGain,   0, -12, 12),
     geqVolume:   pnum(o.geqVolume, 0, -12, 12),
@@ -258,12 +270,13 @@ function savePreset() {
   const name = nameEl.value.trim() || 'Preset ' + (presets.length + 1);
   presets.push(normalizePreset({
     name,
-    low: state.low, loMid: state.loMid, loMidFreq: state.loMidFreq,
-    hiMid: state.hiMid, hiMidFreq: state.hiMidFreq, treble: state.treble,
+    low: state.low, loMid: state.loMid, loMidFreq: state.loMidFreq, loMidQ: state.loMidQ,
+    hiMid: state.hiMid, hiMidFreq: state.hiMidFreq, hiMidQ: state.hiMidQ, treble: state.treble,
     blend: state.blend, level: state.level, drive: state.drive,
     grunt: state.grunt, attack: state.attack,
     preamp: preampKind,
     geqGains: geq.gains.slice(),
+    geqQs: geq.qs.slice(),
     geqUserFreq: geq.userFreq,
     geqGain: geq.gain,
     geqVolume: geq.volume,
@@ -279,10 +292,10 @@ function savePreset() {
 function applyPreset(idx) {
   const p = loadPresetsFromStorage()[idx];
   if (!p) return;
-  ['low','loMid','loMidFreq','hiMid','hiMidFreq','treble',
+  ['low','loMid','loMidFreq','loMidQ','hiMid','hiMidFreq','hiMidQ','treble',
    'blend','level','drive','grunt','attack'].forEach(k => { state[k] = p[k]; });
 
-  for (let i = 0; i < GEQ_N; i++) geq.gains[i] = p.geqGains[i];
+  for (let i = 0; i < GEQ_N; i++) { geq.gains[i] = p.geqGains[i]; geq.qs[i] = p.geqQs[i]; }
   geq.userFreq = p.geqUserFreq;
   geq.gain     = p.geqGain;
   geq.volume   = p.geqVolume;

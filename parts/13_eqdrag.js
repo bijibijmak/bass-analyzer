@@ -12,8 +12,14 @@
 // ═══════════════════════════════════════════════════════════
 
 const EQ_MAX_DB  = 12;    // both preamps run ±12
-const EQ_HANDLE_R = 5.5;  // drawn radius
-const EQ_GRAB_R  = 15;    // hit radius — generous, the curve moves under you
+const EQ_HANDLE_R = 3;    // drawn radius — a marker, not a target: you can
+                          // grab the curve anywhere, so the dot only has to
+                          // say where a band is centred
+const EQ_GRAB_R  = 12;    // still used to show the "grab" cursor over a dot
+const EQ_Q_MIN = 0.5;     // very broad
+const EQ_Q_MAX = 18;      // a surgical notch, ~1/20th of an octave
+const EQ_DRAG_SLOP = 3;   // px before a click counts as a drag
+const EQ_MIN_AUTHORITY = 0.5;  // below this a band cannot honestly chase the cursor
 
 const mqFine = (typeof window !== 'undefined' && window.matchMedia)
   ? window.matchMedia('(pointer: fine)') : { matches: true };
@@ -32,8 +38,9 @@ function eqBands() {
         id: 'geq' + i,
         label: geqLabel(geqFreqAt(i)) + (geqFreqAt(i) >= 1000 ? 'Hz' : ' Hz'),
         freq: geqFreqAt(i), db: num(geq.gains[i], 0),
-        type: 'peaking', q: GEQ_Q, step: 0.5,
+        type: 'peaking', q: num(geq.qs[i], GEQ_Q), step: 0.5,
         setDb: v => geqSetBand(i, v),
+        setQ: v => geqSetQ(i, v),
         sweep: i === GEQ_N - 1
           ? { range: [20, GEQ_USER_MAX], set: hz => geqSetUserFreq(Math.round(hz)) }
           : null
@@ -54,13 +61,15 @@ function eqBands() {
       type: 'lowshelf', q: null, step: 0.5, sweep: null,
       setDb: v => setParam('low', v) },
     { id: 'loMid', label: 'Lo Mid', freq: num(state.loMidFreq, 1000), db: num(state.loMid, 0),
-      type: 'peaking', q: 2.2, step: 0.5,
+      type: 'peaking', q: num(state.loMidQ, 2.2), step: 0.5,
       sweep: { steps: [500, 1000], set: hz => setParam('loMidFreq', hz) },
-      setDb: v => setParam('loMid', v) },
+      setDb: v => setParam('loMid', v),
+      setQ: v => setParam('loMidQ', eqClampQ(v)) },
     { id: 'hiMid', label: 'Hi Mid', freq: num(state.hiMidFreq, 3000), db: num(state.hiMid, 0),
-      type: 'peaking', q: 2.2, step: 0.5,
+      type: 'peaking', q: num(state.hiMidQ, 2.2), step: 0.5,
       sweep: { steps: [1500, 3000], set: hz => setParam('hiMidFreq', hz) },
-      setDb: v => setParam('hiMid', v) },
+      setDb: v => setParam('hiMid', v),
+      setQ: v => setParam('hiMidQ', eqClampQ(v)) },
     { id: 'treble', label: 'Treble', freq: 5000, hx: 9000, db: num(state.treble, 0),
       type: 'highshelf', q: null, step: 0.5, sweep: null,
       setDb: v => setParam('treble', v) }
@@ -124,6 +133,10 @@ function eqGeom(ch) {
 
 const eqQuant = (v, step) => (step ? Math.round(v / step) * step : v);
 const eqClampDb = v => Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, v));
+// The drag clamps before it calls setQ, but a preset or a direct call would
+// not — and setParam writes state[key] with no validation at all. Clamp at
+// the setter so nothing can put a filter somewhere Web Audio will not go.
+const eqClampQ = v => Math.max(EQ_Q_MIN, Math.min(EQ_Q_MAX, num(v, 1.4)));
 
 // Nearest switch position, judged in log-frequency — which is how the chart
 // is spaced and how the ear hears it. Linear distance would put the midpoint
@@ -139,6 +152,7 @@ function eqNearestStep(hz, steps) {
 
 // Handle positions from the last paint, in CSS pixels on the canvas.
 let eqHandles = [];
+let eqGeo = null;      // { ch, cw } from the last paint
 
 function eqHitBand(px, py, handles) {
   let best = null, bestD = EQ_GRAB_R;
@@ -204,13 +218,68 @@ function drawEqCurve(ctx, xp, cw, ch, interactive) {
     });
   }
   eqHandles = handles;
+  if (interactive) eqGeo = { ch, cw };
 
   ctx.fillStyle = TH.axisLabel; ctx.font = '8px Share Tech Mono,monospace'; ctx.textAlign = 'left';
   ctx.fillText('+12', PAD.l + 3, g.yOf(EQ_MAX_DB) + 8);
   ctx.fillText('−12', PAD.l + 3, g.yOf(-EQ_MAX_DB) - 2);
-  ctx.fillText(interactive && eqDragAvailable() ? 'EQ curve · drag a dot' : 'EQ curve',
+  ctx.fillText(interactive && eqDragAvailable() ? 'EQ curve · drag it · alt = width' : 'EQ curve',
                PAD.l + 3, PAD.t + 9);
   ctx.restore();
+}
+
+// ── Which band owns this point, and by how much ────────────
+// Response of ONE band at one frequency, for a hypothetical gain.
+function eqBandAt(band, db, f) {
+  return eqResponseDb([Object.assign({}, band, { db })], [f])[0];
+}
+
+// dB the curve moves at f per dB of this band's own gain. Zero means this
+// band has no say here; 1 means it owns the point outright.
+function eqSensitivity(band, f) {
+  return eqBandAt(band, num(band.db, 0) + 1, f) - eqBandAt(band, num(band.db, 0), f);
+}
+
+// The band that actually controls the curve at f — not the nearest one, the
+// most influential one. For a shelf that is everything past its corner; for a
+// narrow notch it is a sliver. This is what makes "grab it anywhere" feel
+// right: you get the band you were reaching for.
+function eqBandAtFreq(f) {
+  const bands = eqBands();
+  let best = null, bestS = 0.02;
+  for (const b of bands) {
+    const sv = Math.abs(eqSensitivity(b, f));
+    if (sv > bestS) { bestS = sv; best = b; }
+  }
+  if (best) return best;
+  // Nothing has real influence here (every band flat and far away) — fall
+  // back to the nearest centre so a grab still does something sensible.
+  let near = null, nd = Infinity;
+  for (const b of bands) {
+    const d = Math.abs(Math.log2(f / (b.hx || b.freq)));
+    if (d < nd) { nd = d; near = b; }
+  }
+  return near;
+}
+
+// Solve for the gain that puts the SUMMED curve through targetDb at f.
+// Newton, because response-at-f is not linear in the gain parameter once you
+// are off the band's centre. Three or four steps land inside a hundredth of
+// a dB, and the derivative is recomputed each step.
+function eqSolveGain(band, f, targetDb) {
+  const others = eqBands().filter(b => b.id !== band.id);
+  const sumOthers = others.length ? eqResponseDb(others, [f])[0] : 0;
+  const trimOnly = eqResponseDb([], [f])[0];      // the geq's in/out trim, if any
+  let g = num(band.db, 0);
+  for (let k = 0; k < 5; k++) {
+    const cur = sumOthers + eqBandAt(band, g, f) - (others.length ? trimOnly : 0);
+    const err = targetDb - cur;
+    if (Math.abs(err) < 0.01) break;
+    const sv = eqBandAt(band, g + 1, f) - eqBandAt(band, g, f);
+    if (Math.abs(sv) < 1e-3) break;               // cannot move the curve here
+    g = eqClampDb(g + err / sv);
+  }
+  return g;
 }
 
 // ── Dragging ───────────────────────────────────────────────
@@ -225,12 +294,19 @@ function eqBandById(id) {
 function eqDragStart(el, e) {
   if (!eqDragAvailable() || e.pointerType !== 'mouse') return false;
   if (typeof analyzerMode !== 'undefined' && analyzerMode !== 'fft') return false;
+  if (!eqGeo) return false;
   const rect = el.getBoundingClientRect();
-  const hit = eqHitBand(e.clientX - rect.left, e.clientY - rect.top);
-  if (!hit) return false;
-  const b = eqBandById(hit.id);
+  const px = e.clientX - rect.left;
+  if (px < PAD.l || px > PAD.l + eqGeo.cw) return false;   // outside the plot
+  const f = chartXtoFreq(el, e.clientX);
+  if (!f) return false;
+  const b = eqBandAtFreq(f);
   if (!b) return false;
-  eqDrag = { id: b.id, x0: e.clientX, y0: e.clientY, db0: b.db, ch: hit.ch };
+  // Grab the CURVE, not the dot: remember where the curve sits at the exact
+  // frequency under the cursor, and drag from there.
+  eqDrag = { id: b.id, x0: e.clientX, y0: e.clientY, f,
+             base: eqResponseDb(eqBands(), [f])[0], db0: num(b.db, 0), q0: num(b.q, 1.4),
+             ch: eqGeo.ch, moved: false };
   try { el.setPointerCapture(e.pointerId); } catch (err) {}
   el.style.cursor = 'grabbing';
   hideProbe();
@@ -244,10 +320,45 @@ function eqDragMove(el, e) {
   const b = eqBandById(eqDrag.id);
   if (!b) { eqDragEnd(el, e); return true; }
   const g = eqGeom(eqDrag.ch);
+  const dy = e.clientY - eqDrag.y0;
+  if (!eqDrag.moved && Math.abs(dy) < EQ_DRAG_SLOP && !e.altKey) { e.preventDefault(); return true; }
+  eqDrag.moved = true;
 
-  // Relative, not absolute: the handle keeps the offset you grabbed it at,
-  // so nothing jumps under the cursor on the first pixel of movement.
-  b.setDb(eqClampDb(eqQuant(eqDrag.db0 - (e.clientY - eqDrag.y0) / g.perDb, b.step)));
+  if (e.altKey) {
+    // Width. Logarithmic, because Q is: 0.5 to 18 should feel like even
+    // travel, not like nothing then everything.
+    if (b.setQ) {
+      const q = eqDrag.q0 * Math.pow(2, -dy / 70);
+      b.setQ(Math.max(EQ_Q_MIN, Math.min(EQ_Q_MAX, q)));
+    } else {
+      loopNoop();   // shelves have no width; Web Audio ignores Q on them
+    }
+    eqTip(eqBandById(eqDrag.id) || b, e.clientX, e.clientY, true);
+    e.preventDefault();
+    return true;
+  }
+
+  // Gain. Two regimes, and which one you get depends on whether the band you
+  // grabbed can actually do what you are asking at this frequency.
+  //
+  // Authority is how many dB the curve moves here per dB of the band's gain:
+  // 1.0 dead on its centre, a few hundredths far out on its skirt.
+  //
+  //   · Enough authority — solve, so the curve passes exactly through the
+  //     cursor. This is the case you are in whenever you grab near a band.
+  //   · Not enough — no gain within ±12 can put the curve under your hand, so
+  //     chasing it just pins the band at its rail while the curve sits dead.
+  //     Move the band 1:1 with your hand instead: less magical, but it does
+  //     something, and it does the same thing every time.
+  //
+  // The B7K has this weak spot around 200-400 Hz because it only has four
+  // bands. The graphic EQ's eleven cover the range with no gaps.
+  const target = eqDrag.base - dy / g.perDb;
+  const authority = Math.abs(eqSensitivity(b, eqDrag.f));
+  const next = authority >= EQ_MIN_AUTHORITY
+    ? eqSolveGain(b, eqDrag.f, target)
+    : eqDrag.db0 - dy / g.perDb;        // weak spot: the band itself follows
+  b.setDb(eqClampDb(eqQuant(next, b.step)));
 
   if (b.sweep) {
     const f = chartXtoFreq(el, e.clientX);
@@ -265,6 +376,9 @@ function eqDragMove(el, e) {
   return true;
 }
 
+// Shelves have no width to set; Web Audio ignores Q on lowshelf/highshelf.
+function loopNoop() {}
+
 function eqDragEnd(el, e) {
   if (!eqDrag) return false;
   eqDrag = null;
@@ -281,14 +395,18 @@ function eqDragEnd(el, e) {
 function eqHoverCursor(el, e) {
   if (!eqDragAvailable() || e.pointerType !== 'mouse' || eqDrag) return;
   const rect = el.getBoundingClientRect();
-  el.style.cursor = eqHitBand(e.clientX - rect.left, e.clientY - rect.top) ? 'grab' : '';
+  const px = e.clientX - rect.left;
+  const inPlot = eqGeo && px >= PAD.l && px <= PAD.l + eqGeo.cw;
+  el.style.cursor = eqHitBand(px, e.clientY - rect.top) ? 'grab' : (inPlot ? 'ns-resize' : '');
 }
 
-function eqTip(b, cx, cy) {
+function eqTip(b, cx, cy, widthMode) {
   const tip = document.getElementById('freqTooltip');
   if (!tip || !b) return;
   const sign = b.db > 0 ? '+' : '';
   let s = b.label + '  ·  ' + sign + num(b.db, 0).toFixed(1) + ' dB';
+  if (b.setQ) s += '  ·  Q ' + num(b.q, 1.4).toFixed(1) + (widthMode ? ' ←' : '');
+  else if (widthMode) s += '  ·  a shelf has no width';
   if (b.sweep) s += '  ·  ' + freqDisplay(b.freq);
   tip.textContent = s;
   tip.style.display = 'block';

@@ -195,7 +195,7 @@ setTimeout(() => {
     const p = loaded[0];
     // v3 adds a string (preamp) and an array (geqGains); everything else must
     // still be a finite number.
-    const SKIP = new Set(['name', 'preamp', 'geqGains', 'compOn']);   // string, array, boolean
+    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'compOn']);   // strings, arrays, boolean
     const bad0 = Object.entries(p).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (bad0.length) bad('migrated preset has non-finite fields: ' + JSON.stringify(bad0));
     else ok('v1 → v3 migration produced only finite numbers');
@@ -728,8 +728,8 @@ setTimeout(() => {
     const grab = node => {
       const t = new RegExp(node + "\\.type = '([a-z]+)'").exec(src);
       const f = new RegExp(node + "\\.frequency\\.value = ([^;]+);").exec(src);
-      const q = new RegExp(node + "\\.Q\\.value = ([\\d.]+);").exec(src);
-      return { type: t && t[1], freq: f && ev(f[1].trim()), q: q ? parseFloat(q[1]) : null };
+      const q = new RegExp(node + "\\.Q\\.value = ([^;]+);").exec(src);
+      return { type: t && t[1], freq: f && ev(f[1].trim()), q: q ? ev(q[1].trim()) : null };
     };
     const pairs = [['low','filterLow'],['loMid','filterLoMid'],['hiMid','filterHiMid'],['treble','filterTreble']];
     let drift = 0;
@@ -786,47 +786,77 @@ setTimeout(() => {
     if (hit(250,100,hs) === null) ok('a click on empty chart grabs nothing — the probe still gets it');
     else bad('empty space grabbed a band');
 
-    // a whole drag, through the real handlers
+    // NOTE: the gain solver calls getFrequencyResponse, which jsdom does not
+    // implement — every response reads 0, so no gain can be solved for here.
+    // The value assertions live in the Chromium run instead; what is checked
+    // below is the plumbing that does not need filter maths.
     ev('setParam')('low', 0);
-    w.eqHandlesTest = null;
     const cv = d.getElementById('fftCanvas');
     const mk = (type, x, y) => { const e = new w.Event(type, {bubbles:true});
       e.pointerType='mouse'; e.pointerId=1; e.clientX=x; e.clientY=y;
       e.preventDefault=()=>{}; return e; };
-    // seed a handle where the drag maths can find it
-    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
-    const started = ev('eqDragStart')(cv, mk('pointerdown',100,150));
-    if (started) ok('mousedown on the dot starts a drag');
-    else bad('drag did not start');
-    ev('eqDragMove')(cv, mk('pointermove',100,120));   // 30 px up
-    const perDb = ev('eqGeom')(300).perDb;
-    const want = Math.round((30/perDb)/0.5)*0.5;
-    if (Math.abs(ev('state').low - want) < 1e-9)
-      ok(`30 px up put Low at ${ev('state').low} dB (${perDb.toFixed(2)} px/dB, quantised to 0.5)`);
-    else bad(`Low is ${ev('state').low}, expected ${want}`);
-    ev('eqDragEnd')(cv, mk('pointerup',100,120));
-    if (ev('eqDrag') === null) ok('mouseup releases the band');
+    // A grab anywhere in the plot must start a drag — no dot required.
+    w.eval('eqGeo = { ch: 300, cw: 480 }');
+    const started = ev('eqDragStart')(cv, mk('pointerdown', 260, 150));
+    if (started && ev('eqDrag') && ev('eqDrag').f > 0)
+      ok(`a grab on empty curve at ${Math.round(ev('eqDrag').f)} Hz starts a drag — no dot needed`);
+    else bad('grabbing the curve away from a dot did not start a drag');
+    if (ev('eqDrag') && typeof ev('eqDrag').base === 'number' && ev('eqDrag').moved === false)
+      ok('the grab records where the curve was, and waits for real movement');
+    else bad('drag state is missing base/moved');
+    ev('eqDragEnd')(cv, mk('pointerup', 260, 150));
+    if (ev('eqDrag') === null) ok('mouseup releases it');
     else bad('drag never ended');
 
+    // A click that never moves must not nudge the EQ.
+    ev('setParam')('low', 0);
+    ev('eqDragStart')(cv, mk('pointerdown', 200, 150));
+    ev('eqDragMove')(cv, mk('pointermove', 200, 151));      // 1 px, under the slop
+    ev('eqDragEnd')(cv, mk('pointerup', 200, 151));
+    if (ev('state').low === 0) ok('a 1 px twitch is a click, not an edit');
+    else bad('a stray click moved Low to ' + ev('state').low);
+
+    // Width: Alt+drag is plumbed straight through to setQ.
+    const bands = ev('eqBands')();
+    const mid = bands.find(x => x.id === 'loMid');
+    if (mid.setQ) {
+      mid.setQ(9);
+      if (Math.abs(ev('state').loMidQ - 9) < 1e-9) ok('Alt-drag target: loMid Q set to 9');
+      else bad('loMidQ is ' + ev('state').loMidQ);
+      mid.setQ(999);
+      if (ev('state').loMidQ === 18) ok('Q clamps at 18 — a notch, not a dirac');
+      else bad('Q clamp gave ' + ev('state').loMidQ);
+      mid.setQ(0.01);
+      if (ev('state').loMidQ === 0.5) ok('and at 0.5 going the other way');
+      else bad('Q floor gave ' + ev('state').loMidQ);
+      ev('setParam')('loMidQ', 2.2);
+    } else bad('loMid has no setQ');
+
+    // Shelves genuinely cannot be narrowed: Web Audio ignores Q on them.
+    if (!bands.find(x => x.id === 'low').setQ && !bands.find(x => x.id === 'treble').setQ)
+      ok('the two shelves offer no width, because a shelf has none');
+    else bad('a shelf claims to have a width');
+
+    ev('setPreamp')('geq');
+    const gb = ev('eqBands')();
+    if (gb.every(x => x.setQ)) ok('all eleven graphic EQ bands have their own width');
+    else bad('a graphic EQ band is missing setQ');
+    ev('geqSetQ')(3, 12);
+    if (Math.abs(ev('geq').qs[3] - 12) < 1e-9) ok('geqSetQ writes the band it was given');
+    else bad('geq.qs[3] is ' + ev('geq').qs[3]);
+    ev('geqSetQ')(3, ev('GEQ_Q'));
+    ev('setPreamp')('b7k');
+
     // Everything above called the drag functions directly. Dispatch a real
-    // event sequence on the canvas instead, so the wiring inside wireProbe is
-    // what is being tested — a bad patch there would pass every check above.
-    ev('setParam')('low', 0);
-    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
-    cv.dispatchEvent(mk('pointerdown',100,150));
-    cv.dispatchEvent(mk('pointermove',100,133));
-    cv.dispatchEvent(mk('pointerup',100,133));
-    if (ev('state').low === 2 && ev('eqDrag') === null)
-      ok('a real pointerdown/move/up on the canvas moved Low to +2.0 dB through the real listeners');
-    else bad(`event path gave low=${ev('state').low}, drag=${JSON.stringify(ev('eqDrag'))}`);
-    // and the probe must still get a click that misses every handle
-    ev('eqHandles').length = 0;
-    ev('setParam')('low', 0);
-    cv.dispatchEvent(mk('pointerdown',260,150));
-    if (ev('state').low === 0 && d.getElementById('freqTooltip').style.display === 'block')
-      ok('a click on empty chart still reads a frequency instead of editing');
-    else bad('probe did not take the empty click');
-    cv.dispatchEvent(mk('pointerup',260,150));
+    // event sequence instead, so the wiring inside wireProbe is what is being
+    // tested — a bad patch there would pass every check above.
+    w.eval('eqGeo = { ch: 300, cw: 480 }');
+    cv.dispatchEvent(mk('pointerdown', 240, 150));
+    const live = ev('eqDrag');
+    cv.dispatchEvent(mk('pointerup', 240, 150));
+    if (live && ev('eqDrag') === null)
+      ok('a real pointerdown/up on the canvas drives the drag through the real listeners');
+    else bad('the event path did not reach eqDragStart');
 
     // and it cannot start from a finger
     ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
@@ -835,14 +865,12 @@ setTimeout(() => {
       ok('a finger on the same spot does not grab — it scrolls the page');
     else bad('touch started a drag');
 
-    // clamping
-    ev('setParam')('low', 0);
-    ev('eqHandles').push({ id:'low', x:100, y:150, ch:300, sweep:false });
-    ev('eqDragStart')(cv, mk('pointerdown',100,150));
-    ev('eqDragMove')(cv, mk('pointermove',100,-4000));
-    if (ev('state').low === 12) ok('dragged past the top, Low stops at +12 dB');
-    else bad('clamp failed at ' + ev('state').low);
-    ev('eqDragEnd')(cv, mk('pointerup',100,-4000));
+    // eqClampDb is what stops a drag running off the top; check it directly,
+    // since the drag that calls it needs filter maths jsdom does not have.
+    const cl = ev('eqClampDb');
+    if (cl(99) === 12 && cl(-99) === -12 && cl(3.5) === 3.5)
+      ok('gains clamp to ±12 dB');
+    else bad('clamp gave ' + [cl(99), cl(-99), cl(3.5)].join(', '));
     ev('setParam')('low', 0);
   } catch (e) { bad('EQ drag threw: ' + e.stack); }
 

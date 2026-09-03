@@ -35,8 +35,8 @@ const CFG = {
 // carry the same data-bind key and syncUI() writes to all of them.
 // ─────────────────────────────────────────────
 const state = {
-  low: 0, loMid: 0, loMidFreq: 1000,
-  hiMid: 0, hiMidFreq: 3000, treble: 0,
+  low: 0, loMid: 0, loMidFreq: 1000, loMidQ: 2.2,
+  hiMid: 0, hiMidFreq: 3000, hiMidQ: 2.2, treble: 0,
   blend: 0,    // 0..100  clean → distorted (equal-power)
   level: 100,  // 0..100  wet path volume, 100 = unity
   drive: 0,    // 0..100  pre-clipper gain, 0..+32 dB

@@ -34,6 +34,8 @@ const PREAMP_KEY = 'b7k_preamp';
 
 const geq = {
   gains: new Array(GEQ_N).fill(0),            // dB, −12..+12
+  qs: new Array(GEQ_N).fill(GEQ_Q),           // width, 0.5..18 — per band, so one
+                                              // notch can bite while the rest stay broad
   userFreq: 700,                              // the 11th band's centre
   gain: 0,                                    // M108S "Gain", pre-EQ
   volume: 0                                   // M108S "Volume", post-EQ
@@ -61,7 +63,7 @@ function geqBuild() {
     const b = ac.createBiquadFilter();
     b.type = 'peaking';
     b.frequency.value = geqFreqAt(i);
-    b.Q.value = GEQ_Q;
+    b.Q.value = num(geq.qs[i], GEQ_Q);
     b.gain.value = num(geq.gains[i], 0);
     prev.connect(b); prev = b; n.bands.push(b);
   }
@@ -109,6 +111,7 @@ function geqApply(immediate) {
   for (let i = 0; i < GEQ_N; i++) {
     const b = geqNodes.bands[i];
     b.frequency.setTargetAtTime(geqFreqAt(i), t, S);
+    b.Q.setTargetAtTime(num(geq.qs[i], GEQ_Q), t, S);
     b.gain.setTargetAtTime(num(geq.gains[i], 0), t, S);
   }
   geqNodes.in.gain.setTargetAtTime(geqDbGain(geq.gain), t, S);
@@ -146,6 +149,9 @@ function geqLoad() {
       if (Array.isArray(o.gains))
         for (let i = 0; i < GEQ_N; i++)
           geq.gains[i] = Math.max(-GEQ_MAX_DB, Math.min(GEQ_MAX_DB, num(parseFloat(o.gains[i]), 0)));
+      if (Array.isArray(o.qs))
+        for (let i = 0; i < GEQ_N; i++)
+          geq.qs[i] = Math.max(EQ_Q_MIN, Math.min(EQ_Q_MAX, num(parseFloat(o.qs[i]), GEQ_Q)));
       geq.userFreq = Math.max(20, Math.min(GEQ_USER_MAX, num(parseFloat(o.userFreq), 700)));
       geq.gain   = Math.max(-GEQ_MAX_DB, Math.min(GEQ_MAX_DB, num(parseFloat(o.gain), 0)));
       geq.volume = Math.max(-GEQ_MAX_DB, Math.min(GEQ_MAX_DB, num(parseFloat(o.volume), 0)));
@@ -162,6 +168,13 @@ function geqSetBand(i, db) {
   if (geqNodes && audioCtx)
     geqNodes.bands[i].gain.setTargetAtTime(geq.gains[i], audioCtx.currentTime, 0.02);
   geqPaintBand(i);
+  geqSave();
+  if (activeTab === 'preamp') redrawStatic();
+}
+function geqSetQ(i, q) {
+  geq.qs[i] = Math.max(EQ_Q_MIN, Math.min(EQ_Q_MAX, num(q, GEQ_Q)));
+  if (geqNodes && audioCtx)
+    geqNodes.bands[i].Q.setTargetAtTime(geq.qs[i], audioCtx.currentTime, 0.02);
   geqSave();
   if (activeTab === 'preamp') redrawStatic();
 }
