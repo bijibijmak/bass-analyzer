@@ -661,6 +661,49 @@ setTimeout(() => {
       ok('WAV: full scale maps to +32767 / -32768 without wrapping');
     else bad(`WAV clipping wrong: ${dv.getInt16(46, true)} / ${dv.getInt16(48, true)}`);
 
+    // The new chunk walkers replace a concatenate-then-slice path. They are
+    // pure arithmetic over the chunk list, so jsdom can check the edges
+    // properly — off-by-one here would silently clip the start of every take.
+    ev('audioCtx = { sampleRate: 48000 }');
+    const F = n => w.eval('Float32Array');
+    const mk = a => { const f = new (F())(a.length); f.set(a); return f; };
+
+    const chunks = [mk([0,1,2,3,4]), mk([5,6,7,8,9]), mk([10,11,12,13,14])];
+    const dest = new (F())(6);
+    ev('loopCopyRange')(chunks, 4, 10, dest);
+    if ([...dest].join(',') === '4,5,6,7,8,9') ok('loopCopyRange spans chunk boundaries exactly');
+    else bad('loopCopyRange gave ' + [...dest].join(','));
+
+    const d2 = new (F())(3);
+    ev('loopCopyRange')(chunks, 0, 3, d2);
+    if ([...d2].join(',') === '0,1,2') ok('loopCopyRange handles a range inside one chunk');
+    else bad('loopCopyRange gave ' + [...d2].join(','));
+
+    // 1000 silent, 1000 loud, 1000 silent — in 3 chunks. Pad is 10 ms = 480.
+    const sil = () => mk(new Array(1000).fill(0));
+    const loud = () => mk(new Array(1000).fill(0.5));
+    const b = ev('loopTrimChunks')([sil(), loud(), sil()], 3000);
+    if (b[0] === 1000 - 480 && b[1] === 2000 + 480)
+      ok(`loopTrimChunks found the signal at ${b[0]}..${b[1]} (1000..2000 plus 10 ms padding)`);
+    else bad('loopTrimChunks gave ' + b.join('..') + ', expected 520..2480');
+
+    const allSil = ev('loopTrimChunks')([sil(), sil()], 2000);
+    if (allSil[0] === 0 && allSil[1] === 2000) ok('a silent take is not trimmed to nothing');
+    else bad('silent take trimmed to ' + allSil.join('..'));
+
+    const fmt = ev('loopFmtSec');
+    const times = [[45.2,'45.20 s'],[59.999,'1:00'],[187,'3:07'],[300,'5:00'],[1200,'20:00']];
+    const wrongT = times.filter(([v,e]) => fmt(v) !== e);
+    if (!wrongT.length) ok('times read 45.20 s, 3:07, 5:00, 20:00');
+    else bad('bad formatting: ' + JSON.stringify(wrongT.map(([v]) => [v, fmt(v)])));
+
+    // jsdom answers (pointer: coarse) false, so it is the desktop ceiling.
+    if (ev('loopMaxSec')() === 1200) ok('desktop gets the 20-minute ceiling');
+    else bad('loopMaxSec is ' + ev('loopMaxSec')());
+    if (ev('LOOP_MAX_PHONE_SEC') === 300) ok('phones get 5 minutes (~55 MB of audio)');
+    else bad('phone cap is ' + ev('LOOP_MAX_PHONE_SEC'));
+    ev('audioCtx = null');
+
     ev('loopReset')();
     ok('loopReset survives a context that never existed');
   } catch (e) { bad('looper threw: ' + e.stack); }

@@ -1486,6 +1486,7 @@ body {
         <button class="noise-btn" id="loopRecBtn2" onclick="loopRecToggle()">&#9679; Record</button>
         <button class="noise-btn" id="loopPlayBtn2" onclick="loopToggle()" disabled>&#9654; Loop</button>
         <span class="fft-info" id="loopTime2"><em>&mdash;</em></span>
+        <span class="noise-tool-desc" id="loopLimit"></span>
       </div>
       <div class="loop-wave-wrap"><canvas id="loopWave" height="56"></canvas></div>
       <div class="noise-tool-desc" id="loopMsg">
@@ -6526,7 +6527,17 @@ function initComp() { compLoad(); wireComp(); compSyncUI(); }
 // So the looper adds exactly zero samples, on every path.
 // ═══════════════════════════════════════════════════════════
 
-const LOOP_MAX_SEC = 60;
+// A minute was right for "record a lick", which is what this was built for.
+// It is wrong for a song, and it stopped without ever saying why — the cap
+// was invisible until you hit it.
+//
+// The ceiling is really a memory budget: audio is held uncompressed at four
+// bytes a sample, so 48 kHz mono costs ~11 MB per minute. 20 minutes is
+// ~220 MB, fine on a desktop and reckless on a phone, so a phone gets five.
+const LOOP_MAX_PHONE_SEC = 5 * 60;
+const LOOP_MAX_DESK_SEC  = 20 * 60;
+const loopMaxSec = () => (typeof mqCoarse !== 'undefined' && mqCoarse && mqCoarse.matches)
+  ? LOOP_MAX_PHONE_SEC : LOOP_MAX_DESK_SEC;
 const LOOP_REC_WRAPPER = `
 class LoopRec extends AudioWorkletProcessor {
   constructor(){ super(); this.on = false;
@@ -6546,7 +6557,7 @@ const LOOP_WORKLET_BLOCKED = (typeof location !== 'undefined' && location.protoc
 const loop = { autoTrim: true, muteLive: true, level: 100 };
 let loopBuf = null, loopSrc = null, loopGain = null, liveGain = null;
 let loopRecNode = null, loopRecChunks = [], loopRecLen = 0, loopRecOn = false;
-let loopModuleAdded = false, loopHost = '—', loopPlaying = false;
+let loopModuleAdded = false, loopHost = '—', loopPlaying = false, loopHitCap = false;
 let loopSink = null;
 let loopExportRec = null, loopExportChunks = [], loopExportTap = null;
 let loopExportRaw = [], loopExportLen = 0, loopExportOn = false;
@@ -6597,7 +6608,9 @@ async function loopBuildRec() {
 
 function loopPush(chunk) {
   if (!loopRecOn) return;
-  if (loopRecLen + chunk.length > LOOP_MAX_SEC * audioCtx.sampleRate) { loopStopRec(); return; }
+  if (loopRecLen + chunk.length > loopMaxSec() * audioCtx.sampleRate) {
+    loopHitCap = true; loopStopRec(); return;
+  }
   loopRecChunks.push(chunk); loopRecLen += chunk.length;
   loopSyncUI();
 }
@@ -6618,31 +6631,73 @@ function loopStopRec() {
   if (loopRecNode && loopRecNode.port) loopRecNode.port.postMessage({ on: false });
   if (!loopRecLen) { loopSay('Nothing recorded.'); loopSyncUI(); return; }
 
-  const all = new Float32Array(loopRecLen);
-  let at = 0;
-  for (const c of loopRecChunks) { all.set(c, at); at += c.length; }
-  loopRecChunks = [];
-
-  const [s, e] = loop.autoTrim ? loopTrimBounds(all) : [0, all.length];
+  // Assemble straight into the AudioBuffer. The old path built a full-length
+  // scratch array first and copied that in, so peak memory was three copies
+  // of the take. At twenty minutes that is the difference between a file and
+  // a dead tab.
+  const [s, e] = loop.autoTrim ? loopTrimChunks(loopRecChunks, loopRecLen) : [0, loopRecLen];
   const n = Math.max(1, e - s);
   loopBuf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
-  loopBuf.getChannelData(0).set(all.subarray(s, e));
+  loopCopyRange(loopRecChunks, s, e, loopBuf.getChannelData(0));
+  loopRecChunks = []; loopRecLen = 0;
   loopFadeEdges(loopBuf.getChannelData(0));
   loopDrawWave();
-  loopSay('Recorded ' + loopSec().toFixed(2) + ' s. Press Loop to play it through the preamp.');
+  loopSay(loopHitCap
+    ? 'Stopped at the ' + Math.round(loopMaxSec() / 60) + '-minute limit — kept '
+      + loopFmtSec(loopSec()) + '. Press Loop to hear it.'
+    : 'Recorded ' + loopFmtSec(loopSec()) + '. Press Loop to play it through the preamp.');
+  loopHitCap = false;
   loopSyncUI();
 }
 
-// Trim leading and trailing silence so the loop turns over cleanly.
-function loopTrimBounds(a) {
+// Trim leading and trailing silence so the loop turns over cleanly. Walks the
+// chunk list rather than a concatenated copy of it, so trimming a 20-minute
+// take costs no extra memory at all.
+function loopTrimChunks(chunks, total) {
   let peak = 0;
-  for (let i = 0; i < a.length; i++) { const v = a[i] < 0 ? -a[i] : a[i]; if (v > peak) peak = v; }
+  for (const c of chunks) for (let i = 0; i < c.length; i++) { const v = c[i] < 0 ? -c[i] : c[i]; if (v > peak) peak = v; }
   const th = Math.max(peak * 0.02, 1e-4);
-  let s = 0, e = a.length;
-  while (s < a.length && Math.abs(a[s]) < th) s++;
-  while (e > s && Math.abs(a[e - 1]) < th) e--;
+  let s = -1, e = total, at = 0;
+  for (const c of chunks) {
+    for (let i = 0; i < c.length; i++) if ((c[i] < 0 ? -c[i] : c[i]) >= th) { s = at + i; break; }
+    if (s >= 0) break;
+    at += c.length;
+  }
+  if (s < 0) return [0, total];            // nothing above the floor
+  at = total;
+  for (let k = chunks.length - 1; k >= 0; k--) {
+    const c = chunks[k]; at -= c.length; let hit = -1;
+    for (let i = c.length - 1; i >= 0; i--) if ((c[i] < 0 ? -c[i] : c[i]) >= th) { hit = i; break; }
+    if (hit >= 0) { e = at + hit + 1; break; }
+  }
   const pad = Math.round(audioCtx.sampleRate * 0.01);
-  return [Math.max(0, s - pad), Math.min(a.length, e + pad)];
+  return [Math.max(0, s - pad), Math.min(total, e + pad)];
+}
+
+// Copy samples [s, e) out of the chunk list into dest, chunk by chunk.
+function loopCopyRange(chunks, s, e, dest) {
+  let at = 0, w = 0;
+  for (const c of chunks) {
+    const cs = at, ce = at + c.length;
+    if (ce > s && cs < e) {
+      const from = Math.max(0, s - cs), to = Math.min(c.length, e - cs);
+      dest.set(c.subarray(from, to), w);
+      w += to - from;
+    }
+    at = ce;
+    if (at >= e) break;
+  }
+}
+
+// 45.20 s below a minute, 3:07 above it.
+// Branch on the value we would actually PRINT, not the raw one: 59.999 is
+// under a minute but rounds to "60.00 s", which reads as a minute displayed
+// in seconds. Deciding after rounding sends it to 1:00 instead.
+function loopFmtSec(s) {
+  const shown = Math.round(s * 100) / 100;
+  if (shown < 60) return shown.toFixed(2) + ' s';
+  const whole = Math.round(s);
+  return Math.floor(whole / 60) + ':' + String(whole % 60).padStart(2, '0');
 }
 // 5 ms in and out, so the seam does not click on every pass.
 function loopFadeEdges(d) {
@@ -6824,8 +6879,11 @@ function loopSyncUI() {
     el.disabled = !loopBuf;
   }));
   ['loopTime', 'loopTime2'].forEach(id => set(id, el => {
-    el.innerHTML = (loopBuf || loopRecOn) ? '<em>' + secs.toFixed(2) + ' s</em>' : '<em>—</em>';
+    el.innerHTML = (loopBuf || loopRecOn)
+      ? '<em>' + loopFmtSec(secs) + (loopRecOn ? ' / ' + loopFmtSec(loopMaxSec()) : '') + '</em>'
+      : '<em>—</em>';
   }));
+  set('loopLimit', el => el.textContent = 'up to ' + Math.round(loopMaxSec() / 60) + ' min on this device');
   set('loopHost', el => el.innerHTML = 'capture <em>' + loopHost + '</em>');
   set('loopExportBtn', el => {
     el.textContent = loopExportOn ? '■ Stop capture' : '● Capture output';
@@ -6855,7 +6913,7 @@ function loopReset() {
   if (loopSrc) { try { loopSrc.stop(); } catch (e) {} }
   loopSrc = null; loopGain = null; liveGain = null; loopSink = null;
   loopRecNode = null; loopRecChunks = []; loopRecLen = 0; loopRecOn = false;
-  loopModuleAdded = false; loopPlaying = false; loopHost = '—';
+  loopModuleAdded = false; loopPlaying = false; loopHost = '—'; loopHitCap = false;
   loopExportTap = null; loopExportRec = null; loopExportRaw = [];
   loopExportLen = 0; loopExportOn = false;
   loopSyncUI();
