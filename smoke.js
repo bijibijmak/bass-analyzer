@@ -955,6 +955,38 @@ setTimeout(() => {
       ok('a stored drawing missing its anchors gets them back');
     else bad('normalise gave ' + JSON.stringify(rebuilt));
 
+    // The drive stage now appears on all three preamps. One state, three
+    // sets of controls — a copy that does not follow the others is worse
+    // than no copy at all.
+    // The B7K drives Blend from a knob, the other two from faders, so the
+    // count is two faders plus one knob — not three of either.
+    const nBlend = d.querySelectorAll('input[data-bind="blend"]').length;
+    const nKnob  = d.querySelectorAll('[data-knob="blend"]').length;
+    const nGrunt = d.querySelectorAll('[data-sw="grunt"]').length;
+    if (nBlend === 2 && nKnob === 1) ok('Blend appears three times: two faders and the B7K knob');
+    else bad(`${nBlend} faders + ${nKnob} knobs — the curve is missing its drive section`);
+    if (nGrunt >= 3) ok(`${nGrunt} Grunt switches`);
+    else bad('only ' + nGrunt + ' Grunt switches');
+
+    ev('setParam')('blend', 42);
+    const vals = [...d.querySelectorAll('input[data-bind="blend"]')].map(e => parseFloat(e.value));
+    if (vals.every(v => v === 42)) ok('setting Blend moves every copy — three faces of one state');
+    else bad('copies disagree: ' + vals.join(', '));
+    const labels = [...d.querySelectorAll('[data-val="blend"]')].map(e => e.textContent);
+    if (labels.every(t => t === labels[0])) ok('and every readout agrees: ' + labels[0]);
+    else bad('readouts disagree: ' + labels.join(' / '));
+
+    // Level does nothing at Blend 0; every card should say so, not just one.
+    ev('setParam')('blend', 0);
+    const cards = [...d.querySelectorAll('#cardLevel, .card-level')];
+    if (cards.length >= 3 && cards.every(c => c.classList.contains('dimmed')))
+      ok(`all ${cards.length} Level cards dim when Blend is fully clean`);
+    else bad(`${cards.filter(c=>c.classList.contains('dimmed')).length} of ${cards.length} dimmed`);
+    ev('setParam')('blend', 50);
+    if (cards.every(c => !c.classList.contains('dimmed'))) ok('and undim together');
+    else bad('a card stayed dimmed');
+    ev('setParam')('blend', 0);
+
     ev('curveClear')();
     ev('setPreamp')('b7k');
   } catch (e) { bad('curve EQ threw: ' + e.stack); }

@@ -1108,7 +1108,7 @@ body {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · 72c825b</span></p>
+    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · 417217e</span></p>
   </header>
   <div class="header-actions">
     <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
@@ -1467,7 +1467,7 @@ body {
           <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
           <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
         </div>
-        <div class="noise-tool" id="cardLevelGeq">
+        <div class="noise-tool card-level">
           <div class="ctrl-label">Level <span class="val" data-val="level">0.0 dB</span></div>
           <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
         </div>
@@ -1500,6 +1500,40 @@ body {
 
 
 <div id="preampCurve" style="display:none">
+
+  <div class="section-label">Drive &mdash; <span>the same section, ahead of the curve</span></div>
+  <div class="noise-section">
+    <div class="noise-tool">
+      <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
+      <input type="range" data-bind="blend" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="noise-tool card-level">
+      <div class="ctrl-label">Level <span class="val" data-val="level">0.0 dB</span></div>
+      <input type="range" data-bind="level" min="0" max="100" value="100" step="1">
+    </div>
+    <div class="noise-tool">
+      <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
+      <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="noise-tool geq-switch-row">
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n3" data-sw="grunt" tabindex="0" role="button" aria-label="Grunt switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="grunt"><span data-v="2">Fat</span><span data-v="0">Thin</span><span data-v="1">Raw</span></div>
+        </div>
+        <div class="sw-cap">Grunt</div>
+      </div>
+      <div class="swcell">
+        <div class="sw-main">
+          <div class="sw-pill n3" data-sw="attack" tabindex="0" role="button" aria-label="Attack switch"><div class="sw-dot"></div></div>
+          <div class="sw-labels" data-swlabels="attack"><span data-v="1">Flat</span><span data-v="2">Boost</span><span data-v="0">Cut</span></div>
+        </div>
+        <div class="sw-cap">Attack</div>
+      </div>
+      <div class="noise-tool-desc" style="flex:1 1 100%">The same controls as on the B7K panel &mdash; one state, three faces of it.</div>
+    </div>
+  </div>
+
   <div class="section-label">Curve &mdash; <span>draw the response</span></div>
   <div class="para-panel">
     <div class="para-hint">
@@ -2998,6 +3032,9 @@ function syncUI() {
   const dim = state.blend <= 0;
   const card = document.getElementById('cardLevel');
   if (card) card.classList.toggle('dimmed', dim);
+  // Every preamp has its own Level card; they all dim together. The graphic
+  // EQ's used to carry an id nothing referenced, so it never dimmed at all.
+  document.querySelectorAll('.card-level').forEach(c => c.classList.toggle('dimmed', dim));
   document.querySelectorAll('input[data-bind="level"]').forEach(el => { el.disabled = dim; });
   const lvlKnob = document.querySelector('[data-knob="level"]');
   if (lvlKnob) {

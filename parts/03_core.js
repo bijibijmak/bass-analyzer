@@ -763,6 +763,9 @@ function syncUI() {
   const dim = state.blend <= 0;
   const card = document.getElementById('cardLevel');
   if (card) card.classList.toggle('dimmed', dim);
+  // Every preamp has its own Level card; they all dim together. The graphic
+  // EQ's used to carry an id nothing referenced, so it never dimmed at all.
+  document.querySelectorAll('.card-level').forEach(c => c.classList.toggle('dimmed', dim));
   document.querySelectorAll('input[data-bind="level"]').forEach(el => { el.disabled = dim; });
   const lvlKnob = document.querySelector('[data-knob="level"]');
   if (lvlKnob) {
