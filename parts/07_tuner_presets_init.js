@@ -231,6 +231,7 @@ function normalizePreset(p) {
     compAttack:    pnum(o.compAttack,      5, 0.2, 100),
     compRelease:   pnum(o.compRelease,   120,  10, 1000),
     compMakeup:    pnum(o.compMakeup,      0,   0, 24),
+    compAutoMakeup: o.compAutoMakeup === undefined ? true : !!o.compAutoMakeup,
     compKnee:      pnum(o.compKnee,        6,   0, 24)
   };
 }
@@ -284,7 +285,7 @@ function savePreset() {
     geqVolume: geq.volume,
     compOn: comp.on, compThreshold: comp.threshold, compRatio: comp.ratio,
     compAttack: comp.attack, compRelease: comp.release,
-    compMakeup: comp.makeup, compKnee: comp.knee
+    compMakeup: comp.makeup, compAutoMakeup: comp.autoMakeup, compKnee: comp.knee
   }));
   savePresetsToStorage(presets);
   nameEl.value = '';
@@ -309,7 +310,7 @@ function applyPreset(idx) {
 
   comp.on = p.compOn; comp.threshold = p.compThreshold; comp.ratio = p.compRatio;
   comp.attack = p.compAttack; comp.release = p.compRelease;
-  comp.makeup = p.compMakeup; comp.knee = p.compKnee;
+  comp.makeup = p.compMakeup; comp.autoMakeup = p.compAutoMakeup; comp.knee = p.compKnee;
   compSave(); compApply();
   setPreamp(p.preamp);      // also redraws, so the curve follows the recall
 

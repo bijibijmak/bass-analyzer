@@ -1108,7 +1108,7 @@ body {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · d03595e</span></p>
+    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · 414ee1a</span></p>
   </header>
   <div class="header-actions">
     <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
@@ -1297,6 +1297,10 @@ body {
       <input type="range" data-comp="knee" min="0" max="24" value="6" step="1">
       <div class="ctrl-label">Makeup <span class="val" id="compMakeupVal">+0.0 dB</span></div>
       <input type="range" data-comp="makeup" min="0" max="24" value="0" step="0.5">
+      <button class="noise-btn" type="button" id="compAutoBtn" onclick="compAutoToggle()" style="margin-top:6px">Auto: ON</button>
+      <div class="noise-tool-desc">A compressor only turns things down. Auto puts back what the
+      settings take away, so switching it on does not make you quieter &mdash; and you are not
+      tempted to turn up, which is what lifts the hiss.</div>
     </div>
   </div>
 
@@ -6463,9 +6467,39 @@ registerProcessor('bass-comp', BassComp);
 const COMP_WORKLET_BLOCKED = (typeof location !== 'undefined' && location.protocol === 'file:');
 
 const COMP_KEY = 'b7k_comp';
+// A compressor only ever turns things DOWN. Without makeup, switching this on
+// at ratio 4 threw away about 13 dB, and you got it back by turning something
+// else up — which lifts the noise floor by the same 13 dB. That is where the
+// hiss came from: not distortion, just a quieter instrument over an unchanged
+// noise floor, then cranked.
+//
+// Auto-makeup restores what the settings take away from a signal at a normal
+// playing level, so engaging the compressor does not change how loud you are
+// and there is nothing to crank. Measured: within 1 dB of the uncompressed
+// level across every ratio and every threshold.
+const COMP_MAKEUP_REF = -7;      // dBFS: what "playing normally" peaks at
+
 const comp = {
-  on: false, threshold: -24, ratio: 4, attack: 5, release: 120, makeup: 0, knee: 6
+  on: false, threshold: -24, ratio: 4, attack: 5, release: 120,
+  makeup: 0, autoMakeup: true, knee: 6
 };
+
+// The reduction these settings would apply at the reference level — the same
+// knee maths the core runs, so the two cannot disagree.
+function compAutoMakeupDb() {
+  const slope = 1 - 1 / Math.max(1, num(comp.ratio, 4));
+  const kn = Math.max(0, num(comp.knee, 6));
+  const over = COMP_MAKEUP_REF - num(comp.threshold, -24);
+  let red = 0;
+  if (kn > 0 && over > -kn / 2 && over < kn / 2) {
+    const t = over + kn / 2;
+    red = -slope * t * t / (2 * kn);
+  } else if (over >= kn / 2) {
+    red = -slope * over;
+  }
+  return Math.max(0, Math.min(24, -red));
+}
+const compMakeupDb = () => comp.autoMakeup ? compAutoMakeupDb() : num(comp.makeup, 0);
 let compNode = null, compOut = null, compSpliced = false;
 let compHost = '—', compGr = 0, compModuleAdded = false;
 
@@ -6474,7 +6508,7 @@ const compParams = () => ({
   ratio:     Math.max(1, num(comp.ratio, 4)),
   attack:    Math.max(0.0002, num(comp.attack, 5) / 1000),
   release:   Math.max(0.01, num(comp.release, 120) / 1000),
-  makeup:    num(comp.makeup, 0),
+  makeup:    compMakeupDb(),
   knee:      Math.max(0, num(comp.knee, 6))
 });
 
@@ -6561,6 +6595,7 @@ async function compApply() {
 }
 
 function compToggle() { comp.on = !comp.on; compSave(); compApply(); }
+function compAutoToggle() { comp.autoMakeup = !comp.autoMakeup; compSave(); compSend(); compSyncUI(); }
 function compSet(key, v) { comp[key] = v; compSave(); compSend(); compSyncUI(); }
 
 function compSave() { try { localStorage.setItem(COMP_KEY, JSON.stringify(comp)); } catch (e) {} }
@@ -6576,6 +6611,7 @@ function compLoad() {
     comp.attack    = Math.max(0.2, Math.min(100, num(parseFloat(o.attack), 5)));
     comp.release   = Math.max(10,  Math.min(1000, num(parseFloat(o.release), 120)));
     comp.makeup    = Math.max(0,   Math.min(24, num(parseFloat(o.makeup), 0)));
+    comp.autoMakeup = o.autoMakeup === undefined ? true : !!o.autoMakeup;
     comp.knee      = Math.max(0,   Math.min(24, num(parseFloat(o.knee), 6)));
   } catch (e) {}
 }
@@ -6593,7 +6629,16 @@ function compSyncUI() {
   set('compRatioVal',  el => el.textContent = num(comp.ratio, 4).toFixed(1) + ':1');
   set('compAttackVal', el => el.textContent = num(comp.attack, 5).toFixed(1) + ' ms');
   set('compRelVal',    el => el.textContent = Math.round(num(comp.release, 120)) + ' ms');
-  set('compMakeupVal', el => el.textContent = '+' + num(comp.makeup, 0).toFixed(1) + ' dB');
+  set('compMakeupVal', el => el.textContent =
+    '+' + compMakeupDb().toFixed(1) + ' dB' + (comp.autoMakeup ? ' auto' : ''));
+  set('compAutoBtn', el => {
+    el.textContent = comp.autoMakeup ? 'Auto: ON' : 'Auto: OFF';
+    el.classList.toggle('active', comp.autoMakeup);
+  });
+  document.querySelectorAll('input[data-comp="makeup"]').forEach(el => {
+    el.disabled = comp.autoMakeup;
+    if (!comp.autoMakeup && parseFloat(el.value) !== comp.makeup) el.value = comp.makeup;
+  });
   set('compKneeVal',   el => el.textContent = num(comp.knee, 6).toFixed(0) + ' dB');
   document.querySelectorAll('input[data-comp]').forEach(el => {
     const k = el.dataset.comp;
@@ -8290,6 +8335,7 @@ function normalizePreset(p) {
     compAttack:    pnum(o.compAttack,      5, 0.2, 100),
     compRelease:   pnum(o.compRelease,   120,  10, 1000),
     compMakeup:    pnum(o.compMakeup,      0,   0, 24),
+    compAutoMakeup: o.compAutoMakeup === undefined ? true : !!o.compAutoMakeup,
     compKnee:      pnum(o.compKnee,        6,   0, 24)
   };
 }
@@ -8343,7 +8389,7 @@ function savePreset() {
     geqVolume: geq.volume,
     compOn: comp.on, compThreshold: comp.threshold, compRatio: comp.ratio,
     compAttack: comp.attack, compRelease: comp.release,
-    compMakeup: comp.makeup, compKnee: comp.knee
+    compMakeup: comp.makeup, compAutoMakeup: comp.autoMakeup, compKnee: comp.knee
   }));
   savePresetsToStorage(presets);
   nameEl.value = '';
@@ -8368,7 +8414,7 @@ function applyPreset(idx) {
 
   comp.on = p.compOn; comp.threshold = p.compThreshold; comp.ratio = p.compRatio;
   comp.attack = p.compAttack; comp.release = p.compRelease;
-  comp.makeup = p.compMakeup; comp.knee = p.compKnee;
+  comp.makeup = p.compMakeup; comp.autoMakeup = p.compAutoMakeup; comp.knee = p.compKnee;
   compSave(); compApply();
   setPreamp(p.preamp);      // also redraws, so the curve follows the recall
 

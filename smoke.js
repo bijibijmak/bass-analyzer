@@ -197,7 +197,7 @@ setTimeout(() => {
     // still be a finite number.
     // paraBands is an array of objects; its contents are checked below rather
     // than by the flat finite sweep.
-    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'curvePts', 'compOn']);
+    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'curvePts', 'compOn', 'compAutoMakeup']);
     const badBand = (arr) => !Array.isArray(arr) || arr.length < 2 || arr.some(b =>
       !b || !Number.isFinite(b.f) || !Number.isFinite(b.db) ||
       b.f < 20 || b.f > 10000 || Math.abs(b.db) > 18);
@@ -991,6 +991,33 @@ setTimeout(() => {
     if (cards.every(c => !c.classList.contains('dimmed'))) ok('and undim together');
     else bad('a card stayed dimmed');
     ev('setParam')('blend', 0);
+
+    // Auto-makeup: the whole point is that turning the compressor on does not
+    // make you quieter, so there is nothing to turn up and nothing to lift the
+    // hiss. Check it tracks ratio and threshold, and that OFF means manual.
+    const comp = ev('comp');
+    comp.autoMakeup = true; comp.threshold = -24; comp.knee = 6;
+    comp.ratio = 1;
+    if (ev('compMakeupDb')() === 0) ok('at ratio 1:1 nothing is taken away, so nothing is put back');
+    else bad('makeup at 1:1 is ' + ev('compMakeupDb')());
+    comp.ratio = 4;
+    const m4 = ev('compMakeupDb')();
+    comp.ratio = 8;
+    const m8 = ev('compMakeupDb')();
+    if (m4 > 8 && m8 > m4) ok(`makeup rises with ratio: +${m4.toFixed(1)} dB at 4:1, +${m8.toFixed(1)} at 8:1`);
+    else bad(`makeup went ${m4.toFixed(1)} -> ${m8.toFixed(1)}`);
+    comp.ratio = 4; comp.threshold = -36;
+    const mLow = ev('compMakeupDb')();
+    if (mLow > m4) ok(`and with threshold: +${mLow.toFixed(1)} dB at -36 vs +${m4.toFixed(1)} at -24`);
+    else bad('makeup ignored the threshold');
+    comp.threshold = -24;
+    comp.autoMakeup = false; comp.makeup = 3;
+    if (ev('compMakeupDb')() === 3) ok('Auto off hands the dial back to you');
+    else bad('manual makeup is ' + ev('compMakeupDb')());
+    comp.autoMakeup = true;
+    if (ev('compParams')().makeup === ev('compAutoMakeupDb')())
+      ok('and the value the DSP receives is the one shown');
+    else bad('compParams disagrees with the readout');
 
     ev('curveClear')();
     ev('setPreamp')('b7k');
