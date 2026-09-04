@@ -205,15 +205,29 @@ else bad('record tap is not on inGainNode — the recording would carry the prea
 if (/loopSrc\.connect\(loopGain\)/.test(js) && /loopGain\.connect\(preampIn\)/.test(js))
   ok('playback re-enters where the live instrument does');
 else bad('loop playback does not land on preampIn');
-if (/gateGainNode\.connect\(loopExportTap\)/.test(js))
-  ok('export taps the finished output, after cleanup');
-else bad('export does not tap gateGainNode');
-// Nothing in the looper may sit between the instrument and the speakers.
+// Export renders the take offline rather than taping the live output, so
+// there is no capture node at all any more — nothing to accidentally splice
+// into the path you are monitoring.
+if (/function loopRenderOffline/.test(js) && /startRendering\(\)/.test(js))
+  ok('export re-renders the take offline instead of taping the live output');
+else bad('loopRenderOffline missing');
+if (!/gateGainNode\.connect\(loop/.test(js))
+  ok('nothing taps the output path any more');
+else bad('something still taps gateGainNode');
 {
-  const inSeries = /(?:liveGain|preampIn|dtOut|compOut)\.connect\(loop(?:RecNode|ExportTap)\)/.test(js);
-  if (!inSeries) ok('no capture node is in series with the monitored path');
-  else bad('a capture node is spliced into the monitored path — that would add block latency');
+  const inSeries = /(?:liveGain|preampIn|dtOut|compOut)\.connect\(loopRecNode\)/.test(js);
+  if (!inSeries) ok('the record tap is still a branch, not in series with the monitored path');
+  else bad('the record tap is spliced into the monitored path');
 }
+// The renderer must cover every preamp, or exporting on one of them would
+// silently give you a dry take.
+['geq', 'curve'].forEach(k => {
+  if (new RegExp(`kind === '${k}'`).test(js)) ok(`the renderer handles the ${k} preamp`);
+  else bad(`the renderer has no branch for ${k} — its export would come out unfiltered`);
+});
+if (/setTimeout\(\(\) => \{\s*try \{ rec\.stop/.test(js))
+  ok('the realtime encoder gets a grace period before stop, so it cannot drop its last chunk');
+else bad('MediaRecorder is stopped the instant playback ends — the tail can be lost');
 if (/loopSrc\.loop = true/.test(js)) ok('the buffer source actually loops');
 else bad('loop flag never set');
 if (/audio\/mp4/.test(js) && !/audio\/mpeg/.test(js))
@@ -482,7 +496,7 @@ console.log('\n[15] frequency axis');
   // parameter and not axis code.
   const stray = code.split('\n')
     .map((l, i) => [i + 1, l])
-    .filter(([, l]) => /\b20000\b/.test(l) && !/filterHiss/.test(l));
+    .filter(([, l]) => /\b20000\b/.test(l) && !/hiss/i.test(l));
   if (stray.length) bad('20000 outside the hiss filter at line(s) ' + stray.map(x => x[0]).join(', '));
   else ok('the only 20000 literals are the hiss filter cutoff');
 

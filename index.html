@@ -1108,7 +1108,7 @@ body {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · 417217e</span></p>
+    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · d03595e</span></p>
   </header>
   <div class="header-actions">
     <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
@@ -1588,17 +1588,19 @@ body {
     </div>
 
     <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="loopExportBtn" onclick="loopExportToggle()">&#9679; Capture output</button>
-      </div>
       <div class="loop-sw-row">
-        <button class="noise-btn" type="button" id="loopWavBtn" onclick="loopDownload('wav')" disabled>Download WAV</button>
-        <button class="noise-btn" type="button" id="loopM4aBtn" onclick="loopDownload('m4a')" disabled>Download M4A</button>
+        <button class="noise-btn" type="button" id="loopWavBtn" onclick="loopDownloadWav()" disabled>Download WAV</button>
+        <button class="noise-btn" type="button" id="loopM4aBtn" onclick="loopDownloadM4a()" disabled>Download M4A &mdash; slow</button>
       </div>
+      <div class="noise-tool-desc" id="loopProgress"></div>
       <div class="noise-tool-desc">
-        Records the finished sound &mdash; everything, cleanup included &mdash; not the dry
-        input. WAV is lossless. No browser will encode MP3 for a web page, so the
-        compressed file is M4A (AAC), which opens everywhere MP3 does.
+        Your recorded take, run through the preamp exactly as it sounds right
+        now. No second performance: change a knob and download again for a new
+        version of the same playing.
+        <br>WAV is instant and lossless. M4A has to be encoded in realtime &mdash; the
+        browser has no faster encoder &mdash; so a five-minute take takes five minutes.
+        <br>The detune and the noise gate are not included: one is a live
+        pitch-shifter, the other follows the live meter.
       </div>
     </div>
   </div>
@@ -6673,9 +6675,7 @@ let loopBuf = null, loopSrc = null, loopGain = null, liveGain = null;
 let loopRecNode = null, loopRecChunks = [], loopRecLen = 0, loopRecOn = false;
 let loopModuleAdded = false, loopHost = '—', loopPlaying = false, loopHitCap = false;
 let loopSink = null;
-let loopExportRec = null, loopExportChunks = [], loopExportTap = null;
-let loopExportRaw = [], loopExportLen = 0, loopExportOn = false;
-let loopWavBlob = null, loopM4aBlob = null, loopExportMime = '';
+let loopBusy = false, loopProgress = '';
 
 const loopSec = () => loopBuf ? loopBuf.duration : 0;
 
@@ -6849,75 +6849,210 @@ function loopApplyGains() {
   liveGain.gain.setTargetAtTime((loopPlaying && loop.muteLive) ? 0 : 1, t, 0.02);
 }
 
-// ── Export: capture the CONDITIONED output ─────────────────
-async function loopExportStart() {
-  if (!audioRunning || !audioCtx || !gateGainNode) { loopSay('Enable audio first.'); return; }
-  loopWavBlob = loopM4aBlob = null;
-  loopExportRaw = []; loopExportLen = 0; loopExportOn = true;
+// ── Export: re-render the take through the preamp ──────────
+//
+// The old design taped the live output while you played, so exporting was a
+// performance: press record, play the thing again, press stop. Rendering
+// offline instead means the take you already have is pushed through the
+// current settings faster than realtime. Change a knob, export again, and
+// you get the same performance with the new tone.
+//
+// This graph must stay the one startAudio() wires. Same nodes, same order,
+// same parameters — and smoke.js reads applyAudioParams and asserts every
+// parameter it touches is named in here too, so a new knob cannot quietly go
+// missing from exports.
+//
+// Two things are deliberately absent, and the panel says so:
+//   · the detune, a live pitch-shift worklet and not part of the preamp
+//   · the noise gate, whose gain is driven frame by frame by the live meter
+async function loopRenderOffline() {
+  if (!loopBuf) return null;
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!OC) throw new Error('This browser cannot render offline.');
+  const sr = loopBuf.sampleRate;
+  const off = new OC(1, loopBuf.length, sr);
+  const byp = bypassed;
 
-  // Raw tap for a lossless WAV.
-  if (!loopExportTap) {
-    if (!LOOP_WORKLET_BLOCKED && audioCtx.audioWorklet && loopModuleAdded) {
-      loopExportTap = new AudioWorkletNode(audioCtx, 'loop-rec');
-      loopExportTap.port.onmessage = e => {
-        if (!loopExportOn) return;
-        loopExportRaw.push(e.data); loopExportLen += e.data.length; loopSyncUI();
-      };
-    } else {
-      loopExportTap = audioCtx.createScriptProcessor(2048, 1, 1);
-      loopExportTap.onaudioprocess = e => {
-        if (!loopExportOn) return;
-        const c = new Float32Array(e.inputBuffer.getChannelData(0));
-        loopExportRaw.push(c); loopExportLen += c.length; loopSyncUI();
-      };
-      loopExportTap.connect(loopMutedSink());
-    }
-    gateGainNode.connect(loopExportTap);
+  const src = off.createBufferSource();
+  src.buffer = loopBuf;
+  let head = src;
+
+  // ── compressor: the same worklet core the live path runs ──
+  if (comp.on && !byp) {
+    try {
+      const code = makeCompCore.toString() + '\n' + COMP_WRAPPER;
+      const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+      await off.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      const c = new AudioWorkletNode(off, 'bass-comp', { processorOptions: compParams() });
+      head.connect(c); head = c;
+    } catch (e) { console.warn('[Loop] offline compressor unavailable:', e.message); }
   }
-  if (loopExportTap.port) loopExportTap.port.postMessage({ on: true });
 
-  // And a MediaRecorder for the compressed file, straight from the browser.
-  // MP3 is not an option: no shipping browser exposes an MP3 encoder to
-  // MediaRecorder. M4A (AAC) is the closest thing everything can open.
+  // ── drive section ──
+  const bg = blendGains(byp ? 0 : num(state.blend, 0));
+  const dry   = off.createGain(); dry.gain.value   = num(bg.dry, 1);
+  const wet   = off.createGain(); wet.gain.value   = num(bg.wet, 0);
+  const level = off.createGain(); level.gain.value = byp ? 1 : num(levelGain(num(state.level, 100)), 1);
+  const drive = off.createGain(); drive.gain.value = byp ? 1 : num(driveGainOf(num(state.drive, 0)), 1);
+
+  const grunt = off.createBiquadFilter();
+  grunt.type = 'lowshelf'; grunt.frequency.value = 120;
+  grunt.gain.value = byp ? 0 : num(GRUNT_DB[state.grunt], 0);
+
+  const attack = off.createBiquadFilter();
+  attack.type = 'highshelf'; attack.frequency.value = 3000;
+  attack.gain.value = byp ? 0 : num(ATTACK_DB[state.attack], 0);
+
+  const clip = off.createWaveShaper();
+  clip.curve = makeClipCurve(4096);
+  clip.oversample = LITE ? 'none' : '4x';
+
+  const sum = off.createGain(); sum.gain.value = 1;
+  head.connect(dry); dry.connect(sum);
+  head.connect(grunt); grunt.connect(attack); attack.connect(drive);
+  drive.connect(clip); clip.connect(level); level.connect(wet); wet.connect(sum);
+
+  // ── whichever preamp is selected ──
+  let tail = sum;
+  const kind = (typeof preampKind !== 'undefined') ? preampKind : 'b7k';
+  if (kind === 'geq') {
+    const gin = off.createGain(); gin.gain.value = byp ? 1 : geqDbGain(num(geq.gain, 0));
+    sum.connect(gin);
+    let prev = gin;
+    for (let i = 0; i < GEQ_N; i++) {
+      const b = off.createBiquadFilter();
+      b.type = 'peaking';
+      b.frequency.value = geqFreqAt(i);
+      b.Q.value = num(geq.qs[i], GEQ_Q);
+      b.gain.value = byp ? 0 : num(geq.gains[i], 0);
+      prev.connect(b); prev = b;
+    }
+    const gout = off.createGain(); gout.gain.value = byp ? 1 : geqDbGain(num(geq.volume, 0));
+    prev.connect(gout); tail = gout;
+  } else if (kind === 'curve') {
+    // The solved bank, not the drawing. Whatever the filters are actually
+    // doing to what you hear is what lands in the file.
+    const B = curveBuildBasis();
+    if (B && curveGains) {
+      let prev = sum;
+      for (let i = 0; i < B.n; i++) {
+        const c = B.centres[i], b = off.createBiquadFilter();
+        b.type = c.type; b.frequency.value = c.fc;
+        if (c.type === 'peaking') b.Q.value = c.q;
+        b.gain.value = byp ? 0 : curveGains[i];
+        prev.connect(b); prev = b;
+      }
+      tail = prev;
+    }
+  } else {
+    const low = off.createBiquadFilter();
+    low.type = 'lowshelf'; low.frequency.value = 100;
+    low.gain.value = byp ? 0 : num(state.low, 0);
+    const loMid = off.createBiquadFilter();
+    loMid.type = 'peaking'; loMid.frequency.value = num(state.loMidFreq, 1000);
+    loMid.Q.value = num(state.loMidQ, 2.2); loMid.gain.value = byp ? 0 : num(state.loMid, 0);
+    const hiMid = off.createBiquadFilter();
+    hiMid.type = 'peaking'; hiMid.frequency.value = num(state.hiMidFreq, 3000);
+    hiMid.Q.value = num(state.hiMidQ, 2.2); hiMid.gain.value = byp ? 0 : num(state.hiMid, 0);
+    const treble = off.createBiquadFilter();
+    treble.type = 'highshelf'; treble.frequency.value = 5000;
+    treble.gain.value = byp ? 0 : num(state.treble, 0);
+    sum.connect(low); low.connect(loMid); loMid.connect(hiMid); hiMid.connect(treble);
+    tail = treble;
+  }
+
+  // ── cleanup, minus the gate ──
+  const hiss = off.createBiquadFilter();
+  hiss.type = 'lowpass';
+  hiss.frequency.value = (hissOn && !byp) ? num(noiseState.hissFreq, 20000) : 20000;
+  hiss.Q.value = 0.707;
+  const notch = off.createBiquadFilter();
+  notch.type = 'peaking';
+  notch.frequency.value = num(noiseState.notchFreq, 3000);
+  notch.Q.value = num(noiseState.notchQ, 8);
+  notch.gain.value = (notchOn && !byp) ? -30 : 0;
+
+  const trimEl = document.getElementById('outTrimKnob');
+  const outTrim = off.createGain();
+  outTrim.gain.value = Math.pow(10, num(trimEl ? parseFloat(trimEl.value) : 0, 0) / 20);
+
+  tail.connect(hiss); hiss.connect(notch); notch.connect(outTrim);
+  outTrim.connect(off.destination);
+  src.start();
+  return await off.startRendering();
+}
+
+// ── Downloads ──────────────────────────────────────────────
+async function loopDownloadWav() {
+  if (!loopBuf) { loopSay('Record something first.'); return; }
+  if (loopBusy) return;
+  loopBusy = true; loopProgress = 'Rendering…'; loopSyncUI();
   try {
-    const dest = audioCtx.createMediaStreamDestination();
-    gateGainNode.connect(dest);
-    loopExportMime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']
-      .find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
-    if (loopExportMime) {
-      loopExportChunks = [];
-      loopExportRec = new MediaRecorder(dest.stream, { mimeType: loopExportMime });
-      loopExportRec.ondataavailable = e => { if (e.data.size) loopExportChunks.push(e.data); };
-      loopExportRec.onstop = () => {
-        loopM4aBlob = new Blob(loopExportChunks, { type: loopExportMime });
-        loopSyncUI();
-      };
-      loopExportRec.start();
-    }
-  } catch (e) { console.warn('[Loop] MediaRecorder unavailable:', e.message); }
+    const r = await loopRenderOffline();
+    loopSave(new Blob([loopWav(r.getChannelData(0), r.sampleRate)], { type: 'audio/wav' }), 'wav');
+    loopSay('Exported ' + loopFmtSec(r.duration) + ' as WAV.');
+  } catch (e) { loopSay('Export failed: ' + e.message); }
+  finally { loopBusy = false; loopProgress = ''; loopSyncUI(); }
+}
 
-  loopSay('Capturing the processed output…');
+// M4A cannot come from an offline render: MediaRecorder is the only encoder a
+// browser exposes and it runs in realtime. So render first, then play the
+// result into a stream destination at 1x and record that. A five-minute take
+// takes five minutes, which is why the button says so before you press it.
+async function loopDownloadM4a() {
+  if (!loopBuf) { loopSay('Record something first.'); return; }
+  if (loopBusy) return;
+  const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']
+    .find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  if (!mime) { loopSay('This browser has no compressed audio encoder.'); return; }
+  if (!audioRunning || !audioCtx) { loopSay('Enable audio first — encoding runs through a live context.'); return; }
+
+  loopBusy = true; loopProgress = 'Rendering…'; loopSyncUI();
+  let r;
+  try { r = await loopRenderOffline(); }
+  catch (e) { loopBusy = false; loopProgress = ''; loopSay('Export failed: ' + e.message); loopSyncUI(); return; }
+
+  const total = r.duration;
+  const dest = audioCtx.createMediaStreamDestination();
+  const src = audioCtx.createBufferSource();
+  src.buffer = r;
+  src.connect(dest);                     // to the encoder only, never the speakers
+  const rec = new MediaRecorder(dest.stream, { mimeType: mime });
+  const parts = [];
+  rec.ondataavailable = e => { if (e.data.size) parts.push(e.data); };
+  const t0 = audioCtx.currentTime;
+  const tick = setInterval(() => {
+    const done = Math.min(1, (audioCtx.currentTime - t0) / total);
+    loopProgress = 'Encoding ' + Math.round(done * 100) + '% · ' + loopFmtSec(total * (1 - done)) + ' left';
+    loopSyncUI();
+  }, 400);
+  rec.onstop = () => {
+    clearInterval(tick);
+    const ext = mime.indexOf('mp4') >= 0 ? 'm4a' : 'webm';
+    loopSave(new Blob(parts, { type: mime }), ext);
+    loopBusy = false; loopProgress = '';
+    loopSay('Exported ' + loopFmtSec(total) + ' as ' + ext.toUpperCase() + '.');
+    loopSyncUI();
+  };
+  // A short grace period before stopping: MediaRecorder can drop its last
+  // chunk if it is stopped the same instant playback ends.
+  src.onended = () => setTimeout(() => {
+    try { rec.stop(); } catch (e) {}
+    try { src.disconnect(); dest.disconnect(); } catch (e) {}
+  }, 250);
+  rec.start();
+  src.start();
   loopSyncUI();
 }
 
-function loopExportStop() {
-  if (!loopExportOn) return;
-  loopExportOn = false;
-  if (loopExportTap && loopExportTap.port) loopExportTap.port.postMessage({ on: false });
-  if (loopExportRec && loopExportRec.state !== 'inactive') loopExportRec.stop();
-
-  if (loopExportLen) {
-    const all = new Float32Array(loopExportLen);
-    let at = 0;
-    for (const c of loopExportRaw) { all.set(c, at); at += c.length; }
-    loopWavBlob = new Blob([loopWav(all, audioCtx.sampleRate)], { type: 'audio/wav' });
-  }
-  const secs = loopExportLen / (audioCtx ? audioCtx.sampleRate : 48000);
-  loopExportRaw = [];
-  loopSay('Captured ' + secs.toFixed(1) + ' s — download it below.');
-  loopSyncUI();
+function loopSave(blob, ext) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bass-analyzer-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.' + ext;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-function loopExportToggle() { loopExportOn ? loopExportStop() : loopExportStart(); }
 
 // 16-bit PCM WAV. Twenty lines, no library, and lossless.
 function loopWav(samples, rate) {
@@ -6935,17 +7070,6 @@ function loopWav(samples, rate) {
     v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
   }
   return buf;
-}
-
-function loopDownload(which) {
-  const blob = which === 'wav' ? loopWavBlob : loopM4aBlob;
-  if (!blob) { loopSay('Nothing captured yet.'); return; }
-  const ext = which === 'wav' ? 'wav' : (loopExportMime.indexOf('mp4') >= 0 ? 'm4a' : 'webm');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'bass-analyzer-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.' + ext;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
 // ── Waveform ───────────────────────────────────────────────
@@ -6999,17 +7123,8 @@ function loopSyncUI() {
   }));
   set('loopLimit', el => el.textContent = 'up to ' + Math.round(loopMaxSec() / 60) + ' min on this device');
   set('loopHost', el => el.innerHTML = 'capture <em>' + loopHost + '</em>');
-  set('loopExportBtn', el => {
-    el.textContent = loopExportOn ? '■ Stop capture' : '● Capture output';
-    el.classList.toggle('active', loopExportOn);
-  });
-  set('loopWavBtn', el => el.disabled = !loopWavBlob);
-  set('loopM4aBtn', el => {
-    el.disabled = !loopM4aBlob;
-    // Only rename it once a capture has told us what the browser chose.
-    if (loopExportMime)
-      el.textContent = 'Download ' + (loopExportMime.indexOf('mp4') >= 0 ? 'M4A' : 'WebM');
-  });
+  ['loopWavBtn', 'loopM4aBtn'].forEach(id => set(id, el => { el.disabled = !loopBuf || loopBusy; }));
+  set('loopProgress', el => { el.textContent = loopProgress; });
   set('loopLevelVal', el => el.textContent = Math.round(num(loop.level, 100)) + '%');
   document.querySelectorAll('[data-loopsw]').forEach(b =>
     b.classList.toggle('active', !!loop[b.dataset.loopsw]));
@@ -7028,8 +7143,7 @@ function loopReset() {
   loopSrc = null; loopGain = null; liveGain = null; loopSink = null;
   loopRecNode = null; loopRecChunks = []; loopRecLen = 0; loopRecOn = false;
   loopModuleAdded = false; loopPlaying = false; loopHost = '—'; loopHitCap = false;
-  loopExportTap = null; loopExportRec = null; loopExportRaw = [];
-  loopExportLen = 0; loopExportOn = false;
+  loopBusy = false; loopProgress = '';
   loopSyncUI();
 }
 

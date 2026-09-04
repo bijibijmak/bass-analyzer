@@ -624,27 +624,32 @@ setTimeout(() => {
   try {
     const ids = ['loopBar', 'loopRecBtn', 'loopPlayBtn', 'loopTime', 'loopRecBtn2',
                  'loopPlayBtn2', 'loopTime2', 'loopWave', 'loopMsg', 'loopHost',
-                 'loopExportBtn', 'loopWavBtn', 'loopM4aBtn', 'loopLevelVal'];
+                 'loopProgress', 'loopWavBtn', 'loopM4aBtn', 'loopLevelVal'];
     const gone = ids.filter(i => !d.getElementById(i));
     if (!gone.length) ok(`${ids.length} looper elements present`);
     else bad('missing: ' + gone.join(', '));
 
     // Nothing may throw before audio exists — these are the first buttons a
     // curious user presses, and they press them before Enable Audio.
+    // Check each message where it is raised: they differ, and the last call
+    // would otherwise overwrite the one being asserted.
     ev('loopRecToggle')();
+    const recMsg = d.getElementById('loopMsg').textContent;
     ev('loopToggle')();
-    ev('loopExportToggle')();
-    ok('transport handled without audio, without throwing');
-    if (/Enable audio first/.test(d.getElementById('loopMsg').textContent))
-      ok('and says so');
-    else bad('no "enable audio" message');
+    ev('loopDownloadWav')();
+    const dlMsg = d.getElementById('loopMsg').textContent;
+    ok('transport and downloads handled without audio, without throwing');
+    if (/Enable audio first/.test(recMsg)) ok('Record without audio says to enable it');
+    else bad('Record said: ' + recMsg);
+    if (/Record something first/.test(dlMsg)) ok('Download with no take says to record one');
+    else bad('Download said: ' + dlMsg);
 
     if (d.getElementById('loopPlayBtn').disabled && d.getElementById('loopPlayBtn2').disabled)
       ok('Loop is disabled until something is recorded');
     else bad('Loop offered with an empty buffer');
     if (d.getElementById('loopWavBtn').disabled && d.getElementById('loopM4aBtn').disabled)
-      ok('downloads disabled until something is captured');
-    else bad('download offered with no capture');
+      ok('downloads disabled until something is recorded');
+    else bad('download offered with no take');
 
     ev('loopSetSwitch')('muteLive');
     if (ev('loop').muteLive === false &&
@@ -990,6 +995,41 @@ setTimeout(() => {
     ev('curveClear')();
     ev('setPreamp')('b7k');
   } catch (e) { bad('curve EQ threw: ' + e.stack); }
+
+  console.log('\n[22] export drift');
+  try {
+    // The offline renderer claims to be the live chain. Prove it by reading
+    // the live one and checking every parameter it touches is named in the
+    // renderer too — so a knob added to one and not the other fails here
+    // rather than silently vanishing from your exports.
+    const live = ev('applyAudioParams').toString();
+    const off  = ev('loopRenderOffline').toString();
+    const refs = new Set();
+    for (const m of live.matchAll(/\b((?:state|noiseState)\.[a-zA-Z]\w*)/g)) refs.add(m[1]);
+    for (const m of live.matchAll(/\b(GRUNT_DB|ATTACK_DB|blendGains|levelGain|driveGainOf|makeClipCurve)\b/g)) refs.add(m[1]);
+    const missing = [...refs].filter(r => off.indexOf(r) < 0);
+    if (!missing.length) ok(`all ${refs.size} live parameters appear in the offline renderer`);
+    else bad('the renderer never reads: ' + missing.join(', '));
+
+    // And the two deliberate omissions must stay omitted, not creep back.
+    if (off.indexOf('gateGainNode') < 0 && off.indexOf('dtNode') < 0)
+      ok('the gate and the detune stay out of exports, as documented');
+    else bad('a live-only node leaked into the renderer');
+
+    // Every preamp must be reachable, including the one selected right now.
+    ['geq', 'curve'].forEach(k => {
+      if (off.indexOf(`kind === '${k}'`) >= 0) ok(`renderer branch for ${k}`);
+      else bad(`no renderer branch for ${k}`);
+    });
+
+    // Buttons follow the recording, not a capture session.
+    ev('loopReset')();
+    const wav = d.getElementById('loopWavBtn'), m4a = d.getElementById('loopM4aBtn');
+    if (wav && m4a && wav.disabled && m4a.disabled) ok('downloads are disabled with nothing recorded');
+    else bad('downloads offered with no take');
+    if (!d.getElementById('loopExportBtn')) ok('the Capture output button is gone');
+    else bad('the capture button is still there');
+  } catch (e) { bad('export drift check threw: ' + e.stack); }
 
   console.log('\n[13] no late errors');
   if (errors.length) bad('errors accumulated:\n      ' + errors.join('\n      '));

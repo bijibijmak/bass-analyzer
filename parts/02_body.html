@@ -484,17 +484,19 @@
     </div>
 
     <div class="noise-tool">
-      <div class="noise-tool-head">
-        <button class="noise-btn" id="loopExportBtn" onclick="loopExportToggle()">&#9679; Capture output</button>
-      </div>
       <div class="loop-sw-row">
-        <button class="noise-btn" type="button" id="loopWavBtn" onclick="loopDownload('wav')" disabled>Download WAV</button>
-        <button class="noise-btn" type="button" id="loopM4aBtn" onclick="loopDownload('m4a')" disabled>Download M4A</button>
+        <button class="noise-btn" type="button" id="loopWavBtn" onclick="loopDownloadWav()" disabled>Download WAV</button>
+        <button class="noise-btn" type="button" id="loopM4aBtn" onclick="loopDownloadM4a()" disabled>Download M4A &mdash; slow</button>
       </div>
+      <div class="noise-tool-desc" id="loopProgress"></div>
       <div class="noise-tool-desc">
-        Records the finished sound &mdash; everything, cleanup included &mdash; not the dry
-        input. WAV is lossless. No browser will encode MP3 for a web page, so the
-        compressed file is M4A (AAC), which opens everywhere MP3 does.
+        Your recorded take, run through the preamp exactly as it sounds right
+        now. No second performance: change a knob and download again for a new
+        version of the same playing.
+        <br>WAV is instant and lossless. M4A has to be encoded in realtime &mdash; the
+        browser has no faster encoder &mdash; so a five-minute take takes five minutes.
+        <br>The detune and the noise gate are not included: one is a live
+        pitch-shifter, the other follows the live meter.
       </div>
     </div>
   </div>
