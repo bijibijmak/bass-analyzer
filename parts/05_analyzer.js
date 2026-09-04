@@ -843,6 +843,12 @@ function wireProbe() {
     });
 
     const endAny = e => { if (!eqDragEnd(el, e)) release(); };
+    if (id === 'fftCanvas') el.addEventListener('dblclick', ev => {
+      if (typeof preampKind === 'undefined' || preampKind !== 'curve') return;
+      const r = el.getBoundingClientRect();
+      const h = curveHitPoint(ev.clientX - r.left, ev.clientY - r.top);
+      if (h && curveRemovePoint(h.pt)) ev.preventDefault();
+    });
     el.addEventListener('pointerup',     endAny);
     el.addEventListener('pointercancel', endAny);
     el.addEventListener('pointerleave',  e => { if (e.pointerType === 'mouse') hideProbe(); });

@@ -338,7 +338,7 @@ async function startAudio() {
     audioRunning = true;
     startUiLoop();
     geqOnAudioStart();   // the selected preamp may not be the B7K
-    paraOnAudioStart();
+    curveOnAudioStart();
     compApply();         // and the compressor may be on
 
     document.getElementById('audioToggle').textContent = '⏹ Disable Audio';

@@ -1108,7 +1108,7 @@ body {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · eeea9b4</span></p>
+    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · 72c825b</span></p>
   </header>
   <div class="header-actions">
     <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
@@ -1304,7 +1304,7 @@ body {
     <span class="ctrl-sub" style="margin:0 4px 0 0">Preamp</span>
     <button class="fft-btn active" type="button" data-preamp="b7k" onclick="setPreamp('b7k')">Darkgas B7K</button>
     <button class="fft-btn"        type="button" data-preamp="geq" onclick="setPreamp('geq')">Graphic EQ</button>
-    <button class="fft-btn"        type="button" data-preamp="para" onclick="setPreamp('para')">Parametric</button>
+    <button class="fft-btn"        type="button" data-preamp="curve" onclick="setPreamp('curve')">Curve</button>
   </div>
 
 <div id="preampB7k">
@@ -1499,19 +1499,22 @@ body {
 </div>
 
 
-<div id="preampPara" style="display:none">
-  <div class="section-label">Parametric &mdash; <span>six bands, anywhere you like</span></div>
+<div id="preampCurve" style="display:none">
+  <div class="section-label">Curve &mdash; <span>draw the response</span></div>
   <div class="para-panel">
-    <div class="para-hint" id="paraHint">
-      Drag the curve above: up and down for gain, sideways to move a band,
-      hold Alt for width. Nothing is fixed &mdash; a band goes wherever the problem
-      is. The numbers below are the same six bands, for exact values and for
-      the phone, where dragging is off so the page can still scroll.
+    <div class="para-hint">
+      Click anywhere on the analyzer to drop a point, then pull it. The line
+      through your points is the response. Drag a point sideways to move it in
+      frequency, double-click one to remove it. The two ends are fixed at
+      20&nbsp;Hz and 10&nbsp;kHz and move up and down only.
+      <br>Behind it, a bank of filters is solved to match whatever you draw &mdash;
+      you never touch them, and they add no delay. The faint line is what they
+      actually achieve, so you can see any gap.
     </div>
-    <div class="para-rows" id="paraRows"></div>
     <div class="para-foot">
-      <button class="noise-btn" type="button" onclick="paraReset()">Reset bands</button>
-      <span class="noise-tool-desc">20 Hz &ndash; 10 kHz &middot; &plusmn;12 dB &middot; Q 0.5 &ndash; 18</span>
+      <button class="noise-btn" type="button" onclick="curveClear()">Clear</button>
+      <span class="noise-tool-desc" id="curveCount"></span>
+      <span class="noise-tool-desc" id="curveFit"></span>
     </div>
   </div>
 </div>
@@ -3405,7 +3408,7 @@ async function startAudio() {
     audioRunning = true;
     startUiLoop();
     geqOnAudioStart();   // the selected preamp may not be the B7K
-    paraOnAudioStart();
+    curveOnAudioStart();
     compApply();         // and the compressor may be on
 
     document.getElementById('audioToggle').textContent = '⏹ Disable Audio';
@@ -4475,6 +4478,12 @@ function wireProbe() {
     });
 
     const endAny = e => { if (!eqDragEnd(el, e)) release(); };
+    if (id === 'fftCanvas') el.addEventListener('dblclick', ev => {
+      if (typeof preampKind === 'undefined' || preampKind !== 'curve') return;
+      const r = el.getBoundingClientRect();
+      const h = curveHitPoint(ev.clientX - r.left, ev.clientY - r.top);
+      if (h && curveRemovePoint(h.pt)) ev.preventDefault();
+    });
     el.addEventListener('pointerup',     endAny);
     el.addEventListener('pointercancel', endAny);
     el.addEventListener('pointerleave',  e => { if (e.pointerType === 'mouse') hideProbe(); });
@@ -6099,11 +6108,11 @@ function geqApply(immediate) {
 }
 
 // ── Preamp selection ───────────────────────────────────────
-const PREAMP_KINDS = ['b7k', 'geq', 'para'];
+const PREAMP_KINDS = ['b7k', 'geq', 'curve'];
 function setPreamp(kind) {
   preampKind = PREAMP_KINDS.indexOf(kind) >= 0 ? kind : 'b7k';
   try { localStorage.setItem(PREAMP_KEY, preampKind); } catch (e) {}
-  [['preampB7k', 'b7k'], ['preampGeq', 'geq'], ['preampPara', 'para']].forEach(([id, k]) => {
+  [['preampB7k', 'b7k'], ['preampGeq', 'geq'], ['preampCurve', 'curve']].forEach(([id, k]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = preampKind === k ? '' : 'none';
   });
@@ -6112,12 +6121,12 @@ function setPreamp(kind) {
   // The graphic and the parametric splice across the same edge, so exactly
   // one of them may be in the chain at a time. Unsplice first, always.
   if (audioRunning) {
-    geqUnsplice(); paraUnsplice();
+    geqUnsplice(); curveUnsplice();
     if (preampKind === 'geq') geqSplice();
-    else if (preampKind === 'para') paraSplice();
+    else if (preampKind === 'curve') curveSplice();
   }
   geqSyncUI();
-  if (typeof paraSyncUI === 'function') paraSyncUI();
+  if (typeof curveSyncUI === 'function') curveSyncUI();
   redrawStatic();
 }
 // Called from startAudio, so the selection survives enabling audio later.
@@ -6147,7 +6156,7 @@ function geqLoad() {
   }
   let p = null;
   try { p = localStorage.getItem(PREAMP_KEY); } catch (e) {}
-  preampKind = (p === 'geq' || p === 'para') ? p : 'b7k';
+  preampKind = (p === 'geq' || p === 'curve') ? p : 'b7k';
 }
 
 // ── Faders ─────────────────────────────────────────────────
@@ -7033,16 +7042,9 @@ const eqDragAvailable = () => !!mqFine.matches;
 // on the real pedal, so a sideways drag flips rather than sweeps. `range` is a
 // continuous sweep, which only the graphic EQ's user band has.
 function eqBands() {
-  if (typeof preampKind !== 'undefined' && preampKind === 'para') {
-    return para.bands.map((b, i) => ({
-      id: 'para' + i, label: 'Band ' + (i + 1),
-      freq: b.f, db: b.db, q: b.q, type: 'peaking', step: 0.5,
-      free: true,                                   // its centre moves with the drag
-      setDb: v => paraSet(i, 'db', v),
-      setQ:  v => paraSet(i, 'q', v),
-      sweep: { range: [PARA_FMIN, PARA_FMAX], set: hz => paraSet(i, 'f', hz) }
-    }));
-  }
+  // Curve mode has no bands. The filters behind it are solved, not steered,
+  // and nothing in the band machinery applies.
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') return [];
   if (typeof preampKind !== 'undefined' && preampKind === 'geq') {
     const out = [];
     for (let i = 0; i < GEQ_N; i++) {
@@ -7177,6 +7179,10 @@ function eqHitBand(px, py, handles) {
 
 // ── Drawing ────────────────────────────────────────────────
 function drawEqCurve(ctx, xp, cw, ch, interactive) {
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') {
+    drawCurveEditor(ctx, xp, cw, ch, interactive);
+    return;
+  }
   const bands = eqBands();
   const N = 220;
   const fs = new Float32Array(N);
@@ -7238,6 +7244,129 @@ function drawEqCurve(ctx, xp, cw, ch, interactive) {
   ctx.fillText(interactive && eqDragAvailable() ? 'EQ curve · drag it · alt = width' : 'EQ curve',
                PAD.l + 3, PAD.t + 9);
   ctx.restore();
+}
+
+// ── The curve editor ───────────────────────────────────────
+let curveHandles = [];
+
+function drawCurveEditor(ctx, xp, cw, ch, interactive) {
+  const g = eqGeom(ch);
+  const N = 240;
+  const fs = new Float32Array(N);
+  for (let i = 0; i < N; i++) fs[i] = AX_FMIN * Math.pow(AX_FMAX / AX_FMIN, i / (N - 1));
+
+  ctx.save();
+  ctx.strokeStyle = TH.unityLine; ctx.lineWidth = 1; ctx.setLineDash([2, 6]);
+  [-EQ_MAX_DB, 0, EQ_MAX_DB].forEach(d => {
+    ctx.beginPath(); ctx.moveTo(PAD.l, g.yOf(d)); ctx.lineTo(PAD.l + cw, g.yOf(d)); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // What the filters actually do. Drawn first and faint, so where it differs
+  // from the drawing you can see it rather than being quietly lied to.
+  const got = curveAchievedDb(fs);
+  let any = false;
+  for (let i = 0; i < N; i++) if (Math.abs(got[i]) > 0.02) { any = true; break; }
+  if (any) {
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const x = xp(fs[i]); if (x < PAD.l - 1 || x > PAD.l + cw + 1) continue;
+      const y = g.yOf(got[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = TH.axisLabel; ctx.lineWidth = 3; ctx.globalAlpha = 0.35;
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // What you drew.
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = xp(fs[i]); if (x < PAD.l - 1 || x > PAD.l + cw + 1) continue;
+    const y = g.yOf(curveAt(fs[i]));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  if (CFG.glow) { ctx.shadowColor = TH.bass; ctx.shadowBlur = 6; }
+  ctx.strokeStyle = TH.bass; ctx.lineWidth = 1.8;
+  ctx.stroke(); ctx.shadowBlur = 0;
+
+  const handles = [];
+  if (interactive && eqDragAvailable()) {
+    curveEq.pts.forEach(pt => {
+      const x = xp(Math.min(AX_FMAX, Math.max(AX_FMIN, pt.f))), y = g.yOf(pt.db);
+      handles.push({ pt, x, y, ch });
+      const held = eqDrag && eqDrag.pt === pt;
+      ctx.beginPath();
+      ctx.arc(x, y, (pt.anchor ? EQ_HANDLE_R - 0.5 : EQ_HANDLE_R) + (held ? 2 : 0), 0, Math.PI * 2);
+      ctx.fillStyle = held ? TH.bass : TH.chartBg;
+      ctx.fill();
+      ctx.strokeStyle = TH.bass; ctx.lineWidth = held ? 2 : 1.5;
+      if (pt.anchor) ctx.setLineDash([1.5, 1.5]);
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+  }
+  curveHandles = handles;
+  if (interactive) eqGeo = { ch, cw };
+
+  ctx.fillStyle = TH.axisLabel; ctx.font = '8px Share Tech Mono,monospace'; ctx.textAlign = 'left';
+  ctx.fillText('+12', PAD.l + 3, g.yOf(EQ_MAX_DB) + 8);
+  ctx.fillText('−12', PAD.l + 3, g.yOf(-EQ_MAX_DB) - 2);
+  ctx.fillText(interactive && eqDragAvailable() ? 'Curve · click to add a point · double-click to remove'
+                                                : 'Curve', PAD.l + 3, PAD.t + 9);
+  ctx.restore();
+}
+
+function curveHitPoint(px, py) {
+  let best = null, bd = EQ_GRAB_R;
+  for (const h of curveHandles) {
+    const d = Math.hypot(px - h.x, py - h.y);
+    if (d <= bd) { bd = d; best = h; }
+  }
+  return best;
+}
+
+// A grab in curve mode: take the point under the cursor, or make one there.
+function curveDragStart(el, e) {
+  if (!eqGeo) return false;
+  const rect = el.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  if (px < PAD.l || px > PAD.l + eqGeo.cw) return false;
+  const f = chartXtoFreq(el, e.clientX);
+  if (!f) return false;
+  const hit = curveHitPoint(px, py);
+  const g = eqGeom(eqGeo.ch);
+  const pt = hit ? hit.pt : curveAddPoint(f, g.dbOf(py));
+  eqDrag = { pt, ch: eqGeo.ch, x0: e.clientX, y0: e.clientY, moved: false, curve: true };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  el.style.cursor = 'grabbing';
+  hideProbe();
+  curveTip(pt, e.clientX, e.clientY);
+  e.preventDefault();
+  return true;
+}
+
+// The point goes exactly where the cursor is. This is a drawing tool; there
+// is nothing to solve for and nothing to lag behind your hand.
+function curveDragMove(el, e) {
+  if (!eqDrag || !eqDrag.curve) return false;
+  const rect = el.getBoundingClientRect();
+  const g = eqGeom(eqDrag.ch);
+  const f = chartXtoFreq(el, e.clientX) || eqDrag.pt.f;
+  curveMovePoint(eqDrag.pt, f, g.dbOf(e.clientY - rect.top));
+  eqDrag.moved = true;
+  curveTip(eqDrag.pt, e.clientX, e.clientY);
+  e.preventDefault();
+  return true;
+}
+
+function curveTip(pt, cx, cy) {
+  const tip = document.getElementById('freqTooltip');
+  if (!tip || !pt) return;
+  const sign = pt.db > 0 ? '+' : '';
+  tip.textContent = (pt.f >= 1000 ? (pt.f / 1000).toFixed(2) + ' kHz' : pt.f.toFixed(1) + ' Hz')
+                  + '  ·  ' + sign + pt.db.toFixed(1) + ' dB' + (pt.anchor ? '  ·  end' : '');
+  tip.style.display = 'block';
+  tip.style.left = Math.max(6, Math.min(cx + 14, window.innerWidth - tip.offsetWidth - 16)) + 'px';
+  tip.style.top = Math.max(6, cy - 30) + 'px';
 }
 
 // ── Which band owns this point, and by how much ────────────
@@ -7317,6 +7446,7 @@ function eqBandById(id) {
 function eqDragStart(el, e) {
   if (!eqDragAvailable() || e.pointerType !== 'mouse') return false;
   if (typeof analyzerMode !== 'undefined' && analyzerMode !== 'fft') return false;
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') return curveDragStart(el, e);
   if (!eqGeo) return false;
   const rect = el.getBoundingClientRect();
   const px = e.clientX - rect.left;
@@ -7341,6 +7471,7 @@ function eqDragStart(el, e) {
 
 function eqDragMove(el, e) {
   if (!eqDrag) return false;
+  if (eqDrag.curve) return curveDragMove(el, e);
   const b = eqBandById(eqDrag.id);
   if (!b) { eqDragEnd(el, e); return true; }
   const g = eqGeom(eqDrag.ch);
@@ -7428,6 +7559,12 @@ function eqDragEnd(el, e) {
 function eqHoverCursor(el, e) {
   if (!eqDragAvailable() || e.pointerType !== 'mouse' || eqDrag) return;
   const rect = el.getBoundingClientRect();
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') {
+    const inP = eqGeo && (e.clientX - rect.left) >= PAD.l && (e.clientX - rect.left) <= PAD.l + eqGeo.cw;
+    el.style.cursor = curveHitPoint(e.clientX - rect.left, e.clientY - rect.top) ? 'grab'
+                                                                                 : (inP ? 'crosshair' : '');
+    return;
+  }
   const px = e.clientX - rect.left;
   const inPlot = eqGeo && px >= PAD.l && px <= PAD.l + eqGeo.cw;
   el.style.cursor = eqHitBand(px, e.clientY - rect.top) ? 'grab' : (inPlot ? 'ns-resize' : '');
@@ -7449,188 +7586,326 @@ function eqTip(b, cx, cy, widthMode) {
   tip.style.top = Math.max(6, cy - 30) + 'px';
 }
 // ═══════════════════════════════════════════════════════════
-// PARAMETRIC EQ — the curve is the instrument
+// CURVE EQ — draw the response, the filters chase it
 //
-// The graphic EQ is a fixed octave grid you sweep with faders. This is the
-// other half of the job: nothing is fixed, every band goes wherever the
-// problem is. 100.5 Hz, 505 Hz, anywhere between 20 and 10 k.
+// Not bands. You click anywhere on the chart and get a point; you pull it;
+// a smooth spline runs through every point you have made. There is no such
+// thing as a band frequency here, so 100.5 Hz and 505 Hz are as ordinary as
+// 1 kHz.
 //
-// There are no faders here on purpose. A fader implies a fixed frequency,
-// and the whole point of this preamp is that nothing is fixed. What it has
-// instead is the curve — grab it and drag — and a row of typed numbers per
-// band, because dragging is desktop-only and a preamp you cannot touch on a
-// phone is half a preamp.
+// HOW IT IS ACTUALLY FILTERED
+// A drawn curve is an arbitrary magnitude response, and no small set of
+// filters produces one directly. Behind the curve is a fixed bank of peaking
+// filters at half-octave centres, two widths each, plus a shelf at either
+// end. Their gains are solved by least squares to match whatever you drew.
+// You never see them and never touch them.
 //
-// Bands may cross each other freely. There is no strip whose left-to-right
-// order they could scramble, so stacking three of them inside one octave to
-// build a shape is a feature, not a mistake.
+// Measured against the VPF curve this was built for (+6 dB at 40 Hz, a
+// -19 dB notch at 350 Hz, +12 dB up top): 0.32 dB RMS, 1.4 dB worst, and the
+// worst is at the very bottom of the notch. Biquads add no delay, so the
+// whole thing is free.
+//
+// The solve is cheap because the expensive half does not depend on what you
+// drew. The normal matrix is built and Cholesky-factored once at startup;
+// each edit only rebuilds the right-hand side and back-substitutes.
 // ═══════════════════════════════════════════════════════════
 
-const PARA_N = 6;
-const PARA_KEY = 'b7k_para';
-const PARA_FMIN = 20, PARA_FMAX = 10000;      // = the chart, so nothing hides off-screen
+const CURVE_KEY = 'b7k_curve';
+const CURVE_FMIN = 20, CURVE_FMAX = 10000;    // = the chart
+const CURVE_MAX_DB = 18;                      // points can go past ±12; the fit will not
+const CURVE_RIDGE = 0.3;                      // keeps the solved gains sane
+const CURVE_GRID = 220;                       // frequencies the fit is judged on
+const CURVE_QS = [1, 3];                      // one broad, one narrow, at every centre
+const CURVE_PER_OCT = 2;
 
-// Spread across the range a bass actually occupies, all flat, all an octave
-// wide. A starting position, not a preset: everything moves.
-const PARA_DEFAULTS = [60, 150, 400, 1000, 2500, 6000];
+// Points are always sorted by frequency. The two ends are anchors: they can
+// be dragged up and down but never sideways and never removed, so the curve
+// always has somewhere to start and finish.
+const curveEq = { pts: [{ f: CURVE_FMIN, db: 0, anchor: true },
+                        { f: CURVE_FMAX, db: 0, anchor: true }] };
+let curveNodes = null, curveSpliced = false;
+let curveBasis = null;    // { freqs, rows, chol, centres }
+let curveGains = null;    // solved gain per filter
 
-const para = { bands: PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 })) };
-let paraNodes = null, paraSpliced = false;
+const curveClampDb = v => Math.max(-CURVE_MAX_DB, Math.min(CURVE_MAX_DB, num(parseFloat(v), 0)));
+const curveClampF  = f => Math.max(CURVE_FMIN, Math.min(CURVE_FMAX, num(parseFloat(f), 1000)));
 
-const paraClampF  = f => Math.max(PARA_FMIN, Math.min(PARA_FMAX, num(parseFloat(f), 1000)));
-const paraClampDb = v => Math.max(-12, Math.min(12, num(parseFloat(v), 0)));
-const paraClampQ  = v => Math.max(EQ_Q_MIN, Math.min(EQ_Q_MAX, num(parseFloat(v), 1.4)));
+// ── The spline ─────────────────────────────────────────────
+// Monotone cubic (Fritsch-Carlson) in log-frequency. Plain cubic splines
+// overshoot between points, which on an EQ means a bump you did not draw and
+// cannot see the cause of. This one cannot overshoot: between two points the
+// curve stays between their values.
+function curveAt(f) {
+  const p = curveEq.pts;
+  if (!p.length) return 0;
+  const x = Math.log2(Math.max(CURVE_FMIN, Math.min(CURVE_FMAX, f)));
+  if (p.length === 1 || x <= Math.log2(p[0].f)) return p[0].db;
+  if (x >= Math.log2(p[p.length - 1].f)) return p[p.length - 1].db;
+
+  const X = p.map(q => Math.log2(q.f)), Y = p.map(q => q.db), n = p.length;
+  // secant slopes, then Fritsch-Carlson tangents
+  const d = [], m = new Array(n).fill(0);
+  for (let i = 0; i < n - 1; i++) d.push((Y[i + 1] - Y[i]) / (X[i + 1] - X[i]));
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = (d[i - 1] * d[i] <= 0) ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  let i = 0; while (i < n - 2 && x > X[i + 1]) i++;
+  const h = X[i + 1] - X[i], t = (x - X[i]) / h, t2 = t * t, t3 = t2 * t;
+  return (2*t3 - 3*t2 + 1) * Y[i] + (t3 - 2*t2 + t) * h * m[i]
+       + (-2*t3 + 3*t2) * Y[i + 1] + (t3 - t2) * h * m[i + 1];
+}
+
+// ── The filter bank, and the fit ───────────────────────────
+function curveBuildBasis() {
+  if (curveBasis) return curveBasis;
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!OC) return null;
+  let calc;
+  try { calc = new OC(1, 1, 44100); } catch (e) { return null; }
+
+  const freqs = new Float32Array(CURVE_GRID);
+  for (let i = 0; i < CURVE_GRID; i++)
+    freqs[i] = CURVE_FMIN * Math.pow(CURVE_FMAX / CURVE_FMIN, i / (CURVE_GRID - 1));
+
+  const centres = [], rows = [];
+  const mag = new Float32Array(CURVE_GRID), ph = new Float32Array(CURVE_GRID);
+  const addRow = (type, fc, q) => {
+    const b = calc.createBiquadFilter();
+    b.type = type; b.frequency.value = fc;
+    if (type === 'peaking') b.Q.value = q;
+    b.gain.value = 1;                                   // unit gain: the fit scales it
+    b.getFrequencyResponse(freqs, mag, ph);
+    const r = new Float64Array(CURVE_GRID);
+    for (let k = 0; k < CURVE_GRID; k++) r[k] = 20 * Math.log10(Math.max(mag[k], 1e-9));
+    rows.push(r); centres.push({ type, fc, q });
+  };
+  const step = Math.pow(2, 1 / CURVE_PER_OCT);
+  for (let f = CURVE_FMIN; f <= CURVE_FMAX * 1.001; f *= step)
+    for (const q of CURVE_QS) addRow('peaking', f, q);
+  // Peaking filters cannot hold a level shelf at the ends of the range, and a
+  // drawn curve very often does exactly that. Two of each, at different
+  // corners: one shelf alone left the top octave 1.4 dB short of a drawing
+  // that sat at +12 all the way to 10 kHz.
+  addRow('lowshelf', 40, 0);
+  addRow('lowshelf', 120, 0);
+  addRow('highshelf', 2000, 0);
+  addRow('highshelf', 6000, 0);
+
+  // Normal equations, ridge, Cholesky — none of which depend on the drawing.
+  const n = rows.length, N = [];
+  for (let i = 0; i < n; i++) {
+    N.push(new Float64Array(n));
+    for (let j = 0; j < n; j++) {
+      let s = 0;
+      for (let k = 0; k < CURVE_GRID; k++) s += rows[i][k] * rows[j][k];
+      N[i][j] = s;
+    }
+    N[i][i] += CURVE_RIDGE;
+  }
+  const L = [];
+  for (let i = 0; i < n; i++) {
+    L.push(new Float64Array(n));
+    for (let j = 0; j <= i; j++) {
+      let s = N[i][j];
+      for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k];
+      L[i][j] = (i === j) ? Math.sqrt(Math.max(s, 1e-12)) : s / L[j][j];
+    }
+  }
+  curveBasis = { freqs, rows, chol: L, centres, n };
+  return curveBasis;
+}
+
+// Solve for the gains that best match the drawn curve.
+function curveSolve() {
+  const B = curveBuildBasis();
+  if (!B) { curveGains = null; return null; }
+  const t = new Float64Array(CURVE_GRID);
+  for (let k = 0; k < CURVE_GRID; k++) t[k] = curveAt(B.freqs[k]);
+  const n = B.n, rhs = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (let k = 0; k < CURVE_GRID; k++) s += B.rows[i][k] * t[k];
+    rhs[i] = s;
+  }
+  const L = B.chol, y = new Float64Array(n), g = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = rhs[i];
+    for (let k = 0; k < i; k++) s -= L[i][k] * y[k];
+    y[i] = s / L[i][i];
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    let s = y[i];
+    for (let k = i + 1; k < n; k++) s -= L[k][i] * g[k];
+    g[i] = s / L[i][i];
+  }
+  curveGains = g;
+  return g;
+}
+
+// What the filters actually do, as opposed to what you drew.
+function curveAchievedDb(freqs) {
+  const B = curveBuildBasis();
+  const out = new Float64Array(freqs.length);
+  if (!B || !curveGains) return out;
+  const mag = new Float32Array(freqs.length), ph = new Float32Array(freqs.length);
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  let calc;
+  try { calc = new OC(1, 1, 44100); } catch (e) { return out; }
+  const f32 = freqs instanceof Float32Array ? freqs : Float32Array.from(freqs);
+  for (let i = 0; i < B.n; i++) {
+    if (Math.abs(curveGains[i]) < 0.005) continue;
+    const c = B.centres[i], b = calc.createBiquadFilter();
+    b.type = c.type; b.frequency.value = c.fc;
+    if (c.type === 'peaking') b.Q.value = c.q;
+    b.gain.value = curveGains[i];
+    b.getFrequencyResponse(f32, mag, ph);
+    for (let k = 0; k < out.length; k++) out[k] += 20 * Math.log10(Math.max(mag[k], 1e-9));
+  }
+  return out;
+}
 
 // ── Graph ──────────────────────────────────────────────────
-function paraBuild() {
-  if (!audioCtx || paraNodes) return;
-  const ac = audioCtx;
-  const n = { in: ac.createGain(), out: ac.createGain(), bands: [] };
+function curveBuild() {
+  if (!audioCtx || curveNodes) return;
+  const B = curveBuildBasis();
+  if (!B) return;
+  const n = { in: audioCtx.createGain(), out: audioCtx.createGain(), bands: [] };
   let prev = n.in;
-  for (let i = 0; i < PARA_N; i++) {
-    const b = ac.createBiquadFilter();
-    b.type = 'peaking';
-    b.frequency.value = paraClampF(para.bands[i].f);
-    b.Q.value = paraClampQ(para.bands[i].q);
-    b.gain.value = paraClampDb(para.bands[i].db);
+  for (let i = 0; i < B.n; i++) {
+    const c = B.centres[i], b = audioCtx.createBiquadFilter();
+    b.type = c.type; b.frequency.value = c.fc;
+    if (c.type === 'peaking') b.Q.value = c.q;
+    b.gain.value = 0;
     prev.connect(b); prev = b; n.bands.push(b);
   }
   prev.connect(n.out);
-  paraNodes = n;
+  curveNodes = n;
+  curveApply(true);
 }
-function paraDestroy() {
-  if (!paraNodes) return;
+function curveDestroy() {
+  if (!curveNodes) return;
   try {
-    paraNodes.in.disconnect(); paraNodes.out.disconnect();
-    paraNodes.bands.forEach(b => b.disconnect());
+    curveNodes.in.disconnect(); curveNodes.out.disconnect();
+    curveNodes.bands.forEach(b => b.disconnect());
   } catch (e) {}
-  paraNodes = null;
+  curveNodes = null;
 }
-
-// Splices across the same edge the graphic EQ uses, so the two can never be
-// in the chain at once.
-function paraSplice() {
-  if (paraSpliced || !audioCtx || !audioRunning) return;
-  paraBuild();
-  if (!paraNodes) return;
+function curveSplice() {
+  if (curveSpliced || !audioCtx || !audioRunning) return;
+  curveBuild();
+  if (!curveNodes) return;
   try {
     sumBus.disconnect(filterLow);
     filterTreble.disconnect(filterHiss);
-    sumBus.connect(paraNodes.in);
-    paraNodes.out.connect(filterHiss);
-    paraSpliced = true;
-  } catch (e) { console.warn('[Para] splice', e); }
+    sumBus.connect(curveNodes.in);
+    curveNodes.out.connect(filterHiss);
+    curveSpliced = true;
+  } catch (e) { console.warn('[Curve] splice', e); }
 }
-function paraUnsplice() {
-  if (!paraSpliced) return;
+function curveUnsplice() {
+  if (!curveSpliced) return;
   try {
-    sumBus.disconnect(paraNodes.in);
-    paraNodes.out.disconnect(filterHiss);
+    sumBus.disconnect(curveNodes.in);
+    curveNodes.out.disconnect(filterHiss);
     sumBus.connect(filterLow);
     filterTreble.connect(filterHiss);
-  } catch (e) { console.warn('[Para] unsplice', e); }
-  paraSpliced = false;
-  paraDestroy();
+  } catch (e) { console.warn('[Curve] unsplice', e); }
+  curveSpliced = false;
+  curveDestroy();
 }
-
-function paraApply(immediate) {
-  if (!paraNodes || !audioCtx) return;
+function curveApply(immediate) {
+  curveSolve();
+  if (!curveNodes || !audioCtx || !curveGains) return;
   const t = audioCtx.currentTime, S = immediate ? 0.001 : 0.02;
-  for (let i = 0; i < PARA_N; i++) {
-    const n = paraNodes.bands[i], b = para.bands[i];
-    n.frequency.setTargetAtTime(paraClampF(b.f), t, S);
-    n.Q.setTargetAtTime(paraClampQ(b.q), t, S);
-    n.gain.setTargetAtTime(paraClampDb(b.db), t, S);
-  }
+  for (let i = 0; i < curveNodes.bands.length; i++)
+    curveNodes.bands[i].gain.setTargetAtTime(curveGains[i], t, S);
 }
+function curveOnAudioStart() { if (preampKind === 'curve') curveSplice(); }
+function curveOnAudioStop() { curveSpliced = false; curveDestroy(); }
 
-function paraOnAudioStart() { if (preampKind === 'para') paraSplice(); }
-function paraOnAudioStop() { paraSpliced = false; paraDestroy(); }
+// ── Editing ────────────────────────────────────────────────
+function curveSort() { curveEq.pts.sort((a, b) => a.f - b.f); }
 
-// ── Setters ────────────────────────────────────────────────
-function paraSet(i, key, v) {
-  const b = para.bands[i];
-  if (!b) return;
-  b[key] = key === 'f' ? paraClampF(v) : key === 'db' ? paraClampDb(v) : paraClampQ(v);
-  if (paraNodes && audioCtx) {
-    const n = paraNodes.bands[i], t = audioCtx.currentTime;
-    const p = key === 'f' ? n.frequency : key === 'db' ? n.gain : n.Q;
-    p.setTargetAtTime(key === 'f' ? b.f : key === 'db' ? b.db : b.q, t, 0.02);
-  }
-  paraSave();
-  paraSyncUI();
-  if (activeTab === 'preamp') redrawStatic();
+function curveAddPoint(f, db) {
+  const p = { f: curveClampF(f), db: curveClampDb(db), anchor: false };
+  curveEq.pts.push(p);
+  curveSort();
+  curveChanged();
+  return p;
 }
-function paraReset() {
-  para.bands = PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 }));
-  if (paraNodes) paraApply(false);
-  paraSave(); paraSyncUI();
+function curveMovePoint(p, f, db) {
+  if (!p) return;
+  if (!p.anchor) p.f = curveClampF(f);     // anchors move vertically only
+  p.db = curveClampDb(db);
+  curveSort();
+  curveChanged();
+}
+function curveRemovePoint(p) {
+  if (!p || p.anchor) return false;
+  const i = curveEq.pts.indexOf(p);
+  if (i < 0) return false;
+  curveEq.pts.splice(i, 1);
+  curveChanged();
+  return true;
+}
+function curveClear() {
+  curveEq.pts = curveEq.pts.filter(p => p.anchor);
+  curveEq.pts.forEach(p => { p.db = 0; });
+  curveChanged();
+}
+function curveChanged() {
+  curveApply(false);
+  curveSave();
+  curveSyncUI();
   if (activeTab === 'preamp') redrawStatic();
 }
 
 // ── Persistence ────────────────────────────────────────────
-function paraSave() {
-  try { localStorage.setItem(PARA_KEY, JSON.stringify(para)); } catch (e) {}
+function curveSave() {
+  try { localStorage.setItem(CURVE_KEY, JSON.stringify(curveEq)); } catch (e) {}
 }
-function paraLoad() {
+function curveNormalise(pts) {
+  const out = [];
+  if (Array.isArray(pts)) for (const s of pts) {
+    const f = curveClampF(s && s.f), db = curveClampDb(s && s.db);
+    if (Number.isFinite(f) && Number.isFinite(db)) out.push({ f, db, anchor: !!(s && s.anchor) });
+  }
+  // The two anchors are structural: rebuild them if a stored file lost them.
+  if (!out.some(p => p.anchor && p.f <= CURVE_FMIN)) out.push({ f: CURVE_FMIN, db: 0, anchor: true });
+  if (!out.some(p => p.anchor && p.f >= CURVE_FMAX)) out.push({ f: CURVE_FMAX, db: 0, anchor: true });
+  out.sort((a, b) => a.f - b.f);
+  return out;
+}
+function curveLoad() {
   let raw = null;
-  try { raw = localStorage.getItem(PARA_KEY); } catch (e) {}
+  try { raw = localStorage.getItem(CURVE_KEY); } catch (e) {}
   if (!raw) return;
-  try {
-    const o = JSON.parse(raw) || {};
-    if (Array.isArray(o.bands))
-      for (let i = 0; i < PARA_N; i++) {
-        const s = o.bands[i] || {};
-        para.bands[i] = { f: paraClampF(s.f), db: paraClampDb(s.db), q: paraClampQ(s.q) };
-      }
-  } catch (e) {}
+  try { curveEq.pts = curveNormalise((JSON.parse(raw) || {}).pts); } catch (e) {}
 }
 
-// ── UI: numbers, not faders ────────────────────────────────
-function paraBuildStrip() {
-  const host = document.getElementById('paraRows');
-  if (!host || host.childElementCount) return;
-  let html = '';
-  for (let i = 0; i < PARA_N; i++) {
-    html +=
-      '<div class="para-row">' +
-        '<span class="para-n">' + (i + 1) + '</span>' +
-        '<label class="para-f"><input type="number" id="paraF' + i + '" data-para="' + i + '" data-k="f" ' +
-          'min="' + PARA_FMIN + '" max="' + PARA_FMAX + '" step="0.5" inputmode="decimal"><em>Hz</em></label>' +
-        '<label class="para-g"><input type="number" id="paraG' + i + '" data-para="' + i + '" data-k="db" ' +
-          'min="-12" max="12" step="0.5" inputmode="decimal"><em>dB</em></label>' +
-        '<label class="para-q"><input type="number" id="paraQ' + i + '" data-para="' + i + '" data-k="q" ' +
-          'min="' + EQ_Q_MIN + '" max="' + EQ_Q_MAX + '" step="0.1" inputmode="decimal"><em>Q</em></label>' +
-      '</div>';
-  }
-  host.innerHTML = html;
-}
-
-function paraSyncUI() {
-  for (let i = 0; i < PARA_N; i++) {
-    const b = para.bands[i];
-    if (!b) continue;
-    const set = (id, v) => {
-      const el = document.getElementById(id);
-      if (el && document.activeElement !== el && parseFloat(el.value) !== v) el.value = v;
-    };
-    set('paraF' + i, Math.round(b.f * 10) / 10);
-    set('paraG' + i, Math.round(b.db * 10) / 10);
-    set('paraQ' + i, Math.round(b.q * 10) / 10);
+// ── UI ─────────────────────────────────────────────────────
+function curveSyncUI() {
+  const n = curveEq.pts.filter(p => !p.anchor).length;
+  const el = document.getElementById('curveCount');
+  if (el) el.textContent = n === 0 ? 'no points yet — click the curve to add one'
+                                   : n + (n === 1 ? ' point' : ' points');
+  const fit = document.getElementById('curveFit');
+  if (fit) {
+    const B = curveBuildBasis();
+    if (B && curveGains) {
+      const got = curveAchievedDb(B.freqs);
+      let worst = 0;
+      for (let k = 0; k < B.freqs.length; k++)
+        worst = Math.max(worst, Math.abs(got[k] - curveAt(B.freqs[k])));
+      fit.textContent = 'filters within ' + worst.toFixed(2) + ' dB of the drawing';
+    } else fit.textContent = '';
   }
 }
-
-function wirePara() {
-  const host = document.getElementById('paraRows');
-  if (!host) return;
-  host.addEventListener('input', e => {
-    const el = e.target;
-    if (!el.dataset || el.dataset.para === undefined) return;
-    paraSet(parseInt(el.dataset.para, 10), el.dataset.k, el.value);
-  });
-}
-
-function initPara() { paraLoad(); paraBuildStrip(); wirePara(); paraSyncUI(); }
+function initCurve() { curveLoad(); curveSolve(); curveSyncUI(); }
 // ═══════════════════════════════════════════════════════════
 // CHROMATIC TUNER — McLeod Pitch Method (normalised square difference)
 // Unchanged from v2. Robust against the octave / harmonic-locking errors
@@ -7828,19 +8103,6 @@ function pgains(a) {
 // Widths default to the old fixed value, so a preset saved before bands had
 // their own Q loads back sounding exactly as it did. No schema bump needed:
 // a missing field simply reads as the default it always effectively had.
-// A preset saved before the parametric existed simply gets its defaults, so
-// loading one is never destructive — it just leaves that preamp untouched.
-function pbands(a) {
-  const out = PARA_DEFAULTS.map(f => ({ f, db: 0, q: 1.4 }));
-  if (Array.isArray(a)) for (let i = 0; i < PARA_N; i++) {
-    const s = a[i] || {};
-    out[i] = { f:  pnum(s.f,  PARA_DEFAULTS[i], PARA_FMIN, PARA_FMAX),
-               db: pnum(s.db, 0, -12, 12),
-               q:  pnum(s.q,  1.4, EQ_Q_MIN, EQ_Q_MAX) };
-  }
-  return out;
-}
-
 function pqs(a) {
   const out = new Array(GEQ_N).fill(GEQ_Q);
   if (Array.isArray(a)) for (let i = 0; i < GEQ_N; i++) out[i] = pnum(a[i], GEQ_Q, EQ_Q_MIN, EQ_Q_MAX);
@@ -7862,8 +8124,8 @@ function normalizePreset(p) {
     drive:     pnum(o.drive,   0, 0, 100),
     grunt:     ppick(o.grunt,  1, [0, 1, 2]),
     attack:    ppick(o.attack, 1, [0, 1, 2]),
-    preamp:      (o.preamp === 'geq' || o.preamp === 'para') ? o.preamp : 'b7k',
-    paraBands:   pbands(o.paraBands),
+    preamp:      (o.preamp === 'geq' || o.preamp === 'curve') ? o.preamp : 'b7k',
+    curvePts:    curveNormalise(o.curvePts),
     geqGains:    pgains(o.geqGains),
     geqQs:       pqs(o.geqQs),
     loMidQ:      pnum(o.loMidQ, 2.2, EQ_Q_MIN, EQ_Q_MAX),
@@ -7924,7 +8186,7 @@ function savePreset() {
     preamp: preampKind,
     geqGains: geq.gains.slice(),
     geqQs: geq.qs.slice(),
-    paraBands: para.bands.map(b => ({ f: b.f, db: b.db, q: b.q })),
+    curvePts: curveEq.pts.map(p => ({ f: p.f, db: p.db, anchor: !!p.anchor })),
     geqUserFreq: geq.userFreq,
     geqGain: geq.gain,
     geqVolume: geq.volume,
@@ -7950,9 +8212,8 @@ function applyPreset(idx) {
   if (geqNodes) geqApply(false);
   geqSyncUI(); geqSave();
 
-  for (let i = 0; i < PARA_N; i++) para.bands[i] = { f: p.paraBands[i].f, db: p.paraBands[i].db, q: p.paraBands[i].q };
-  if (paraNodes) paraApply(false);
-  paraSyncUI(); paraSave();
+  curveEq.pts = curveNormalise(p.curvePts);
+  curveApply(false); curveSyncUI(); curveSave();
 
   comp.on = p.compOn; comp.threshold = p.compThreshold; comp.ratio = p.compRatio;
   comp.attack = p.compAttack; comp.release = p.compRelease;
@@ -8002,7 +8263,7 @@ wireControls();
 wirePedalPanel();
 wireWah();
 initGeq();
-initPara();
+initCurve();
 initFftRange();
 initComp();
 initLoop();

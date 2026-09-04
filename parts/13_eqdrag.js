@@ -31,16 +31,9 @@ const eqDragAvailable = () => !!mqFine.matches;
 // on the real pedal, so a sideways drag flips rather than sweeps. `range` is a
 // continuous sweep, which only the graphic EQ's user band has.
 function eqBands() {
-  if (typeof preampKind !== 'undefined' && preampKind === 'para') {
-    return para.bands.map((b, i) => ({
-      id: 'para' + i, label: 'Band ' + (i + 1),
-      freq: b.f, db: b.db, q: b.q, type: 'peaking', step: 0.5,
-      free: true,                                   // its centre moves with the drag
-      setDb: v => paraSet(i, 'db', v),
-      setQ:  v => paraSet(i, 'q', v),
-      sweep: { range: [PARA_FMIN, PARA_FMAX], set: hz => paraSet(i, 'f', hz) }
-    }));
-  }
+  // Curve mode has no bands. The filters behind it are solved, not steered,
+  // and nothing in the band machinery applies.
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') return [];
   if (typeof preampKind !== 'undefined' && preampKind === 'geq') {
     const out = [];
     for (let i = 0; i < GEQ_N; i++) {
@@ -175,6 +168,10 @@ function eqHitBand(px, py, handles) {
 
 // ── Drawing ────────────────────────────────────────────────
 function drawEqCurve(ctx, xp, cw, ch, interactive) {
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') {
+    drawCurveEditor(ctx, xp, cw, ch, interactive);
+    return;
+  }
   const bands = eqBands();
   const N = 220;
   const fs = new Float32Array(N);
@@ -236,6 +233,129 @@ function drawEqCurve(ctx, xp, cw, ch, interactive) {
   ctx.fillText(interactive && eqDragAvailable() ? 'EQ curve · drag it · alt = width' : 'EQ curve',
                PAD.l + 3, PAD.t + 9);
   ctx.restore();
+}
+
+// ── The curve editor ───────────────────────────────────────
+let curveHandles = [];
+
+function drawCurveEditor(ctx, xp, cw, ch, interactive) {
+  const g = eqGeom(ch);
+  const N = 240;
+  const fs = new Float32Array(N);
+  for (let i = 0; i < N; i++) fs[i] = AX_FMIN * Math.pow(AX_FMAX / AX_FMIN, i / (N - 1));
+
+  ctx.save();
+  ctx.strokeStyle = TH.unityLine; ctx.lineWidth = 1; ctx.setLineDash([2, 6]);
+  [-EQ_MAX_DB, 0, EQ_MAX_DB].forEach(d => {
+    ctx.beginPath(); ctx.moveTo(PAD.l, g.yOf(d)); ctx.lineTo(PAD.l + cw, g.yOf(d)); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // What the filters actually do. Drawn first and faint, so where it differs
+  // from the drawing you can see it rather than being quietly lied to.
+  const got = curveAchievedDb(fs);
+  let any = false;
+  for (let i = 0; i < N; i++) if (Math.abs(got[i]) > 0.02) { any = true; break; }
+  if (any) {
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const x = xp(fs[i]); if (x < PAD.l - 1 || x > PAD.l + cw + 1) continue;
+      const y = g.yOf(got[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = TH.axisLabel; ctx.lineWidth = 3; ctx.globalAlpha = 0.35;
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // What you drew.
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = xp(fs[i]); if (x < PAD.l - 1 || x > PAD.l + cw + 1) continue;
+    const y = g.yOf(curveAt(fs[i]));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  if (CFG.glow) { ctx.shadowColor = TH.bass; ctx.shadowBlur = 6; }
+  ctx.strokeStyle = TH.bass; ctx.lineWidth = 1.8;
+  ctx.stroke(); ctx.shadowBlur = 0;
+
+  const handles = [];
+  if (interactive && eqDragAvailable()) {
+    curveEq.pts.forEach(pt => {
+      const x = xp(Math.min(AX_FMAX, Math.max(AX_FMIN, pt.f))), y = g.yOf(pt.db);
+      handles.push({ pt, x, y, ch });
+      const held = eqDrag && eqDrag.pt === pt;
+      ctx.beginPath();
+      ctx.arc(x, y, (pt.anchor ? EQ_HANDLE_R - 0.5 : EQ_HANDLE_R) + (held ? 2 : 0), 0, Math.PI * 2);
+      ctx.fillStyle = held ? TH.bass : TH.chartBg;
+      ctx.fill();
+      ctx.strokeStyle = TH.bass; ctx.lineWidth = held ? 2 : 1.5;
+      if (pt.anchor) ctx.setLineDash([1.5, 1.5]);
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+  }
+  curveHandles = handles;
+  if (interactive) eqGeo = { ch, cw };
+
+  ctx.fillStyle = TH.axisLabel; ctx.font = '8px Share Tech Mono,monospace'; ctx.textAlign = 'left';
+  ctx.fillText('+12', PAD.l + 3, g.yOf(EQ_MAX_DB) + 8);
+  ctx.fillText('−12', PAD.l + 3, g.yOf(-EQ_MAX_DB) - 2);
+  ctx.fillText(interactive && eqDragAvailable() ? 'Curve · click to add a point · double-click to remove'
+                                                : 'Curve', PAD.l + 3, PAD.t + 9);
+  ctx.restore();
+}
+
+function curveHitPoint(px, py) {
+  let best = null, bd = EQ_GRAB_R;
+  for (const h of curveHandles) {
+    const d = Math.hypot(px - h.x, py - h.y);
+    if (d <= bd) { bd = d; best = h; }
+  }
+  return best;
+}
+
+// A grab in curve mode: take the point under the cursor, or make one there.
+function curveDragStart(el, e) {
+  if (!eqGeo) return false;
+  const rect = el.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  if (px < PAD.l || px > PAD.l + eqGeo.cw) return false;
+  const f = chartXtoFreq(el, e.clientX);
+  if (!f) return false;
+  const hit = curveHitPoint(px, py);
+  const g = eqGeom(eqGeo.ch);
+  const pt = hit ? hit.pt : curveAddPoint(f, g.dbOf(py));
+  eqDrag = { pt, ch: eqGeo.ch, x0: e.clientX, y0: e.clientY, moved: false, curve: true };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  el.style.cursor = 'grabbing';
+  hideProbe();
+  curveTip(pt, e.clientX, e.clientY);
+  e.preventDefault();
+  return true;
+}
+
+// The point goes exactly where the cursor is. This is a drawing tool; there
+// is nothing to solve for and nothing to lag behind your hand.
+function curveDragMove(el, e) {
+  if (!eqDrag || !eqDrag.curve) return false;
+  const rect = el.getBoundingClientRect();
+  const g = eqGeom(eqDrag.ch);
+  const f = chartXtoFreq(el, e.clientX) || eqDrag.pt.f;
+  curveMovePoint(eqDrag.pt, f, g.dbOf(e.clientY - rect.top));
+  eqDrag.moved = true;
+  curveTip(eqDrag.pt, e.clientX, e.clientY);
+  e.preventDefault();
+  return true;
+}
+
+function curveTip(pt, cx, cy) {
+  const tip = document.getElementById('freqTooltip');
+  if (!tip || !pt) return;
+  const sign = pt.db > 0 ? '+' : '';
+  tip.textContent = (pt.f >= 1000 ? (pt.f / 1000).toFixed(2) + ' kHz' : pt.f.toFixed(1) + ' Hz')
+                  + '  ·  ' + sign + pt.db.toFixed(1) + ' dB' + (pt.anchor ? '  ·  end' : '');
+  tip.style.display = 'block';
+  tip.style.left = Math.max(6, Math.min(cx + 14, window.innerWidth - tip.offsetWidth - 16)) + 'px';
+  tip.style.top = Math.max(6, cy - 30) + 'px';
 }
 
 // ── Which band owns this point, and by how much ────────────
@@ -315,6 +435,7 @@ function eqBandById(id) {
 function eqDragStart(el, e) {
   if (!eqDragAvailable() || e.pointerType !== 'mouse') return false;
   if (typeof analyzerMode !== 'undefined' && analyzerMode !== 'fft') return false;
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') return curveDragStart(el, e);
   if (!eqGeo) return false;
   const rect = el.getBoundingClientRect();
   const px = e.clientX - rect.left;
@@ -339,6 +460,7 @@ function eqDragStart(el, e) {
 
 function eqDragMove(el, e) {
   if (!eqDrag) return false;
+  if (eqDrag.curve) return curveDragMove(el, e);
   const b = eqBandById(eqDrag.id);
   if (!b) { eqDragEnd(el, e); return true; }
   const g = eqGeom(eqDrag.ch);
@@ -426,6 +548,12 @@ function eqDragEnd(el, e) {
 function eqHoverCursor(el, e) {
   if (!eqDragAvailable() || e.pointerType !== 'mouse' || eqDrag) return;
   const rect = el.getBoundingClientRect();
+  if (typeof preampKind !== 'undefined' && preampKind === 'curve') {
+    const inP = eqGeo && (e.clientX - rect.left) >= PAD.l && (e.clientX - rect.left) <= PAD.l + eqGeo.cw;
+    el.style.cursor = curveHitPoint(e.clientX - rect.left, e.clientY - rect.top) ? 'grab'
+                                                                                 : (inP ? 'crosshair' : '');
+    return;
+  }
   const px = e.clientX - rect.left;
   const inPlot = eqGeo && px >= PAD.l && px <= PAD.l + eqGeo.cw;
   el.style.cursor = eqHitBand(px, e.clientY - rect.top) ? 'grab' : (inPlot ? 'ns-resize' : '');

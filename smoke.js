@@ -197,15 +197,15 @@ setTimeout(() => {
     // still be a finite number.
     // paraBands is an array of objects; its contents are checked below rather
     // than by the flat finite sweep.
-    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'paraBands', 'compOn']);
-    const badBand = (arr) => (arr || []).some(b =>
-      !b || !Number.isFinite(b.f) || !Number.isFinite(b.db) || !Number.isFinite(b.q) ||
-      b.f < 20 || b.f > 10000 || Math.abs(b.db) > 12 || b.q < 0.5 || b.q > 18);
+    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'curvePts', 'compOn']);
+    const badBand = (arr) => !Array.isArray(arr) || arr.length < 2 || arr.some(b =>
+      !b || !Number.isFinite(b.f) || !Number.isFinite(b.db) ||
+      b.f < 20 || b.f > 10000 || Math.abs(b.db) > 18);
     const bad0 = Object.entries(p).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (bad0.length) bad('migrated preset has non-finite fields: ' + JSON.stringify(bad0));
     else ok('v1 → v3 migration produced only finite numbers');
-    if (badBand(p.paraBands)) bad('migrated preset has a bad parametric band');
-    else ok('parametric bands survive migration in range');
+    if (badBand(p.curvePts)) bad('migrated preset has bad curve points');
+    else ok('curve points survive migration, anchors intact');
     if (Array.isArray(p.geqGains) && p.geqGains.length === 11 && p.geqGains.every(Number.isFinite))
       ok('migrated preset carries 11 finite EQ band gains');
     else bad('geqGains is ' + JSON.stringify(p.geqGains));
@@ -242,8 +242,8 @@ setTimeout(() => {
     const junkBad = Object.entries(j).filter(([k, v]) => !SKIP.has(k) && !Number.isFinite(v));
     if (junkBad.length) bad('garbage preset yielded non-finite: ' + JSON.stringify(junkBad));
     else ok('garbage preset fully coerced to finite defaults');
-    if (badBand(j.paraBands)) bad('garbage preset produced a bad parametric band');
-    else ok('garbage cannot produce an out-of-range parametric band');
+    if (badBand(j.curvePts)) bad('garbage preset produced bad curve points');
+    else ok('garbage cannot produce an out-of-range curve point');
     if (j.geqGains.every(Number.isFinite) && j.geqGains[4] === 12 && j.geqGains[5] === -12 &&
         j.geqGains[9] === 3 && j.preamp === 'b7k' && Number.isFinite(j.geqUserFreq))
       ok('garbage EQ bands coerced and clamped to ±12, preamp falls back to b7k');
@@ -883,72 +883,81 @@ setTimeout(() => {
     ev('setParam')('low', 0);
   } catch (e) { bad('EQ drag threw: ' + e.stack); }
 
-  console.log('\n[21] parametric EQ');
+  console.log('\n[21] curve EQ');
   try {
-    ev('setPreamp')('para');
-    if (ev('preampKind') === 'para') ok('the third preamp selects');
+    ev('setPreamp')('curve');
+    if (ev('preampKind') === 'curve') ok('the third preamp selects');
     else bad('preampKind is ' + ev('preampKind'));
     const shown = id => d.getElementById(id) && d.getElementById(id).style.display !== 'none';
-    if (shown('preampPara') && !shown('preampGeq') && !shown('preampB7k'))
+    if (shown('preampCurve') && !shown('preampGeq') && !shown('preampB7k'))
       ok('its panel shows and the other two hide');
     else bad('panel visibility wrong');
 
-    const b = ev('eqBands')();
-    if (b.length === ev('PARA_N')) ok(`${b.length} bands`);
-    else bad(b.length + ' bands');
-    if (b.every(x => x.free && x.setQ && x.sweep && x.sweep.range))
-      ok('every band is free: gain, width and a continuous frequency range');
-    else bad('a band is missing free/setQ/sweep');
-    if (b[0].sweep.range[0] === 20 && b[0].sweep.range[1] === 10000)
-      ok('range is 20 Hz to 10 kHz — the whole chart, nothing hides off-screen');
-    else bad('range is ' + b[0].sweep.range.join('..'));
+    ev('curveClear')();
+    const pts = () => ev('curveEq').pts;
+    if (pts().length === 2 && pts().every(p => p.anchor)) ok('starts as two end anchors, nothing else');
+    else bad('starts with ' + JSON.stringify(pts()));
+    const at = ev('curveAt');
+    if ([20, 100, 1000, 10000].every(f => Math.abs(at(f)) < 1e-9)) ok('and draws a flat line');
+    else bad('flat is not flat');
 
-    // Selection must be nearest centre, not influence: that is the whole
-    // point once a band can be moved to where you are pointing.
-    ev('paraSet')(2, 'f', 400); ev('paraSet')(2, 'q', 18); ev('paraSet')(2, 'db', 0);
-    const pick = ev('eqBandAtFreq')(405);
-    if (pick && pick.id === 'para2')
-      ok('grabbing at 405 Hz picks the band at 400 Hz, even at Q 18 where it has almost no influence there');
-    else bad('picked ' + (pick && pick.id));
+    // no bands at all — the band machinery must not apply here
+    if (ev('eqBands')().length === 0) ok('there are no bands in curve mode');
+    else bad('eqBands returned ' + ev('eqBands')().length);
 
-    // exact, non-round frequencies
-    ev('paraSet')(0, 'f', 100.5);
-    if (Math.abs(ev('para').bands[0].f - 100.5) < 1e-9) ok('100.5 Hz is a frequency, not rounded away');
-    else bad('got ' + ev('para').bands[0].f);
-    ev('paraSet')(1, 'f', 505);
-    if (ev('para').bands[1].f === 505) ok('505 Hz too');
-    else bad('got ' + ev('para').bands[1].f);
+    // a point is exactly where you put it
+    ev('curveAddPoint')(505, -9);
+    if (Math.abs(at(505) - (-9)) < 1e-6) ok('a point at 505 Hz reads -9.0 dB there — the exact frequency, not a grid slot');
+    else bad('curve at 505 is ' + at(505));
+    if (Math.abs(at(100.5) - at(100.5)) < 1e-9 && Number.isFinite(at(100.5))) ok('and 100.5 Hz is an ordinary frequency');
 
-    // clamps
-    ev('paraSet')(0, 'f', 99999); ev('paraSet')(1, 'db', 99); ev('paraSet')(2, 'q', -5);
-    if (ev('para').bands[0].f === 10000 && ev('para').bands[1].db === 12 && ev('para').bands[2].q === 0.5)
-      ok('frequency, gain and width all clamp at their limits');
-    else bad('clamps gave ' + JSON.stringify(ev('para').bands.slice(0, 3)));
+    // THE property that makes a drawn curve trustworthy: between two points
+    // the line stays between their values. A plain cubic spline overshoots,
+    // which would put a bump in the response that you did not draw.
+    ev('curveClear')();
+    ev('curveAddPoint')(100, 0);
+    ev('curveAddPoint')(200, -12);
+    ev('curveAddPoint')(400, 0);
+    let lo = 99, hi = -99;
+    for (let f = 100; f <= 400; f *= 1.005) { const v = at(f); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (lo >= -12.001 && hi <= 0.001)
+      ok(`between the points the curve stays within [${lo.toFixed(2)}, ${hi.toFixed(2)}] — it cannot overshoot`);
+    else bad(`overshoot: [${lo.toFixed(2)}, ${hi.toFixed(2)}] outside [-12, 0]`);
 
-    // bands may cross: there is no strip to keep in order
-    ev('paraSet')(0, 'f', 800); ev('paraSet')(1, 'f', 300);
-    if (ev('para').bands[0].f === 800 && ev('para').bands[1].f === 300)
-      ok('bands cross freely — band 1 above band 2 is allowed');
-    else bad('crossing was blocked');
+    // monotone segments stay monotone
+    ev('curveClear')();
+    ev('curveAddPoint')(100, 0); ev('curveAddPoint')(1000, 10);
+    let mono = true, prev = -99;
+    for (let f = 100; f <= 1000; f *= 1.01) { const v = at(f); if (v < prev - 1e-9) mono = false; prev = v; }
+    if (mono) ok('a rising segment rises the whole way — no dips on the way up');
+    else bad('a monotone segment was not monotone');
 
-    ev('paraReset')();
-    if (ev('para').bands.map(x => x.f).join(',') === ev('PARA_DEFAULTS').join(','))
-      ok('reset restores the starting spread');
-    else bad('reset gave ' + ev('para').bands.map(x => x.f).join(','));
+    // anchors are structural
+    ev('curveClear')();
+    const anch = pts()[0];
+    if (ev('curveRemovePoint')(anch) === false && pts().length === 2) ok('an end anchor cannot be removed');
+    else bad('an anchor was removed');
+    ev('curveMovePoint')(anch, 5000, 6);
+    if (anch.f === 20 && Math.abs(anch.db - 6) < 1e-9) ok('an anchor moves in dB but not in frequency');
+    else bad(`anchor went to ${anch.f} Hz / ${anch.db} dB`);
 
-    // the numeric rows are the phone's way in
-    const rows = d.querySelectorAll('#paraRows .para-row');
-    if (rows.length === ev('PARA_N')) ok(`${rows.length} numeric rows built`);
-    else bad(rows.length + ' rows');
-    const f0 = d.getElementById('paraF0');
-    if (f0 && parseFloat(f0.value) === ev('para').bands[0].f) ok('the rows read back the live values');
-    else bad('row value is ' + (f0 && f0.value));
-    f0.value = '250'; f0.dispatchEvent(new w.Event('input', { bubbles: true }));
-    if (ev('para').bands[0].f === 250) ok('typing into a row moves the band');
-    else bad('typing gave ' + ev('para').bands[0].f);
-    ev('paraReset')();
+    const p2 = ev('curveAddPoint')(700, 3);
+    if (ev('curveRemovePoint')(p2) && pts().length === 2) ok('an added point can be removed');
+    else bad('point removal failed');
+
+    // clamps and repair
+    ev('curveClear')();
+    const cp = ev('curveAddPoint')(99999, 999);
+    if (cp.f === 10000 && cp.db === 18) ok('points clamp to the chart and to ±18 dB');
+    else bad('clamps gave ' + JSON.stringify(cp));
+    const rebuilt = ev('curveNormalise')([{ f: 500, db: 3 }]);
+    if (rebuilt.length === 3 && rebuilt[0].anchor && rebuilt[2].anchor)
+      ok('a stored drawing missing its anchors gets them back');
+    else bad('normalise gave ' + JSON.stringify(rebuilt));
+
+    ev('curveClear')();
     ev('setPreamp')('b7k');
-  } catch (e) { bad('parametric threw: ' + e.stack); }
+  } catch (e) { bad('curve EQ threw: ' + e.stack); }
 
   console.log('\n[13] no late errors');
   if (errors.length) bad('errors accumulated:\n      ' + errors.join('\n      '));

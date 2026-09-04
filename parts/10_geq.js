@@ -119,11 +119,11 @@ function geqApply(immediate) {
 }
 
 // ── Preamp selection ───────────────────────────────────────
-const PREAMP_KINDS = ['b7k', 'geq', 'para'];
+const PREAMP_KINDS = ['b7k', 'geq', 'curve'];
 function setPreamp(kind) {
   preampKind = PREAMP_KINDS.indexOf(kind) >= 0 ? kind : 'b7k';
   try { localStorage.setItem(PREAMP_KEY, preampKind); } catch (e) {}
-  [['preampB7k', 'b7k'], ['preampGeq', 'geq'], ['preampPara', 'para']].forEach(([id, k]) => {
+  [['preampB7k', 'b7k'], ['preampGeq', 'geq'], ['preampCurve', 'curve']].forEach(([id, k]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = preampKind === k ? '' : 'none';
   });
@@ -132,12 +132,12 @@ function setPreamp(kind) {
   // The graphic and the parametric splice across the same edge, so exactly
   // one of them may be in the chain at a time. Unsplice first, always.
   if (audioRunning) {
-    geqUnsplice(); paraUnsplice();
+    geqUnsplice(); curveUnsplice();
     if (preampKind === 'geq') geqSplice();
-    else if (preampKind === 'para') paraSplice();
+    else if (preampKind === 'curve') curveSplice();
   }
   geqSyncUI();
-  if (typeof paraSyncUI === 'function') paraSyncUI();
+  if (typeof curveSyncUI === 'function') curveSyncUI();
   redrawStatic();
 }
 // Called from startAudio, so the selection survives enabling audio later.
@@ -167,7 +167,7 @@ function geqLoad() {
   }
   let p = null;
   try { p = localStorage.getItem(PREAMP_KEY); } catch (e) {}
-  preampKind = (p === 'geq' || p === 'para') ? p : 'b7k';
+  preampKind = (p === 'geq' || p === 'curve') ? p : 'b7k';
 }
 
 // ── Faders ─────────────────────────────────────────────────
