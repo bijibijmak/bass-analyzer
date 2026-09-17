@@ -365,6 +365,103 @@ setTimeout(() => {
     else ok(`monotonic, bounded, asymmetric (+${pos.toFixed(3)} / ${neg.toFixed(3)})`);
   } catch (e) { bad('clipper test threw: ' + e.stack); }
 
+  console.log('\n[11b] Alpha·Omega drive voice');
+  try {
+    const mk = ev('makeDriveCurve');
+
+    // A table that is not monotonic folds the waveform back on itself, which
+    // sounds like ring modulation rather than distortion. A table that leaves
+    // ±1 clips at the output instead of in the voice. Both are the kind of
+    // fault you only hear once it is on tape, so they are assertions.
+    let voiceBad = 0;
+    for (const m of [0, 25, 50, 75, 100]) {
+      const c = mk(4096, true, m);
+      let mono = true, mx = 0;
+      for (let i = 1; i < c.length; i++) if (c[i] < c[i - 1] - 1e-9) mono = false;
+      for (let i = 0; i < c.length; i++) mx = Math.max(mx, Math.abs(c[i]));
+      const zero = Math.abs((c[c.length / 2 - 1] + c[c.length / 2]) / 2);
+      if (!c.every(Number.isFinite)) { bad(`Mod ${m}: non-finite entries`); voiceBad++; }
+      else if (!mono)        { bad(`Mod ${m}: not monotonic — would fold, not clip`); voiceBad++; }
+      else if (mx > 1.0001)  { bad(`Mod ${m}: peak ${mx.toFixed(3)} leaves ±1`); voiceBad++; }
+      else if (zero > 0.01)  { bad(`Mod ${m}: not near zero at zero input`); voiceBad++; }
+    }
+    if (!voiceBad) ok('Alpha→Omega is monotonic, bounded and zero-crossing at every Mod');
+
+    // Drive a 0.7 sine through a table: RMS, and how far it departs from the
+    // best straight line through it, which is a distortion proxy.
+    const probe = c => {
+      const N = 2048; let sy = 0, sxy = 0, sxx = 0;
+      const ys = new Float64Array(N), xs = new Float64Array(N);
+      for (let i = 0; i < N; i++) {
+        const x = 0.7 * Math.sin(2 * Math.PI * i / N);
+        const t = (x + 1) / 2 * (c.length - 1);
+        const k = Math.max(0, Math.min(c.length - 2, Math.floor(t))), fr = t - k;
+        const y = c[k] * (1 - fr) + c[k + 1] * fr;
+        xs[i] = x; ys[i] = y; sy += y * y; sxy += x * y; sxx += x * x;
+      }
+      const a = sxy / sxx;
+      let res = 0, lin = 0;
+      for (let i = 0; i < N; i++) { const e = ys[i] - a * xs[i]; res += e * e; lin += (a * xs[i]) ** 2; }
+      return { rms: Math.sqrt(sy / N), dist: Math.sqrt(res / lin) };
+    };
+    const pA = probe(mk(4096, true, 0)), pO = probe(mk(4096, true, 100));
+
+    // Mod must be a voice control, not a hidden volume control.
+    const jump = Math.abs(20 * Math.log10(pO.rms / pA.rms));
+    if (jump < 1.5) ok(`the Mod sweep holds level within ${jump.toFixed(2)} dB`);
+    else bad(`the Mod sweep moves level by ${jump.toFixed(2)} dB — that is a volume knob`);
+
+    // Omega is meant to be the dirtier end. This got the wrong way round once
+    // already during tuning, and by ear it is not obvious which is which.
+    if (pO.dist > pA.dist * 1.15)
+      ok(`Omega distorts more than Alpha (${(pO.dist * 100).toFixed(1)}% vs ${(pA.dist * 100).toFixed(1)}%)`);
+    else bad(`Alpha is as dirty as Omega (${(pA.dist * 100).toFixed(1)}% vs ${(pO.dist * 100).toFixed(1)}%) — the voices are backwards`);
+
+    // Alpha is symmetric on purpose (odd harmonics only); Omega is not.
+    const asym = c => Math.abs(Math.abs(c[c.length - 1]) - Math.abs(c[0]));
+    if (asym(mk(4096, true, 0)) < 0.02) ok('Alpha is symmetric — odd harmonics only');
+    else bad('Alpha is asymmetric, so it is not the tight voice it claims to be');
+    if (asym(mk(4096, true, 100)) > 0.1) ok('Omega is lopsided — even harmonics come up');
+    else bad('Omega is symmetric, so Mod changes little of consequence');
+
+    // B7K must still be reachable through the same entry point.
+    const b7kTable = mk(4096, false, 100);
+    const ref = ev('makeClipCurve')(4096);
+    if (b7kTable[0] === ref[0] && b7kTable[4095] === ref[4095])
+      ok('with the B7K voice selected Mod is ignored and the old curve is used');
+    else bad('the B7K voice no longer returns the B7K curve');
+
+    // The switches are relabelled rather than duplicated, on all three panels.
+    const capsOf = id => [...d.querySelectorAll(`[data-sw="${id}"]`)].map(p => {
+      const cell = p.closest('.swcell');
+      const cap = cell && cell.querySelector('.sw-cap');
+      if (!cap) return '(none)';
+      const t = Array.from(cap.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
+      return t ? t.textContent.trim() : '(none)';
+    });
+    ev('setDriveKind')(1);
+    const gc = capsOf('grunt'), ac = capsOf('attack');
+    if (gc.length === 3 && gc.every(c => c === 'Growl') && ac.every(c => c === 'Bite'))
+      ok('all three panels relabel Grunt/Attack as Growl/Bite');
+    else bad('caps read ' + gc.join('/') + ' and ' + ac.join('/'));
+    const spans = [...d.querySelectorAll('[data-swlabels="grunt"] span')].map(s2 => s2.textContent);
+    if (spans.every(s2 => ['Tight', 'Flat', 'Thick'].includes(s2)))
+      ok('positions read Tight/Flat/Thick, mapped by value and not by position');
+    else bad('positions read ' + spans.join('/'));
+    const mods = [...d.querySelectorAll('.ao-only')];
+    if (mods.length >= 3 && mods.every(e2 => e2.style.display !== 'none')) ok('the Mod control appears on all three panels');
+    else bad(`${mods.length} Mod controls, shown: ${mods.filter(e2 => e2.style.display !== 'none').length}`);
+    ev('setParam')('mod', 60);
+    const modVals = [...d.querySelectorAll('input[data-bind="mod"]')].map(e2 => parseFloat(e2.value));
+    if (modVals.length >= 3 && modVals.every(v => v === 60)) ok('the Mod faders are twins of each other');
+    else bad('Mod faders read ' + modVals.join('/'));
+
+    ev('setDriveKind')(0);
+    if (capsOf('grunt').every(c => c === 'Grunt') && d.querySelectorAll('.ao-only')[0].style.display === 'none')
+      ok('switching back restores the B7K markings and hides Mod');
+    else bad('the B7K markings did not come back');
+  } catch (e) { bad('Alpha·Omega test threw: ' + e.stack); }
+
   console.log('\n[12] gain-computing helpers never emit NaN');
   try {
     const probes = [-1, 0, 0.5, 50, 100, 101, NaN, undefined, null, 'x'];
@@ -1033,7 +1130,7 @@ setTimeout(() => {
     const off  = ev('loopRenderOffline').toString();
     const refs = new Set();
     for (const m of live.matchAll(/\b((?:state|noiseState)\.[a-zA-Z]\w*)/g)) refs.add(m[1]);
-    for (const m of live.matchAll(/\b(GRUNT_DB|ATTACK_DB|blendGains|levelGain|driveGainOf|makeClipCurve)\b/g)) refs.add(m[1]);
+    for (const m of live.matchAll(/\b(GRUNT_DB|ATTACK_DB|GROWL_DB|BITE_DB|blendGains|levelGain|driveGainOf|makeClipCurve|makeDriveCurve)\b/g)) refs.add(m[1]);
     const missing = [...refs].filter(r => off.indexOf(r) < 0);
     if (!missing.length) ok(`all ${refs.size} live parameters appear in the offline renderer`);
     else bad('the renderer never reads: ' + missing.join(', '));

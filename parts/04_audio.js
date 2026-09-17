@@ -27,6 +27,7 @@ let driveGainNode = null;    // pre-clipper gain
 let gruntFilter = null;      // lowshelf, pre-clipper
 let attackFilter = null;     // highshelf, pre-clipper
 let clipperNode = null;      // asymmetric soft clip
+let dcBlockNode = null;      // 10 Hz highpass after the clipper — removes the DC step
 let sumBus = null;           // dry + wet
 
 // Preamp bus. Everything that can feed the preamp lands on preampIn, and the
@@ -83,6 +84,66 @@ function makeClipCurve(n) {
   return c;
 }
 
+// ── Alpha·Omega: two voices in one table ─────────────────────
+// ALPHA is symmetric on purpose. A symmetric curve makes odd harmonics only,
+// which is what keeps a bass articulate rather than woolly: tight and defined.
+//
+// OMEGA has more gain, reaches the rails sooner and is markedly asymmetric, so
+// even harmonics come up and it reads fuzzy and raw instead of tight.
+//
+// Both are cubic/quadratic reaches toward a rail rather than tanh, which is
+// what makes them audibly a different family from the B7K curve above.
+// Measured on an exact-bin 110 Hz sine (windowing matters: a non-integer
+// number of periods leaks and fakes both DC and even harmonics):
+//
+//   curve   in 0.7    THD    even/odd    DC
+//   B7K               12.7%    0.331    1.0e-2
+//   Alpha             17.8%    0.000   -1.1e-17
+//   Omega             26.9%    0.142    1.2e-1
+//
+// All four tables (including every Mod blend) are monotonic and inside ±1, so
+// nothing folds back — folding sounds like ring modulation, not distortion.
+function makeAlphaCurve(n) {
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / (n - 1) - 1;
+    const a = Math.abs(x), s = x < 0 ? -1 : 1;
+    const k = Math.min(a * 1.15, 1);
+    c[i] = s * (1 - Math.pow(1 - k, 3)) * 0.92;
+  }
+  return c;
+}
+
+function makeOmegaCurve(n) {
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / (n - 1) - 1;
+    if (x >= 0) { const a = Math.min(x * 2.6, 1); c[i] =  (1 - Math.pow(1 - a, 2)) * 0.98; }
+    else        { const a = Math.min(-x * 1.5, 1); c[i] = -(1 - Math.pow(1 - a, 3)) * 0.74; }
+  }
+  return c;
+}
+
+// Mod blends the TABLES, not two waveshapers. Crossfading two clipped signals
+// would sum two different distortions; blending the transfer curve gives one
+// clipper whose character moves continuously — which is what the knob implies.
+// Level barely moves across the sweep (0.07 dB measured), so Mod is a voice
+// control and not a hidden volume control.
+function makeDriveCurve(n, ao, mod) {
+  if (!ao) return makeClipCurve(n);
+  const A = makeAlphaCurve(n), O = makeOmegaCurve(n);
+  const m = Math.max(0, Math.min(1, (Number.isFinite(mod) ? mod : 0) / 100));
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) c[i] = (1 - m) * A[i] + m * O[i];
+  return c;
+}
+
+// A 4096-point table is cheap to build but not free, and applyAudioParams runs
+// on every knob move. The table is data, not an AudioParam, so it is rebuilt
+// only when the voice or Mod actually changes — Mod quantised to the slider's
+// own 1% step so a drag does not rebuild it 60 times a second.
+const driveCurveCache = { ao: false, mod: 0 };
+
 // ── Latency readout ────────────────────────────────────────
 // baseLatency and outputLatency are specified in SECONDS. A four-digit
 // millisecond result therefore means a browser is reporting something
@@ -123,13 +184,34 @@ function applyAudioParams() {
   levelGainNode.gain.setTargetAtTime(byp ? 1 : num(levelGain(num(state.level, 100)), 1), t, S);
   driveGainNode.gain.setTargetAtTime(byp ? 1 : num(driveGainOf(num(state.drive, 0)), 1), t, S);
 
-  gruntFilter.type = 'lowshelf';
-  gruntFilter.frequency.value = 120;
-  gruntFilter.gain.setTargetAtTime(byp ? 0 : num(GRUNT_DB[state.grunt], 0), t, S);
+  // Two voices, one pair of filters. Under Alpha·Omega the same two switches
+  // become Growl (a lower shelf) and Bite (a mid PEAK, not a treble shelf).
+  const ao = num(state.driveKind, 0) === 1;
 
-  attackFilter.type = 'highshelf';
-  attackFilter.frequency.value = 3000;
-  attackFilter.gain.setTargetAtTime(byp ? 0 : num(ATTACK_DB[state.attack], 0), t, S);
+  gruntFilter.type = 'lowshelf';
+  gruntFilter.frequency.value = ao ? 80 : 120;
+  gruntFilter.gain.setTargetAtTime(
+    byp ? 0 : num(ao ? GROWL_DB[state.grunt] : GRUNT_DB[state.grunt], 0), t, S);
+
+  attackFilter.type = ao ? 'peaking' : 'highshelf';
+  attackFilter.frequency.value = ao ? 2800 : 3000;
+  attackFilter.Q.value = 1.1;              // Web Audio ignores Q on a shelf
+  attackFilter.gain.setTargetAtTime(
+    byp ? 0 : num(ao ? BITE_DB[state.attack] : ATTACK_DB[state.attack], 0), t, S);
+
+  const wantMod = ao ? Math.round(num(state.mod, 0)) : 0;
+  if (driveCurveCache.ao !== ao || driveCurveCache.mod !== wantMod) {
+    clipperNode.curve = makeDriveCurve(4096, ao, wantMod);
+    driveCurveCache.ao = ao; driveCurveCache.mod = wantMod;
+  }
+
+  // DC blocker, after the clipper. Omega is deliberately asymmetric, which
+  // leaves a DC offset on the wet leg (0.12 measured at full drive); a step
+  // like that eats headroom and thumps when Blend moves. 10 Hz removes it and
+  // costs 0.05 dB at 31 Hz, so even a low-B fundamental is untouched.
+  dcBlockNode.type = 'highpass';
+  dcBlockNode.frequency.value = 10;
+  dcBlockNode.Q.value = 0.707;
 
   // ── EQ, post-blend ──
   filterLow.type = 'lowshelf';
@@ -247,6 +329,8 @@ async function startAudio() {
     clipperNode   = audioCtx.createWaveShaper();
     clipperNode.curve = makeClipCurve(4096);
     clipperNode.oversample = LITE ? 'none' : '4x';
+    driveCurveCache.ao = false; driveCurveCache.mod = 0;   // matches the curve just set
+    dcBlockNode   = audioCtx.createBiquadFilter();
     sumBus        = audioCtx.createGain();
     sumBus.gain.value = 1;
 
@@ -315,7 +399,8 @@ async function startAudio() {
     gruntFilter.connect(attackFilter);
     attackFilter.connect(driveGainNode);
     driveGainNode.connect(clipperNode);
-    clipperNode.connect(levelGainNode);
+    clipperNode.connect(dcBlockNode);
+    dcBlockNode.connect(levelGainNode);
     levelGainNode.connect(wetBlendNode);
     wetBlendNode.connect(sumBus);
 
@@ -385,7 +470,7 @@ function stopAudio() {
   inGainNode = outGainNode = null;
   preampIn = dtOut = compOut = null;
   dryGainNode = wetBlendNode = levelGainNode = driveGainNode = null;
-  gruntFilter = attackFilter = clipperNode = sumBus = null;
+  gruntFilter = attackFilter = clipperNode = dcBlockNode = sumBus = null;
   filterLow = filterLoMid = filterHiMid = filterTreble = null;
   filterHiss = filterNotch = gateGainNode = null;
   tunerAnalyser = null; tunerBuf = null;

@@ -209,7 +209,19 @@
 
 <div id="preampB7k">
   <!-- ── PEDAL PANEL — knobs and switches ── -->
-  <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
+  <div class="section-label">Pedal — <span data-drivename>Microtubes B7K v2</span></div>
+  <div class="fft-toggle-row">
+    <span class="ctrl-sub" style="margin:0 4px 0 0">Voice</span>
+    <button class="fft-btn active" type="button" data-drivekind="0" onclick="setDriveKind(0)">B7K</button>
+    <button class="fft-btn"        type="button" data-drivekind="1" onclick="setDriveKind(1)">Alpha&middot;Omega</button>
+  </div>
+  <div class="noise-section ao-only" style="display:none">
+    <div class="noise-tool card-level">
+      <div class="ctrl-label">Mod <span class="val" data-val="mod">0%</span></div>
+      <input type="range" data-bind="mod" min="0" max="100" value="0" step="1">
+      <div class="noise-tool-desc">Alpha at 0, Omega at 100 &mdash; one transfer curve blended between the two, not two distortions crossfaded. Omega has more gain and is deliberately lopsided, so it reads raw where Alpha stays tight and articulate.</div>
+    </div>
+  </div>
   <div class="pedal-panel">
     <div class="pedal-row top">
       <div class="knobcell">
@@ -316,7 +328,7 @@
       </div>
       <div></div>
     </div>
-    <div class="pedal-caption">Microtubes B7K &middot; Analog Bass Preamp</div>
+    <div class="pedal-caption" data-drivecap>Microtubes B7K &middot; Analog Bass Preamp</div>
   </div>
   <p class="hint">
     Drag a knob, or use the scroll wheel and arrow keys. Detents are the 21
@@ -361,7 +373,12 @@
       </div>
     </div>
     <div class="geq-col geq-col-right">
-      <div class="section-label">Drive — <span>the same B7K section, as faders</span></div>
+      <div class="section-label">Drive — <span>the same drive section, as faders</span></div>
+      <div class="fft-toggle-row">
+        <span class="ctrl-sub" style="margin:0 4px 0 0">Voice</span>
+        <button class="fft-btn active" type="button" data-drivekind="0" onclick="setDriveKind(0)">B7K</button>
+        <button class="fft-btn"        type="button" data-drivekind="1" onclick="setDriveKind(1)">Alpha&middot;Omega</button>
+      </div>
       <div class="noise-section">
         <div class="noise-tool">
           <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
@@ -374,6 +391,11 @@
         <div class="noise-tool">
           <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
           <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="noise-tool ao-only card-level" style="display:none">
+          <div class="ctrl-label">Mod <span class="val" data-val="mod">0%</span></div>
+          <input type="range" data-bind="mod" min="0" max="100" value="0" step="1">
+          <div class="noise-tool-desc">Alpha at 0, Omega at 100 &mdash; one transfer curve blended between the two, not two distortions crossfaded. Omega has more gain and is deliberately lopsided, so it reads raw where Alpha stays tight and articulate.</div>
         </div>
         <div class="noise-tool geq-switch-row">
           <div class="swcell">
@@ -402,6 +424,11 @@
 <div id="preampCurve" style="display:none">
 
   <div class="section-label">Drive &mdash; <span>the same section, ahead of the curve</span></div>
+  <div class="fft-toggle-row">
+    <span class="ctrl-sub" style="margin:0 4px 0 0">Voice</span>
+    <button class="fft-btn active" type="button" data-drivekind="0" onclick="setDriveKind(0)">B7K</button>
+    <button class="fft-btn"        type="button" data-drivekind="1" onclick="setDriveKind(1)">Alpha&middot;Omega</button>
+  </div>
   <div class="noise-section">
     <div class="noise-tool">
       <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
@@ -414,6 +441,11 @@
     <div class="noise-tool">
       <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
       <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="noise-tool ao-only card-level" style="display:none">
+      <div class="ctrl-label">Mod <span class="val" data-val="mod">0%</span></div>
+      <input type="range" data-bind="mod" min="0" max="100" value="0" step="1">
+      <div class="noise-tool-desc">Alpha at 0, Omega at 100 &mdash; one transfer curve blended between the two, not two distortions crossfaded. Omega has more gain and is deliberately lopsided, so it reads raw where Alpha stays tight and articulate.</div>
     </div>
     <div class="noise-tool geq-switch-row">
       <div class="swcell">

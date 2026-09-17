@@ -1108,7 +1108,7 @@ body {
 <div class="header-row">
   <header>
     <h1>Bass <em>Analyzer</em></h1>
-    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.0.0 · 414ee1a</span></p>
+    <p>Preamp · tuner · spectrum <span class="app-ver" id="appVer">v4.1.0 · 8567d2f</span></p>
   </header>
   <div class="header-actions">
     <button class="skin-toggle" id="skinToggle" onclick="cycleSkin()" title="Skin" aria-label="Change skin">Classic</button>
@@ -1313,7 +1313,19 @@ body {
 
 <div id="preampB7k">
   <!-- ── PEDAL PANEL — knobs and switches ── -->
-  <div class="section-label">Pedal — <span>Microtubes B7K v2</span></div>
+  <div class="section-label">Pedal — <span data-drivename>Microtubes B7K v2</span></div>
+  <div class="fft-toggle-row">
+    <span class="ctrl-sub" style="margin:0 4px 0 0">Voice</span>
+    <button class="fft-btn active" type="button" data-drivekind="0" onclick="setDriveKind(0)">B7K</button>
+    <button class="fft-btn"        type="button" data-drivekind="1" onclick="setDriveKind(1)">Alpha&middot;Omega</button>
+  </div>
+  <div class="noise-section ao-only" style="display:none">
+    <div class="noise-tool card-level">
+      <div class="ctrl-label">Mod <span class="val" data-val="mod">0%</span></div>
+      <input type="range" data-bind="mod" min="0" max="100" value="0" step="1">
+      <div class="noise-tool-desc">Alpha at 0, Omega at 100 &mdash; one transfer curve blended between the two, not two distortions crossfaded. Omega has more gain and is deliberately lopsided, so it reads raw where Alpha stays tight and articulate.</div>
+    </div>
+  </div>
   <div class="pedal-panel">
     <div class="pedal-row top">
       <div class="knobcell">
@@ -1420,7 +1432,7 @@ body {
       </div>
       <div></div>
     </div>
-    <div class="pedal-caption">Microtubes B7K &middot; Analog Bass Preamp</div>
+    <div class="pedal-caption" data-drivecap>Microtubes B7K &middot; Analog Bass Preamp</div>
   </div>
   <p class="hint">
     Drag a knob, or use the scroll wheel and arrow keys. Detents are the 21
@@ -1465,7 +1477,12 @@ body {
       </div>
     </div>
     <div class="geq-col geq-col-right">
-      <div class="section-label">Drive — <span>the same B7K section, as faders</span></div>
+      <div class="section-label">Drive — <span>the same drive section, as faders</span></div>
+      <div class="fft-toggle-row">
+        <span class="ctrl-sub" style="margin:0 4px 0 0">Voice</span>
+        <button class="fft-btn active" type="button" data-drivekind="0" onclick="setDriveKind(0)">B7K</button>
+        <button class="fft-btn"        type="button" data-drivekind="1" onclick="setDriveKind(1)">Alpha&middot;Omega</button>
+      </div>
       <div class="noise-section">
         <div class="noise-tool">
           <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
@@ -1478,6 +1495,11 @@ body {
         <div class="noise-tool">
           <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
           <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="noise-tool ao-only card-level" style="display:none">
+          <div class="ctrl-label">Mod <span class="val" data-val="mod">0%</span></div>
+          <input type="range" data-bind="mod" min="0" max="100" value="0" step="1">
+          <div class="noise-tool-desc">Alpha at 0, Omega at 100 &mdash; one transfer curve blended between the two, not two distortions crossfaded. Omega has more gain and is deliberately lopsided, so it reads raw where Alpha stays tight and articulate.</div>
         </div>
         <div class="noise-tool geq-switch-row">
           <div class="swcell">
@@ -1506,6 +1528,11 @@ body {
 <div id="preampCurve" style="display:none">
 
   <div class="section-label">Drive &mdash; <span>the same section, ahead of the curve</span></div>
+  <div class="fft-toggle-row">
+    <span class="ctrl-sub" style="margin:0 4px 0 0">Voice</span>
+    <button class="fft-btn active" type="button" data-drivekind="0" onclick="setDriveKind(0)">B7K</button>
+    <button class="fft-btn"        type="button" data-drivekind="1" onclick="setDriveKind(1)">Alpha&middot;Omega</button>
+  </div>
   <div class="noise-section">
     <div class="noise-tool">
       <div class="ctrl-label">Blend <span class="val" data-val="blend">0%</span></div>
@@ -1518,6 +1545,11 @@ body {
     <div class="noise-tool">
       <div class="ctrl-label">Drive <span class="val" data-val="drive">0%</span></div>
       <input type="range" data-bind="drive" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="noise-tool ao-only card-level" style="display:none">
+      <div class="ctrl-label">Mod <span class="val" data-val="mod">0%</span></div>
+      <input type="range" data-bind="mod" min="0" max="100" value="0" step="1">
+      <div class="noise-tool-desc">Alpha at 0, Omega at 100 &mdash; one transfer curve blended between the two, not two distortions crossfaded. Omega has more gain and is deliberately lopsided, so it reads raw where Alpha stays tight and articulate.</div>
     </div>
     <div class="noise-tool geq-switch-row">
       <div class="swcell">
@@ -2288,7 +2320,7 @@ registerProcessor('wsola', WsolaProcessor);
 // exactly when the code moves and never when it does not. Comparing the stamp
 // on the phone against the one on the computer is the whole point: it answers
 // "am I looking at the current build?" without anyone having to check.
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.1.0';
 
 const LITE_DEFAULT = false;
 const LITE = LITE_DEFAULT ||
@@ -2315,14 +2347,35 @@ const state = {
   blend: 0,    // 0..100  clean → distorted (equal-power)
   level: 100,  // 0..100  wet path volume, 100 = unity
   drive: 0,    // 0..100  pre-clipper gain, 0..+32 dB
-  grunt: 1,    // 0 Thin · 1 Raw · 2 Fat
-  attack: 1    // 0 Cut · 1 Flat · 2 Boost
+  grunt: 1,     // 0 Thin · 1 Raw · 2 Fat    (Growl under Alpha·Omega)
+  attack: 1,    // 0 Cut · 1 Flat · 2 Boost  (Bite  under Alpha·Omega)
+  driveKind: 0, // 0 B7K · 1 Alpha·Omega — which transfer curve the clipper runs
+  mod: 0        // 0..100  Alpha → Omega, blended into ONE curve (Alpha·Omega only)
 };
 
 const GRUNT_DB  = [0, 4.5, 9];    // lowshelf @ 120 Hz, pre-clipper
 const ATTACK_DB = [-6, 0, 6];     // highshelf @ 3 kHz, pre-clipper
 const GRUNT_NAME  = ['Thin', 'Raw', 'Fat'];
 const ATTACK_NAME = ['Cut', 'Flat', 'Boost'];
+
+// ── Drive voices ───────────────────────────────────────────
+// Two clipping voices share one drive section. The switches keep their state
+// keys (grunt, attack) and change meaning and markings with the voice, so a
+// preset, a knob twin and the offline renderer need no knowledge of which
+// voice is up — one state, two faces.
+//
+// Confidence in the Alpha·Omega numbers is LOW (~35%): Darkglass publishes no
+// curves and no corner frequencies. What is right is the behaviour — Mod
+// blends one transfer curve from tight-and-odd to raw-and-asymmetric, Growl
+// adds low end ahead of the clipper, Bite lifts the upper mids there.
+const DRIVE_TITLE   = ['Microtubes B7K v2', 'Alpha·Omega'];
+const DRIVE_CAPTION = ['Microtubes B7K · Analog Bass Preamp',
+                       'Alpha·Omega · Dual-voice Bass Distortion'];
+const GROWL_DB   = [0, 5, 10];            // lowshelf @ 80 Hz, pre-clipper
+const BITE_DB    = [-7, 0, 7];            // peaking  @ 2.8 kHz, Q 1.1, pre-clipper
+const GROWL_NAME = ['Tight', 'Flat', 'Thick'];
+const BITE_NAME  = ['Soft', 'Flat', 'Sharp'];
+const driveIsAO  = () => state.driveKind === 1;
 
 // Level: linear in dB across the slider, −40 dB … 0 dB, hard zero at the bottom.
 function levelGain(l) { return l <= 0 ? 0 : Math.pow(10, ((l - 100) * 0.4) / 20); }
@@ -2848,8 +2901,9 @@ const VAL_FMT = {
   blend:  v => Math.round(v) + '%',
   level:  v => v <= 0 ? '−∞ dB' : (levelDb(v) >= 0 ? '' : '') + levelDb(v).toFixed(1) + ' dB',
   drive:  v => Math.round(v) + '%',
-  grunt:  v => GRUNT_NAME[v] || 'Raw',
-  attack: v => ATTACK_NAME[v] || 'Flat'
+  grunt:  v => driveIsAO() ? (GROWL_NAME[v] || 'Flat') : (GRUNT_NAME[v]  || 'Raw'),
+  attack: v => driveIsAO() ? (BITE_NAME[v]  || 'Flat') : (ATTACK_NAME[v] || 'Flat'),
+  mod:    v => Math.round(v) + '%'
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -3033,6 +3087,7 @@ function syncUI() {
     const on = String(state[k]) === btn.dataset.v;
     btn.classList.toggle('active', on);
   });
+  driveVoiceSync();
   // Level does nothing when Blend is fully clean — say so in the UI.
   syncPedalPanel();
   const dim = state.blend <= 0;
@@ -3047,6 +3102,71 @@ function syncUI() {
     lvlKnob.setAttribute('aria-disabled', String(dim));
     lvlKnob.tabIndex = dim ? -1 : 0;
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRIVE VOICE — B7K or Alpha·Omega
+//
+// Relabelled, not duplicated. The two 3-position switches keep their state
+// keys and their dot positions; only the markings, the tips and the filters
+// behind them change. That is why presets, the pedal panel, the fader panels
+// and the offline renderer all needed one field and no new plumbing.
+// ═══════════════════════════════════════════════════════════
+const DRIVE_KIND_KEY = 'b7k_drive_kind';
+const DRIVE_LABELS = [
+  { grunt:  ['Grunt',  GRUNT_NAME,
+             'Three-position switch selecting how much low end feeds the clipping stage. Pre-clipper only — it never touches the clean path.'],
+    attack: ['Attack', ATTACK_NAME,
+             'Three-position switch shaping the treble entering the clipping stage: Boost, Flat or Cut. Pre-clipper only — the clean path is unaffected.'] },
+  { grunt:  ['Growl',  GROWL_NAME,
+             'Three-position switch setting how much low end hits the clipper — a shelf at 80 Hz. Pre-clipper only, so the clean path keeps its bottom either way.'],
+    attack: ['Bite',   BITE_NAME,
+             'Three-position switch lifting or softening the upper mids into the clipper — a peak at 2.8 kHz, not a treble shelf. Pre-clipper only.'] }
+];
+
+function setDriveKind(k) {
+  state.driveKind = (parseFloat(k) === 1) ? 1 : 0;
+  try { localStorage.setItem(DRIVE_KIND_KEY, String(state.driveKind)); } catch (e) {}
+  syncUI();
+  render();
+}
+
+function initDrive() {
+  let k = 0;
+  try { k = parseFloat(localStorage.getItem(DRIVE_KIND_KEY)); } catch (e) {}
+  state.driveKind = k === 1 ? 1 : 0;
+}
+
+function driveVoiceSync() {
+  const i = driveIsAO() ? 1 : 0;
+  document.querySelectorAll('[data-drivekind]').forEach(b =>
+    b.classList.toggle('active', parseFloat(b.dataset.drivekind) === i));
+  document.querySelectorAll('.ao-only').forEach(el => { el.style.display = i ? '' : 'none'; });
+  document.querySelectorAll('[data-drivename]').forEach(el => { el.textContent = DRIVE_TITLE[i]; });
+  document.querySelectorAll('[data-drivecap]').forEach(el => { el.textContent = DRIVE_CAPTION[i]; });
+
+  const L = DRIVE_LABELS[i];
+  Object.keys(L).forEach(id => {
+    const cap = L[id][0], names = L[id][1], tip = L[id][2];
+    // Labels are matched by VALUE, not by position: the markup lists them in
+    // the order they appear on the pedal, which is not 0,1,2.
+    document.querySelectorAll('[data-swlabels="' + id + '"] span').forEach(sp => {
+      const v = parseFloat(sp.dataset.v);
+      if (Number.isFinite(v) && names[v]) sp.textContent = names[v];
+    });
+    document.querySelectorAll('[data-sw="' + id + '"]').forEach(pill => {
+      pill.setAttribute('aria-label', cap + ' switch');
+      const cell = pill.closest('.swcell');
+      const capEl = cell && cell.querySelector('.sw-cap');
+      if (!capEl) return;
+      // Only the leading text node — the cap can carry a ? tip button after it.
+      const t = Array.from(capEl.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
+      if (t) t.textContent = cap + ' ';
+      else capEl.insertBefore(document.createTextNode(cap + ' '), capEl.firstChild);
+      const bub = capEl.querySelector('.tip-bub');
+      if (bub) bub.textContent = tip;
+    });
+  });
 }
 
 function setParam(key, value) {
@@ -3140,6 +3260,7 @@ let driveGainNode = null;    // pre-clipper gain
 let gruntFilter = null;      // lowshelf, pre-clipper
 let attackFilter = null;     // highshelf, pre-clipper
 let clipperNode = null;      // asymmetric soft clip
+let dcBlockNode = null;      // 10 Hz highpass after the clipper — removes the DC step
 let sumBus = null;           // dry + wet
 
 // Preamp bus. Everything that can feed the preamp lands on preampIn, and the
@@ -3196,6 +3317,66 @@ function makeClipCurve(n) {
   return c;
 }
 
+// ── Alpha·Omega: two voices in one table ─────────────────────
+// ALPHA is symmetric on purpose. A symmetric curve makes odd harmonics only,
+// which is what keeps a bass articulate rather than woolly: tight and defined.
+//
+// OMEGA has more gain, reaches the rails sooner and is markedly asymmetric, so
+// even harmonics come up and it reads fuzzy and raw instead of tight.
+//
+// Both are cubic/quadratic reaches toward a rail rather than tanh, which is
+// what makes them audibly a different family from the B7K curve above.
+// Measured on an exact-bin 110 Hz sine (windowing matters: a non-integer
+// number of periods leaks and fakes both DC and even harmonics):
+//
+//   curve   in 0.7    THD    even/odd    DC
+//   B7K               12.7%    0.331    1.0e-2
+//   Alpha             17.8%    0.000   -1.1e-17
+//   Omega             26.9%    0.142    1.2e-1
+//
+// All four tables (including every Mod blend) are monotonic and inside ±1, so
+// nothing folds back — folding sounds like ring modulation, not distortion.
+function makeAlphaCurve(n) {
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / (n - 1) - 1;
+    const a = Math.abs(x), s = x < 0 ? -1 : 1;
+    const k = Math.min(a * 1.15, 1);
+    c[i] = s * (1 - Math.pow(1 - k, 3)) * 0.92;
+  }
+  return c;
+}
+
+function makeOmegaCurve(n) {
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / (n - 1) - 1;
+    if (x >= 0) { const a = Math.min(x * 2.6, 1); c[i] =  (1 - Math.pow(1 - a, 2)) * 0.98; }
+    else        { const a = Math.min(-x * 1.5, 1); c[i] = -(1 - Math.pow(1 - a, 3)) * 0.74; }
+  }
+  return c;
+}
+
+// Mod blends the TABLES, not two waveshapers. Crossfading two clipped signals
+// would sum two different distortions; blending the transfer curve gives one
+// clipper whose character moves continuously — which is what the knob implies.
+// Level barely moves across the sweep (0.07 dB measured), so Mod is a voice
+// control and not a hidden volume control.
+function makeDriveCurve(n, ao, mod) {
+  if (!ao) return makeClipCurve(n);
+  const A = makeAlphaCurve(n), O = makeOmegaCurve(n);
+  const m = Math.max(0, Math.min(1, (Number.isFinite(mod) ? mod : 0) / 100));
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) c[i] = (1 - m) * A[i] + m * O[i];
+  return c;
+}
+
+// A 4096-point table is cheap to build but not free, and applyAudioParams runs
+// on every knob move. The table is data, not an AudioParam, so it is rebuilt
+// only when the voice or Mod actually changes — Mod quantised to the slider's
+// own 1% step so a drag does not rebuild it 60 times a second.
+const driveCurveCache = { ao: false, mod: 0 };
+
 // ── Latency readout ────────────────────────────────────────
 // baseLatency and outputLatency are specified in SECONDS. A four-digit
 // millisecond result therefore means a browser is reporting something
@@ -3236,13 +3417,34 @@ function applyAudioParams() {
   levelGainNode.gain.setTargetAtTime(byp ? 1 : num(levelGain(num(state.level, 100)), 1), t, S);
   driveGainNode.gain.setTargetAtTime(byp ? 1 : num(driveGainOf(num(state.drive, 0)), 1), t, S);
 
-  gruntFilter.type = 'lowshelf';
-  gruntFilter.frequency.value = 120;
-  gruntFilter.gain.setTargetAtTime(byp ? 0 : num(GRUNT_DB[state.grunt], 0), t, S);
+  // Two voices, one pair of filters. Under Alpha·Omega the same two switches
+  // become Growl (a lower shelf) and Bite (a mid PEAK, not a treble shelf).
+  const ao = num(state.driveKind, 0) === 1;
 
-  attackFilter.type = 'highshelf';
-  attackFilter.frequency.value = 3000;
-  attackFilter.gain.setTargetAtTime(byp ? 0 : num(ATTACK_DB[state.attack], 0), t, S);
+  gruntFilter.type = 'lowshelf';
+  gruntFilter.frequency.value = ao ? 80 : 120;
+  gruntFilter.gain.setTargetAtTime(
+    byp ? 0 : num(ao ? GROWL_DB[state.grunt] : GRUNT_DB[state.grunt], 0), t, S);
+
+  attackFilter.type = ao ? 'peaking' : 'highshelf';
+  attackFilter.frequency.value = ao ? 2800 : 3000;
+  attackFilter.Q.value = 1.1;              // Web Audio ignores Q on a shelf
+  attackFilter.gain.setTargetAtTime(
+    byp ? 0 : num(ao ? BITE_DB[state.attack] : ATTACK_DB[state.attack], 0), t, S);
+
+  const wantMod = ao ? Math.round(num(state.mod, 0)) : 0;
+  if (driveCurveCache.ao !== ao || driveCurveCache.mod !== wantMod) {
+    clipperNode.curve = makeDriveCurve(4096, ao, wantMod);
+    driveCurveCache.ao = ao; driveCurveCache.mod = wantMod;
+  }
+
+  // DC blocker, after the clipper. Omega is deliberately asymmetric, which
+  // leaves a DC offset on the wet leg (0.12 measured at full drive); a step
+  // like that eats headroom and thumps when Blend moves. 10 Hz removes it and
+  // costs 0.05 dB at 31 Hz, so even a low-B fundamental is untouched.
+  dcBlockNode.type = 'highpass';
+  dcBlockNode.frequency.value = 10;
+  dcBlockNode.Q.value = 0.707;
 
   // ── EQ, post-blend ──
   filterLow.type = 'lowshelf';
@@ -3360,6 +3562,8 @@ async function startAudio() {
     clipperNode   = audioCtx.createWaveShaper();
     clipperNode.curve = makeClipCurve(4096);
     clipperNode.oversample = LITE ? 'none' : '4x';
+    driveCurveCache.ao = false; driveCurveCache.mod = 0;   // matches the curve just set
+    dcBlockNode   = audioCtx.createBiquadFilter();
     sumBus        = audioCtx.createGain();
     sumBus.gain.value = 1;
 
@@ -3428,7 +3632,8 @@ async function startAudio() {
     gruntFilter.connect(attackFilter);
     attackFilter.connect(driveGainNode);
     driveGainNode.connect(clipperNode);
-    clipperNode.connect(levelGainNode);
+    clipperNode.connect(dcBlockNode);
+    dcBlockNode.connect(levelGainNode);
     levelGainNode.connect(wetBlendNode);
     wetBlendNode.connect(sumBus);
 
@@ -3498,7 +3703,7 @@ function stopAudio() {
   inGainNode = outGainNode = null;
   preampIn = dtOut = compOut = null;
   dryGainNode = wetBlendNode = levelGainNode = driveGainNode = null;
-  gruntFilter = attackFilter = clipperNode = sumBus = null;
+  gruntFilter = attackFilter = clipperNode = dcBlockNode = sumBus = null;
   filterLow = filterLoMid = filterHiMid = filterTreble = null;
   filterHiss = filterNotch = gateGainNode = null;
   tunerAnalyser = null; tunerBuf = null;
@@ -6941,22 +7146,32 @@ async function loopRenderOffline() {
   const level = off.createGain(); level.gain.value = byp ? 1 : num(levelGain(num(state.level, 100)), 1);
   const drive = off.createGain(); drive.gain.value = byp ? 1 : num(driveGainOf(num(state.drive, 0)), 1);
 
+  // Same two voices as the live chain, read from the same state.
+  const ao = num(state.driveKind, 0) === 1;
+
   const grunt = off.createBiquadFilter();
-  grunt.type = 'lowshelf'; grunt.frequency.value = 120;
-  grunt.gain.value = byp ? 0 : num(GRUNT_DB[state.grunt], 0);
+  grunt.type = 'lowshelf'; grunt.frequency.value = ao ? 80 : 120;
+  grunt.gain.value = byp ? 0 : num(ao ? GROWL_DB[state.grunt] : GRUNT_DB[state.grunt], 0);
 
   const attack = off.createBiquadFilter();
-  attack.type = 'highshelf'; attack.frequency.value = 3000;
-  attack.gain.value = byp ? 0 : num(ATTACK_DB[state.attack], 0);
+  attack.type = ao ? 'peaking' : 'highshelf';
+  attack.frequency.value = ao ? 2800 : 3000;
+  attack.Q.value = 1.1;
+  attack.gain.value = byp ? 0 : num(ao ? BITE_DB[state.attack] : ATTACK_DB[state.attack], 0);
 
   const clip = off.createWaveShaper();
-  clip.curve = makeClipCurve(4096);
+  clip.curve = ao ? makeDriveCurve(4096, true, Math.round(num(state.mod, 0)))
+                  : makeClipCurve(4096);
   clip.oversample = LITE ? 'none' : '4x';
+
+  const dc = off.createBiquadFilter();
+  dc.type = 'highpass'; dc.frequency.value = 10; dc.Q.value = 0.707;
 
   const sum = off.createGain(); sum.gain.value = 1;
   head.connect(dry); dry.connect(sum);
   head.connect(grunt); grunt.connect(attack); attack.connect(drive);
-  drive.connect(clip); clip.connect(level); level.connect(wet); wet.connect(sum);
+  drive.connect(clip); clip.connect(dc); dc.connect(level);
+  level.connect(wet); wet.connect(sum);
 
   // ── whichever preamp is selected ──
   let tail = sum;
@@ -8320,6 +8535,8 @@ function normalizePreset(p) {
     drive:     pnum(o.drive,   0, 0, 100),
     grunt:     ppick(o.grunt,  1, [0, 1, 2]),
     attack:    ppick(o.attack, 1, [0, 1, 2]),
+    driveKind: ppick(o.driveKind, 0, [0, 1]),
+    mod:       pnum(o.mod, 0, 0, 100),
     preamp:      (o.preamp === 'geq' || o.preamp === 'curve') ? o.preamp : 'b7k',
     curvePts:    curveNormalise(o.curvePts),
     geqGains:    pgains(o.geqGains),
@@ -8380,6 +8597,7 @@ function savePreset() {
     hiMid: state.hiMid, hiMidFreq: state.hiMidFreq, hiMidQ: state.hiMidQ, treble: state.treble,
     blend: state.blend, level: state.level, drive: state.drive,
     grunt: state.grunt, attack: state.attack,
+    driveKind: state.driveKind, mod: state.mod,
     preamp: preampKind,
     geqGains: geq.gains.slice(),
     geqQs: geq.qs.slice(),
@@ -8400,7 +8618,7 @@ function applyPreset(idx) {
   const p = loadPresetsFromStorage()[idx];
   if (!p) return;
   ['low','loMid','loMidFreq','loMidQ','hiMid','hiMidFreq','hiMidQ','treble',
-   'blend','level','drive','grunt','attack'].forEach(k => { state[k] = p[k]; });
+   'blend','level','drive','grunt','attack','driveKind','mod'].forEach(k => { state[k] = p[k]; });
 
   for (let i = 0; i < GEQ_N; i++) { geq.gains[i] = p.geqGains[i]; geq.qs[i] = p.geqQs[i]; }
   geq.userFreq = p.geqUserFreq;
@@ -8480,6 +8698,7 @@ wireProbe();
 loadDetune();
 wireDetune();
 renderDetune();
+initDrive();
 
 syncUI();
 render();

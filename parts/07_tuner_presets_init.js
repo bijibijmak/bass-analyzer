@@ -216,6 +216,8 @@ function normalizePreset(p) {
     drive:     pnum(o.drive,   0, 0, 100),
     grunt:     ppick(o.grunt,  1, [0, 1, 2]),
     attack:    ppick(o.attack, 1, [0, 1, 2]),
+    driveKind: ppick(o.driveKind, 0, [0, 1]),
+    mod:       pnum(o.mod, 0, 0, 100),
     preamp:      (o.preamp === 'geq' || o.preamp === 'curve') ? o.preamp : 'b7k',
     curvePts:    curveNormalise(o.curvePts),
     geqGains:    pgains(o.geqGains),
@@ -276,6 +278,7 @@ function savePreset() {
     hiMid: state.hiMid, hiMidFreq: state.hiMidFreq, hiMidQ: state.hiMidQ, treble: state.treble,
     blend: state.blend, level: state.level, drive: state.drive,
     grunt: state.grunt, attack: state.attack,
+    driveKind: state.driveKind, mod: state.mod,
     preamp: preampKind,
     geqGains: geq.gains.slice(),
     geqQs: geq.qs.slice(),
@@ -296,7 +299,7 @@ function applyPreset(idx) {
   const p = loadPresetsFromStorage()[idx];
   if (!p) return;
   ['low','loMid','loMidFreq','loMidQ','hiMid','hiMidFreq','hiMidQ','treble',
-   'blend','level','drive','grunt','attack'].forEach(k => { state[k] = p[k]; });
+   'blend','level','drive','grunt','attack','driveKind','mod'].forEach(k => { state[k] = p[k]; });
 
   for (let i = 0; i < GEQ_N; i++) { geq.gains[i] = p.geqGains[i]; geq.qs[i] = p.geqQs[i]; }
   geq.userFreq = p.geqUserFreq;
@@ -376,6 +379,7 @@ wireProbe();
 loadDetune();
 wireDetune();
 renderDetune();
+initDrive();
 
 syncUI();
 render();

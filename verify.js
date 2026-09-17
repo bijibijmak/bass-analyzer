@@ -155,7 +155,8 @@ const wiringChecks = [
   ['wet: grunt → attack',       /gruntFilter\.connect\(attackFilter\)/],
   ['wet: attack → drive',       /attackFilter\.connect\(driveGainNode\)/],
   ['wet: drive → clipper',      /driveGainNode\.connect\(clipperNode\)/],
-  ['wet: clipper → level',      /clipperNode\.connect\(levelGainNode\)/],
+  ['wet: clipper → DC blocker', /clipperNode\.connect\(dcBlockNode\)/],
+  ['wet: DC blocker → level',   /dcBlockNode\.connect\(levelGainNode\)/],
   ['wet: level → blend → sum',  /levelGainNode\.connect\(wetBlendNode\)[\s\S]{0,60}wetBlendNode\.connect\(sumBus\)/],
   ['EQ is post-blend',          /sumBus\.connect\(filterLow\)/],
   ['spectrum splice point',     /gateGainNode\.connect\(outGainNode\)/],
@@ -283,7 +284,7 @@ else bad('eqNearestStep missing or snapping linearly');
 console.log('\n[9] presets');
 if (/b7k_presets_v2/.test(js)) ok('v2 key present'); else bad('v2 key missing');
 if (/b7k_presets_v1/.test(js)) ok('v1 key referenced for migration'); else bad('no v1 migration path');
-['blend','level','drive','grunt','attack'].forEach(k => {
+['blend','level','drive','grunt','attack','driveKind','mod'].forEach(k => {
   new RegExp(`${k}:\\s*p(?:num|pick)\\(`).test(js) ? ok(`${k} guarded in normalizePreset`) : bad(`${k} not guarded`);
 });
 

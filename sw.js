@@ -5,7 +5,7 @@
 // Service worker — network-first so the app always loads the newest version
 // when online, but still works offline from cache. Network-first avoids the
 // classic "stale PWA won't update" trap.
-const CACHE = 'b7k-414ee1a';
+const CACHE = 'b7k-8567d2f';
 const ASSETS = [
   './index.html',
   './wsola-worklet.js',

@@ -268,22 +268,32 @@ async function loopRenderOffline() {
   const level = off.createGain(); level.gain.value = byp ? 1 : num(levelGain(num(state.level, 100)), 1);
   const drive = off.createGain(); drive.gain.value = byp ? 1 : num(driveGainOf(num(state.drive, 0)), 1);
 
+  // Same two voices as the live chain, read from the same state.
+  const ao = num(state.driveKind, 0) === 1;
+
   const grunt = off.createBiquadFilter();
-  grunt.type = 'lowshelf'; grunt.frequency.value = 120;
-  grunt.gain.value = byp ? 0 : num(GRUNT_DB[state.grunt], 0);
+  grunt.type = 'lowshelf'; grunt.frequency.value = ao ? 80 : 120;
+  grunt.gain.value = byp ? 0 : num(ao ? GROWL_DB[state.grunt] : GRUNT_DB[state.grunt], 0);
 
   const attack = off.createBiquadFilter();
-  attack.type = 'highshelf'; attack.frequency.value = 3000;
-  attack.gain.value = byp ? 0 : num(ATTACK_DB[state.attack], 0);
+  attack.type = ao ? 'peaking' : 'highshelf';
+  attack.frequency.value = ao ? 2800 : 3000;
+  attack.Q.value = 1.1;
+  attack.gain.value = byp ? 0 : num(ao ? BITE_DB[state.attack] : ATTACK_DB[state.attack], 0);
 
   const clip = off.createWaveShaper();
-  clip.curve = makeClipCurve(4096);
+  clip.curve = ao ? makeDriveCurve(4096, true, Math.round(num(state.mod, 0)))
+                  : makeClipCurve(4096);
   clip.oversample = LITE ? 'none' : '4x';
+
+  const dc = off.createBiquadFilter();
+  dc.type = 'highpass'; dc.frequency.value = 10; dc.Q.value = 0.707;
 
   const sum = off.createGain(); sum.gain.value = 1;
   head.connect(dry); dry.connect(sum);
   head.connect(grunt); grunt.connect(attack); attack.connect(drive);
-  drive.connect(clip); clip.connect(level); level.connect(wet); wet.connect(sum);
+  drive.connect(clip); clip.connect(dc); dc.connect(level);
+  level.connect(wet); wet.connect(sum);
 
   // ── whichever preamp is selected ──
   let tail = sum;

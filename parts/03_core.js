@@ -13,7 +13,7 @@
 // exactly when the code moves and never when it does not. Comparing the stamp
 // on the phone against the one on the computer is the whole point: it answers
 // "am I looking at the current build?" without anyone having to check.
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.1.0';
 
 const LITE_DEFAULT = false;
 const LITE = LITE_DEFAULT ||
@@ -40,14 +40,35 @@ const state = {
   blend: 0,    // 0..100  clean → distorted (equal-power)
   level: 100,  // 0..100  wet path volume, 100 = unity
   drive: 0,    // 0..100  pre-clipper gain, 0..+32 dB
-  grunt: 1,    // 0 Thin · 1 Raw · 2 Fat
-  attack: 1    // 0 Cut · 1 Flat · 2 Boost
+  grunt: 1,     // 0 Thin · 1 Raw · 2 Fat    (Growl under Alpha·Omega)
+  attack: 1,    // 0 Cut · 1 Flat · 2 Boost  (Bite  under Alpha·Omega)
+  driveKind: 0, // 0 B7K · 1 Alpha·Omega — which transfer curve the clipper runs
+  mod: 0        // 0..100  Alpha → Omega, blended into ONE curve (Alpha·Omega only)
 };
 
 const GRUNT_DB  = [0, 4.5, 9];    // lowshelf @ 120 Hz, pre-clipper
 const ATTACK_DB = [-6, 0, 6];     // highshelf @ 3 kHz, pre-clipper
 const GRUNT_NAME  = ['Thin', 'Raw', 'Fat'];
 const ATTACK_NAME = ['Cut', 'Flat', 'Boost'];
+
+// ── Drive voices ───────────────────────────────────────────
+// Two clipping voices share one drive section. The switches keep their state
+// keys (grunt, attack) and change meaning and markings with the voice, so a
+// preset, a knob twin and the offline renderer need no knowledge of which
+// voice is up — one state, two faces.
+//
+// Confidence in the Alpha·Omega numbers is LOW (~35%): Darkglass publishes no
+// curves and no corner frequencies. What is right is the behaviour — Mod
+// blends one transfer curve from tight-and-odd to raw-and-asymmetric, Growl
+// adds low end ahead of the clipper, Bite lifts the upper mids there.
+const DRIVE_TITLE   = ['Microtubes B7K v2', 'Alpha·Omega'];
+const DRIVE_CAPTION = ['Microtubes B7K · Analog Bass Preamp',
+                       'Alpha·Omega · Dual-voice Bass Distortion'];
+const GROWL_DB   = [0, 5, 10];            // lowshelf @ 80 Hz, pre-clipper
+const BITE_DB    = [-7, 0, 7];            // peaking  @ 2.8 kHz, Q 1.1, pre-clipper
+const GROWL_NAME = ['Tight', 'Flat', 'Thick'];
+const BITE_NAME  = ['Soft', 'Flat', 'Sharp'];
+const driveIsAO  = () => state.driveKind === 1;
 
 // Level: linear in dB across the slider, −40 dB … 0 dB, hard zero at the bottom.
 function levelGain(l) { return l <= 0 ? 0 : Math.pow(10, ((l - 100) * 0.4) / 20); }
@@ -573,8 +594,9 @@ const VAL_FMT = {
   blend:  v => Math.round(v) + '%',
   level:  v => v <= 0 ? '−∞ dB' : (levelDb(v) >= 0 ? '' : '') + levelDb(v).toFixed(1) + ' dB',
   drive:  v => Math.round(v) + '%',
-  grunt:  v => GRUNT_NAME[v] || 'Raw',
-  attack: v => ATTACK_NAME[v] || 'Flat'
+  grunt:  v => driveIsAO() ? (GROWL_NAME[v] || 'Flat') : (GRUNT_NAME[v]  || 'Raw'),
+  attack: v => driveIsAO() ? (BITE_NAME[v]  || 'Flat') : (ATTACK_NAME[v] || 'Flat'),
+  mod:    v => Math.round(v) + '%'
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -758,6 +780,7 @@ function syncUI() {
     const on = String(state[k]) === btn.dataset.v;
     btn.classList.toggle('active', on);
   });
+  driveVoiceSync();
   // Level does nothing when Blend is fully clean — say so in the UI.
   syncPedalPanel();
   const dim = state.blend <= 0;
@@ -772,6 +795,71 @@ function syncUI() {
     lvlKnob.setAttribute('aria-disabled', String(dim));
     lvlKnob.tabIndex = dim ? -1 : 0;
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRIVE VOICE — B7K or Alpha·Omega
+//
+// Relabelled, not duplicated. The two 3-position switches keep their state
+// keys and their dot positions; only the markings, the tips and the filters
+// behind them change. That is why presets, the pedal panel, the fader panels
+// and the offline renderer all needed one field and no new plumbing.
+// ═══════════════════════════════════════════════════════════
+const DRIVE_KIND_KEY = 'b7k_drive_kind';
+const DRIVE_LABELS = [
+  { grunt:  ['Grunt',  GRUNT_NAME,
+             'Three-position switch selecting how much low end feeds the clipping stage. Pre-clipper only — it never touches the clean path.'],
+    attack: ['Attack', ATTACK_NAME,
+             'Three-position switch shaping the treble entering the clipping stage: Boost, Flat or Cut. Pre-clipper only — the clean path is unaffected.'] },
+  { grunt:  ['Growl',  GROWL_NAME,
+             'Three-position switch setting how much low end hits the clipper — a shelf at 80 Hz. Pre-clipper only, so the clean path keeps its bottom either way.'],
+    attack: ['Bite',   BITE_NAME,
+             'Three-position switch lifting or softening the upper mids into the clipper — a peak at 2.8 kHz, not a treble shelf. Pre-clipper only.'] }
+];
+
+function setDriveKind(k) {
+  state.driveKind = (parseFloat(k) === 1) ? 1 : 0;
+  try { localStorage.setItem(DRIVE_KIND_KEY, String(state.driveKind)); } catch (e) {}
+  syncUI();
+  render();
+}
+
+function initDrive() {
+  let k = 0;
+  try { k = parseFloat(localStorage.getItem(DRIVE_KIND_KEY)); } catch (e) {}
+  state.driveKind = k === 1 ? 1 : 0;
+}
+
+function driveVoiceSync() {
+  const i = driveIsAO() ? 1 : 0;
+  document.querySelectorAll('[data-drivekind]').forEach(b =>
+    b.classList.toggle('active', parseFloat(b.dataset.drivekind) === i));
+  document.querySelectorAll('.ao-only').forEach(el => { el.style.display = i ? '' : 'none'; });
+  document.querySelectorAll('[data-drivename]').forEach(el => { el.textContent = DRIVE_TITLE[i]; });
+  document.querySelectorAll('[data-drivecap]').forEach(el => { el.textContent = DRIVE_CAPTION[i]; });
+
+  const L = DRIVE_LABELS[i];
+  Object.keys(L).forEach(id => {
+    const cap = L[id][0], names = L[id][1], tip = L[id][2];
+    // Labels are matched by VALUE, not by position: the markup lists them in
+    // the order they appear on the pedal, which is not 0,1,2.
+    document.querySelectorAll('[data-swlabels="' + id + '"] span').forEach(sp => {
+      const v = parseFloat(sp.dataset.v);
+      if (Number.isFinite(v) && names[v]) sp.textContent = names[v];
+    });
+    document.querySelectorAll('[data-sw="' + id + '"]').forEach(pill => {
+      pill.setAttribute('aria-label', cap + ' switch');
+      const cell = pill.closest('.swcell');
+      const capEl = cell && cell.querySelector('.sw-cap');
+      if (!capEl) return;
+      // Only the leading text node — the cap can carry a ? tip button after it.
+      const t = Array.from(capEl.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
+      if (t) t.textContent = cap + ' ';
+      else capEl.insertBefore(document.createTextNode(cap + ' '), capEl.firstChild);
+      const bub = capEl.querySelector('.tip-bub');
+      if (bub) bub.textContent = tip;
+    });
+  });
 }
 
 function setParam(key, value) {
