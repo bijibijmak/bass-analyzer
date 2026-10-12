@@ -87,9 +87,9 @@ function geqSplice() {
   if (!geqNodes) return;
   try {
     sumBus.disconnect(filterLow);
-    filterTreble.disconnect(filterHiss);
+    filterTreble.disconnect(eqOut);
     sumBus.connect(geqNodes.in);
-    geqNodes.out.connect(filterHiss);
+    geqNodes.out.connect(eqOut);
     geqSpliced = true;
   } catch (e) { console.warn('[GEQ] splice', e); }
 }
@@ -97,9 +97,9 @@ function geqUnsplice() {
   if (!geqSpliced) return;
   try {
     sumBus.disconnect(geqNodes.in);
-    geqNodes.out.disconnect(filterHiss);
+    geqNodes.out.disconnect(eqOut);
     sumBus.connect(filterLow);
-    filterTreble.connect(filterHiss);
+    filterTreble.connect(eqOut);
   } catch (e) { console.warn('[GEQ] unsplice', e); }
   geqSpliced = false;
   geqDestroy();

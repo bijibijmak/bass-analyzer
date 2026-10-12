@@ -234,7 +234,12 @@ function normalizePreset(p) {
     compRelease:   pnum(o.compRelease,   120,  10, 1000),
     compMakeup:    pnum(o.compMakeup,      0,   0, 24),
     compAutoMakeup: o.compAutoMakeup === undefined ? true : !!o.compAutoMakeup,
-    compKnee:      pnum(o.compKnee,        6,   0, 24)
+    compKnee:      pnum(o.compKnee,        6,   0, 24),
+    chorusOn:    !!o.chorusOn,
+    chorusRate:  pnum(o.chorusRate,  0.8, 0.05, 8),
+    chorusDepth: pnum(o.chorusDepth,  45,    0, 100),
+    chorusMix:   pnum(o.chorusMix,    50,    0, 100),
+    chorusLows:  pnum(o.chorusLows,  120,    0, 300)
   };
 }
 
@@ -288,7 +293,9 @@ function savePreset() {
     geqVolume: geq.volume,
     compOn: comp.on, compThreshold: comp.threshold, compRatio: comp.ratio,
     compAttack: comp.attack, compRelease: comp.release,
-    compMakeup: comp.makeup, compAutoMakeup: comp.autoMakeup, compKnee: comp.knee
+    compMakeup: comp.makeup, compAutoMakeup: comp.autoMakeup, compKnee: comp.knee,
+    chorusOn: chorus.on, chorusRate: chorus.rate, chorusDepth: chorus.depth,
+    chorusMix: chorus.mix, chorusLows: chorus.lows
   }));
   savePresetsToStorage(presets);
   nameEl.value = '';
@@ -315,6 +322,10 @@ function applyPreset(idx) {
   comp.attack = p.compAttack; comp.release = p.compRelease;
   comp.makeup = p.compMakeup; comp.autoMakeup = p.compAutoMakeup; comp.knee = p.compKnee;
   compSave(); compApply();
+
+  chorusAdopt({ on: p.chorusOn, rate: p.chorusRate, depth: p.chorusDepth,
+                mix: p.chorusMix, lows: p.chorusLows });
+  chorusSave(); chorusApply(false); chorusSyncUI();
   setPreamp(p.preamp);      // also redraws, so the curve follows the recall
 
   syncUI();
@@ -362,6 +373,7 @@ initGeq();
 initCurve();
 initFftRange();
 initComp();
+initChorus();
 initLoop();
 wireTrim('inTrimKnob',  'inTrimVal');
 wireTrim('outTrimKnob', 'outTrimVal');

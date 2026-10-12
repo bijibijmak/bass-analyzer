@@ -344,6 +344,32 @@ async function loopRenderOffline() {
     tail = treble;
   }
 
+  // ── chorus, exactly where the live chain has it ──
+  // Rendered offline the LFO starts at phase 0 every time, so an export is
+  // reproducible rather than catching the sweep wherever it happened to be.
+  if (chorus.on) {
+    const cin = off.createGain();
+    const cdry = off.createGain(), cwet = off.createGain(), csum = off.createGain();
+    const chp = off.createBiquadFilter();
+    chp.type = 'highpass'; chp.Q.value = 0.707;
+    chp.frequency.value = num(chorus.lows, 0) > 20 ? num(chorus.lows, 120) : 10;
+    const cdel = off.createDelay(0.05);
+    cdel.delayTime.value = CHORUS_BASE_MS / 1000;
+    const clfo = off.createOscillator(), clfoG = off.createGain();
+    clfo.type = 'sine';
+    clfo.frequency.value = Math.max(0.05, num(chorus.rate, 0.8));
+    clfoG.gain.value = byp ? 0 : chorusSweepMs() / 1000;
+    const cg = blendGains(byp ? 0 : Math.max(0, Math.min(100, num(chorus.mix, 50))));
+    cdry.gain.value = num(cg.dry, 1);
+    cwet.gain.value = num(cg.wet, 0);
+    clfo.connect(clfoG); clfoG.connect(cdel.delayTime);
+    tail.connect(cin);
+    cin.connect(cdry); cdry.connect(csum);
+    cin.connect(chp); chp.connect(cdel); cdel.connect(cwet); cwet.connect(csum);
+    clfo.start();
+    tail = csum;
+  }
+
   // ── cleanup, minus the gate ──
   const hiss = off.createBiquadFilter();
   hiss.type = 'lowpass';

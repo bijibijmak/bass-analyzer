@@ -285,7 +285,7 @@ function initTheme() {
 // Only one panel's DOM is displayed at a time. Entering or leaving
 // the Spectrum tab connects / disconnects its filter chain.
 // ═══════════════════════════════════════════════════════════
-const TABS = ['preamp', 'tuner', 'spectrum', 'detune', 'wah', 'mix'];
+const TABS = ['preamp', 'tuner', 'spectrum', 'detune', 'wah', 'chorus', 'mix'];
 let activeTab = 'preamp';
 
 function setTab(name) {
@@ -922,5 +922,7 @@ function redrawStatic() {
     renderDetune();
   } else if (activeTab === 'wah') {
     wahSyncUI();
+  } else if (activeTab === 'chorus') {
+    chorusSyncUI();
   }
 }

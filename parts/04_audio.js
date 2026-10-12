@@ -28,6 +28,7 @@ let gruntFilter = null;      // lowshelf, pre-clipper
 let attackFilter = null;     // highshelf, pre-clipper
 let clipperNode = null;      // asymmetric soft clip
 let dcBlockNode = null;      // 10 Hz highpass after the clipper — removes the DC step
+let eqOut = null;            // the preamp's tail, whichever preamp — the chorus splices here
 let sumBus = null;           // dry + wet
 
 // Preamp bus. Everything that can feed the preamp lands on preampIn, and the
@@ -213,6 +214,10 @@ function applyAudioParams() {
   dcBlockNode.frequency.value = 10;
   dcBlockNode.Q.value = 0.707;
 
+  // The chorus keeps its own state, but Bypass is decided here, so it is
+  // told on the same pass that silences everything else.
+  chorusApply(false);
+
   // ── EQ, post-blend ──
   filterLow.type = 'lowshelf';
   filterLow.frequency.value = 100;
@@ -339,6 +344,11 @@ async function startAudio() {
     filterLoMid  = audioCtx.createBiquadFilter();
     filterHiMid  = audioCtx.createBiquadFilter();
     filterTreble = audioCtx.createBiquadFilter();
+    // One node every preamp returns to. The graphic EQ and the curve both
+    // replace the B7K's four filters, and before this existed they each
+    // reconnected straight to filterHiss — so anything spliced into that
+    // edge was silently dropped the moment you switched preamp.
+    eqOut        = audioCtx.createGain();
     filterHiss   = audioCtx.createBiquadFilter();
     filterNotch  = audioCtx.createBiquadFilter();
     gateGainNode = audioCtx.createGain();
@@ -409,7 +419,8 @@ async function startAudio() {
     filterLow.connect(filterLoMid);
     filterLoMid.connect(filterHiMid);
     filterHiMid.connect(filterTreble);
-    filterTreble.connect(filterHiss);
+    filterTreble.connect(eqOut);
+    eqOut.connect(filterHiss);          // the chorus splices across this edge
     filterHiss.connect(filterNotch);
     filterNotch.connect(gateGainNode);
     gateGainNode.connect(outAnalyser);
@@ -424,6 +435,7 @@ async function startAudio() {
     startUiLoop();
     geqOnAudioStart();   // the selected preamp may not be the B7K
     curveOnAudioStart();
+    chorusOnAudioStart();
     compApply();         // and the compressor may be on
 
     document.getElementById('audioToggle').textContent = '⏹ Disable Audio';
@@ -457,6 +469,7 @@ async function startAudio() {
 // ── Stop ───────────────────────────────────────────────────
 function stopAudio() {
   spectrumExit(true);
+  chorusReset();          // its nodes died with the context too
   detuneReset();          // the worklet dies with the context
   loopReset();            // its nodes died with the context too
   compReset();            // ditto, and compBuild() short-circuits on a stale node
@@ -471,7 +484,7 @@ function stopAudio() {
   preampIn = dtOut = compOut = null;
   dryGainNode = wetBlendNode = levelGainNode = driveGainNode = null;
   gruntFilter = attackFilter = clipperNode = dcBlockNode = sumBus = null;
-  filterLow = filterLoMid = filterHiMid = filterTreble = null;
+  filterLow = filterLoMid = filterHiMid = filterTreble = eqOut = null;
   filterHiss = filterNotch = gateGainNode = null;
   tunerAnalyser = null; tunerBuf = null;
   inAnalyser = outAnalyser = inBuf = outBuf = null;

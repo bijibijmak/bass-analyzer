@@ -82,7 +82,7 @@ setTimeout(() => {
   else ok('no errors during init');
 
   console.log('\n[2] tab switching');
-  const panels = ['preamp', 'tuner', 'spectrum', 'detune', 'mix'];
+  const panels = ['preamp', 'tuner', 'spectrum', 'detune', 'chorus', 'mix'];
   let tabOk = true;
   for (const t of panels) {
     try { ev('setTab')(t); } catch (e) { bad(`setTab('${t}') threw: ${e.message}`); tabOk = false; continue; }
@@ -197,7 +197,7 @@ setTimeout(() => {
     // still be a finite number.
     // paraBands is an array of objects; its contents are checked below rather
     // than by the flat finite sweep.
-    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'curvePts', 'compOn', 'compAutoMakeup']);
+    const SKIP = new Set(['name', 'preamp', 'geqGains', 'geqQs', 'curvePts', 'compOn', 'compAutoMakeup', 'chorusOn']);
     const badBand = (arr) => !Array.isArray(arr) || arr.length < 2 || arr.some(b =>
       !b || !Number.isFinite(b.f) || !Number.isFinite(b.db) ||
       b.f < 20 || b.f > 10000 || Math.abs(b.db) > 18);
@@ -344,7 +344,7 @@ setTimeout(() => {
   console.log('\n[10] toggles that must not throw without audio');
   ['toggleFFT','togglePeakLine','toggleScopePanel','toggleHiss','toggleGate','toggleNotch',
    'toggleInstruments','toggleTheme','toggleTuner','openRef','closeRef','resetPeakHold',
-   'togglePeakHold','toggleBypass'].forEach(fn => {
+   'togglePeakHold','toggleBypass','chorusToggle','chorusToggle'].forEach(fn => {
     try { ev(fn)(); } catch (e) { bad(`${fn}() threw: ${e.message}`); }
   });
   ok('14 UI toggles survive being called with no AudioContext');
@@ -1135,6 +1135,13 @@ setTimeout(() => {
     if (!missing.length) ok(`all ${refs.size} live parameters appear in the offline renderer`);
     else bad('the renderer never reads: ' + missing.join(', '));
 
+    // The chorus is a separate object, so the state.* sweep above cannot see
+    // it. Name its parameters explicitly or a chorus knob could go missing
+    // from your WAV with every test still green.
+    ['chorus.on', 'chorus.rate', 'chorus.mix', 'chorus.lows', 'chorusSweepMs', 'CHORUS_BASE_MS']
+      .forEach(r => off.indexOf(r) >= 0 ? ok(`the renderer reads ${r}`)
+                                        : bad(`the renderer never reads ${r}`));
+
     // And the two deliberate omissions must stay omitted, not creep back.
     if (off.indexOf('gateGainNode') < 0 && off.indexOf('dtNode') < 0)
       ok('the gate and the detune stay out of exports, as documented');
@@ -1154,6 +1161,75 @@ setTimeout(() => {
     if (!d.getElementById('loopExportBtn')) ok('the Capture output button is gone');
     else bad('the capture button is still there');
   } catch (e) { bad('export drift check threw: ' + e.stack); }
+
+  console.log('\n[23] chorus');
+  try {
+    ev('setTab')('chorus');
+    if (d.getElementById('panel-chorus').classList.contains('active')) ok('the chorus tab opens');
+    else bad('the chorus panel did not activate');
+
+    // The readout is the only place the maths is visible to you, so it is the
+    // thing worth asserting. A delay line retunes by 1 - D'(t); for a sine
+    // sweep the peak slope is amplitude x 2(pi)f, and the flat side is wider
+    // than the sharp side.
+    ev('chorusSet')('depth', 100);
+    ev('chorusSet')('rate', 1);
+    const A = 0.0035, want = -1200 * Math.log2(1 - A * 2 * Math.PI * 1);
+    const got = ev('chorusCents')();
+    if (Math.abs(got - want) < 0.01) ok(`detune maths agrees: ${got.toFixed(1)} cents at full depth, 1 Hz`);
+    else bad(`chorusCents() says ${got.toFixed(2)}, the maths says ${want.toFixed(2)}`);
+    if (Math.abs(ev('chorusMinMs')() - 3.5) < 1e-9 && Math.abs(ev('chorusMaxMs')() - 10.5) < 1e-9)
+      ok('the sweep stays inside 3.5 - 10.5 ms, so it never reaches flanger territory');
+    else bad(`sweep is ${ev('chorusMinMs')()} - ${ev('chorusMaxMs')()} ms`);
+
+    // The delay must never be asked to go negative at the bottom of the sine.
+    if (ev('chorusMinMs')() > 0) ok('the delay stays positive at full depth');
+    else bad('full depth would drive the delay negative');
+
+    const info = d.getElementById('chorusInfo').textContent;
+    if (/3\.50/.test(info) && /10\.50/.test(info) && /cents/.test(info))
+      ok('the panel prints the sweep and the detune: ' + info.replace(/\s+/g, ' ').trim());
+    else bad('the readout says "' + info + '"');
+
+    // Hand-edited storage must not reach an oscillator.
+    ev('chorusSet')('rate', 99);
+    if (ev('chorus').rate === 8) ok('rate clamps to 8 Hz');
+    else bad('rate is ' + ev('chorus').rate);
+    ev('chorusSet')('lows', -5);
+    if (ev('chorus').lows === 0) ok('the low control clamps at 0');
+    else bad('lows is ' + ev('chorus').lows);
+
+    const norm = ev('normalizePreset')({ chorusRate: 999, chorusMix: -4, chorusDepth: 'x' });
+    if (norm.chorusRate === 8 && norm.chorusMix === 0 && norm.chorusDepth === 45)
+      ok('a preset carrying nonsense is clamped on the way in');
+    else bad(`preset normalised to ${norm.chorusRate}/${norm.chorusMix}/${norm.chorusDepth}`);
+
+    // Round-trip through a saved preset, which is how a setting actually
+    // survives a session.
+    ev('chorusSet')('rate', 2.5);
+    ev('chorusSet')('mix', 70);
+    if (!ev('chorus').on) ev('chorusToggle')();
+    d.getElementById('presetName').value = 'ChorusRT';
+    ev('savePreset')();
+    ev('chorusSet')('rate', 0.1);
+    ev('chorusToggle')();                      // off again
+    const idx = ev('loadPresetsFromStorage')().findIndex(p => p.name === 'ChorusRT');
+    ev('applyPreset')(idx);
+    const c = ev('chorus');
+    if (c.on && c.rate === 2.5 && c.mix === 70) ok('a preset recalls the chorus too');
+    else bad(`preset recalled on=${c.on} rate=${c.rate} mix=${c.mix}`);
+
+    const btn = d.getElementById('chorusBtn');
+    if (/ON/.test(btn.textContent) && btn.classList.contains('active')) ok('the switch reads ON when it is on');
+    else bad('the switch says ' + btn.textContent);
+
+    const faders = [...d.querySelectorAll('input[data-chs]')].map(e2 => e2.dataset.chs).sort();
+    if (faders.join(',') === 'depth,lows,mix,rate') ok('four controls, all bound');
+    else bad('controls are ' + faders.join(','));
+
+    ev('chorusToggle')();                      // leave it off for the rest
+    ev('setTab')('preamp');
+  } catch (e) { bad('chorus test threw: ' + e.stack); }
 
   console.log('\n[13] no late errors');
   if (errors.length) bad('errors accumulated:\n      ' + errors.join('\n      '));

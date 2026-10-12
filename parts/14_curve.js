@@ -213,9 +213,9 @@ function curveSplice() {
   if (!curveNodes) return;
   try {
     sumBus.disconnect(filterLow);
-    filterTreble.disconnect(filterHiss);
+    filterTreble.disconnect(eqOut);
     sumBus.connect(curveNodes.in);
-    curveNodes.out.connect(filterHiss);
+    curveNodes.out.connect(eqOut);
     curveSpliced = true;
   } catch (e) { console.warn('[Curve] splice', e); }
 }
@@ -223,9 +223,9 @@ function curveUnsplice() {
   if (!curveSpliced) return;
   try {
     sumBus.disconnect(curveNodes.in);
-    curveNodes.out.disconnect(filterHiss);
+    curveNodes.out.disconnect(eqOut);
     sumBus.connect(filterLow);
-    filterTreble.connect(filterHiss);
+    filterTreble.connect(eqOut);
   } catch (e) { console.warn('[Curve] unsplice', e); }
   curveSpliced = false;
   curveDestroy();

@@ -34,7 +34,7 @@ const wanted = new Set();
 for (const mm of js.matchAll(/getElementById\(\s*'([^']+)'\s*\)/g)) wanted.add(mm[1]);
 for (const mm of js.matchAll(/getElementById\(\s*"([^"]+)"\s*\)/g)) wanted.add(mm[1]);
 // dynamic id built by concatenation — check the expansions explicitly
-const TAB_NAMES = ['preamp','tuner','spectrum','detune','wah','mix'];
+const TAB_NAMES = ['preamp','tuner','spectrum','detune','wah','chorus','mix'];
 const dynamic = [
   ...TAB_NAMES.map(t => 'panel-' + t),
   ...TAB_NAMES.map(t => 'tab-' + t),
@@ -159,6 +159,8 @@ const wiringChecks = [
   ['wet: DC blocker → level',   /dcBlockNode\.connect\(levelGainNode\)/],
   ['wet: level → blend → sum',  /levelGainNode\.connect\(wetBlendNode\)[\s\S]{0,60}wetBlendNode\.connect\(sumBus\)/],
   ['EQ is post-blend',          /sumBus\.connect\(filterLow\)/],
+  ['preamp tail → eqOut',       /filterTreble\.connect\(eqOut\)/],
+  ['eqOut → cleanup',           /eqOut\.connect\(filterHiss\)/],
   ['spectrum splice point',     /gateGainNode\.connect\(outGainNode\)/],
 ];
 wiringChecks.forEach(([label, re]) => re.test(js) ? ok(label) : bad(label));
@@ -185,14 +187,31 @@ wiringChecks.forEach(([label, re]) => re.test(js) ? ok(label) : bad(label));
   else ok(`${name} splice edges agree with the graph`);
 });
 
+// The chorus splices across ONE edge, and every preamp has to land on the
+// far side of it. The graphic EQ and the curve used to reconnect straight to
+// filterHiss, so a chorus spliced there would have been dropped silently the
+// moment you switched preamp — the sound would simply lose the effect with
+// no error anywhere. These literals are what stop that coming back.
+console.log('\n[8b] chorus placement');
+[
+  ['eqOut.disconnect(filterHiss)',      'chorus opens the eqOut → filterHiss edge'],
+  ['eqOut.connect(chsNodes.in)',        'chorus is fed from eqOut'],
+  ['chsNodes.out.connect(filterHiss)',  'chorus returns to the cleanup chain'],
+  ['eqOut.disconnect(chsNodes.in)',     'chorus unsplice drops its input'],
+  ['chsNodes.out.disconnect(filterHiss)', 'chorus unsplice releases filterHiss'],
+  ['eqOut.connect(filterHiss)',         'chorus unsplice restores the direct edge'],
+  ['geqNodes.out.connect(eqOut)',       'the graphic EQ lands on eqOut, not past it'],
+  ['curveNodes.out.connect(eqOut)',     'the curve lands on eqOut, not past it'],
+].forEach(([lit, label]) => js.indexOf(lit) >= 0 ? ok(label) : bad(`${label} — no "${lit}"`));
+
 // Every node the graph builds must be released when the context closes, or
 // the next Enable Audio splices a corpse into a live graph.
-['preampIn', 'dtOut', 'compOut'].forEach(n => {
+['preampIn', 'dtOut', 'compOut', 'eqOut'].forEach(n => {
   const stop = (js.match(/function stopAudio\(\)[\s\S]*?\n\}/) || [''])[0];
   if (new RegExp(`\\b${n}\\b`).test(stop)) ok(`${n} released on stop`);
   else bad(`${n} survives stopAudio — a stale node will be spliced into the next context`);
 });
-['loopReset', 'compReset', 'detuneReset'].forEach(fn => {
+['loopReset', 'compReset', 'detuneReset', 'chorusReset'].forEach(fn => {
   const stop = (js.match(/function stopAudio\(\)[\s\S]*?\n\}/) || [''])[0];
   if (stop.indexOf(fn + '()') >= 0) ok(`stopAudio calls ${fn}()`);
   else bad(`stopAudio never calls ${fn}() — module state outlives its context`);
@@ -292,7 +311,7 @@ if (/b7k_presets_v1/.test(js)) ok('v1 key referenced for migration'); else bad('
 console.log('\n[10] tabs');
 const tabsDecl = (js.match(/const TABS = \[([^\]]*)\]/) || [])[1] || '';
 const declared = tabsDecl.split(',').map(s2 => s2.trim().replace(/['"]/g, '')).filter(Boolean);
-if (declared.join(',') === TAB_NAMES.join(',')) ok('TABS matches the five panels: ' + declared.join(', '));
+if (declared.join(',') === TAB_NAMES.join(',')) ok('TABS matches every panel: ' + declared.join(', '));
 else bad(`TABS is [${declared}], markup has [${TAB_NAMES}]`);
 TAB_NAMES.forEach(t => {
   if (!new RegExp(`setTab\\('${t}'\\)`).test(markup)) bad(`no island button calls setTab('${t}')`);
